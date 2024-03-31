@@ -6,7 +6,7 @@ AdaptiveSpecies<Model>::AdaptiveSpecies(Model M, bool res) : Species<Model>(M) {
 	fitness_gradient.resize(n, 0);
 	trait_scalars.resize(n,1);
 	trait_variance.resize(n, 0.01);
-	for (int i=0; i<n; ++i) trait_names.push_back("T"+std::to_string(i));
+	for (int i=0; i<n; ++i) evolvable_traits.push_back("T"+std::to_string(i));
 	invasion_fitness = 0;
 	r0 = 1;
 	isResident = res;
@@ -112,7 +112,7 @@ void AdaptiveSpecies<Model>::save(std::ostream &fout){
 	fout << fitness_gradient
 	     << trait_variance
 		 << trait_scalars
-		 << trait_names;  // trait names dont contain whitespaces, so safe to write this way
+		 << evolvable_traits;  // trait names dont contain whitespaces, so safe to write this way
 	
 	// MovingAveragers
 	seeds_hist.save(fout);
@@ -146,7 +146,7 @@ void AdaptiveSpecies<Model>::restore(std::istream &fin){
 	fin >> fitness_gradient
 	    >> trait_variance
 		>> trait_scalars
-		>> trait_names;
+		>> evolvable_traits;
 
 	// moving averagers go here
 	seeds_hist.restore(fin);
@@ -163,6 +163,9 @@ void AdaptiveSpecies<Model>::restore(std::istream &fin){
 	C.traits.save(std::cout); std::cout.flush(); // For debug only
 
 	Species<Model>::restore(fin);
+
+	// C.traits.print();
+	// C.par.print();
 }
 
 } // namespace pfate

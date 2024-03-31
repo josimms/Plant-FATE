@@ -228,9 +228,10 @@ void PlantParameters::print(){
 }
 
 // Changelog:
+// v4: add days_per_t_unit etc
 // v3: add m_hydraulic
 void PlantParameters::save(std::ostream &fout){
-	fout << "Params::v3 ";
+	fout << "Params::v4 ";
 	fout << std::make_tuple(
 		  kphio
 		, alpha
@@ -272,6 +273,8 @@ void PlantParameters::save(std::ostream &fout){
 		, cWD0
 		, eWD
 		, m_hydraulic
+		, days_per_tunit
+		, years_per_tunit_avg
 			);
 	fout << '\n';
 }
@@ -279,7 +282,7 @@ void PlantParameters::save(std::ostream &fout){
 
 void PlantParameters::restore(std::istream &fin){
 	std::string s; fin >> s; // discard version number
-	assert(s == "Params::v3");
+	assert(s == "Params::v4");
 
 	fin >> kphio
 		>> alpha
@@ -321,6 +324,8 @@ void PlantParameters::restore(std::istream &fin){
 		>> cWD0
 		>> eWD
 		>> m_hydraulic
+		>> days_per_tunit
+		>> years_per_tunit_avg
 	;
 }
 
