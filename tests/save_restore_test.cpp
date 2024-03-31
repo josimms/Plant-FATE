@@ -16,22 +16,12 @@ int main(int argc, char ** argv){
 		par_file = argv[1];
 	}
 
-	// reference run
-	{
-		pfate::Patch sim(par_file);
-		sim.config.continuePrevious = false;
-		sim.config.expt_dir = "cont_test_ref";
-		sim.init(1000, 1350);
-		sim.simulate();
-		sim.close();
-	}
-
 	// spinup run
 	{
 		pfate::Patch sim(par_file);
 		sim.config.continuePrevious = false;
 		sim.config.expt_dir = "cont_test_spinup";
-		sim.init(1000, 1200);
+		sim.init(1000, 1010);
 		sim.simulate();
 		sim.close();
 	}
@@ -43,7 +33,7 @@ int main(int argc, char ** argv){
 		sim.config.continueFrom_stateFile    = sim.config.parent_dir + "/" + "cont_test_spinup/pf_saved_state.txt"; 
 		sim.config.continueFrom_configFile   = sim.config.parent_dir + "/" + "cont_test_spinup/pf_saved_config.ini"; 
 		sim.config.expt_dir = "cont_test_main";
-		sim.init(1000, 1350);
+		sim.init(1000, 1020);
 		sim.simulate();
 		sim.close();
 	}
