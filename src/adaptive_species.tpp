@@ -133,8 +133,6 @@ void AdaptiveSpecies<Model>::restore(std::istream &fin){
 	std::string s; fin >> s; // discard version number
 	assert(s == "AdaptiveSpecies<T>::v2");
 
-	if (configfile_for_restore == "") throw std::runtime_error("Config file has not been set");
-
 	// restore species-level data
 	fin >> fg_dx
 		>> std::quoted(species_name)
@@ -155,7 +153,6 @@ void AdaptiveSpecies<Model>::restore(std::istream &fin){
 	// Create a Model object and restore all individual properties to this object
 	// This will be used to copy-construct the species
 	auto& C = this->getCohort(-1);
-	//C.initFromFile(configfile_for_restore);  
 	C.par.restore(fin);
 	C.traits.restore(fin);
 	C.init(C.par, C.traits);

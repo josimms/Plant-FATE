@@ -553,7 +553,6 @@ void Patch::restore(std::istream &fin){
 	vector<Species_Base*> spp_proto;
 	for (int i=0; i<spp_names.size(); ++i){
 		auto spp = new AdaptiveSpecies<PSPM_Plant>(p);
-		spp->configfile_for_restore = config.continueFrom_configFile; // set config file that AdaptiveSpecies will use to restore cohorts FIXME: Maybe this can be prevented by simply writing parameters only once? - but configfile will be needed even after continuation for inserting new species (immigration)
 		spp_proto.push_back(static_cast<Species_Base*>(spp));
 	}
 
