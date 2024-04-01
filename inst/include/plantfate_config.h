@@ -52,6 +52,8 @@ class PlantFateConfig{
 	std::vector<double> trait_scalars;
 	double T_r0_avg;
 
+	void save(std::ostream &fout);
+	void restore(std::istream &fin);
 };
 
 } // namespace pfate
