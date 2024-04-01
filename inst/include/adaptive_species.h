@@ -35,18 +35,15 @@ class AdaptiveSpecies : public Species<Model>{
 
 	double invasion_fitness;
 	double r0;
-	std::vector<AdaptiveSpecies<Model>*> probes;
+	std::vector<AdaptiveSpecies<Model>*> probes; // /*NO_SAVE_RESTORE*/ This vector is excluded from save/restore because it contains pointers. Species-probes associations are saved/restored by name in Patch::save/restore
 	std::vector<std::string> evolvable_traits;
 	std::vector<double> fitness_gradient;
 	std::vector<double> trait_variance;
 	std::vector<double> trait_scalars;     // these scalars will be applied to fg_dx
-	// std::vector<std::string> trait_names;
 	
 	MovingAverager seeds_hist;
 	MovingAverager r0_hist;
 
-	public: 
-	/*NO_SAVE_RESTORE*/ std::string configfile_for_restore = "";  // Dont output this variable in save/restore. This is set by restoreState() to provide the saved config file for recreating cohorts  
 
 	public:
 	AdaptiveSpecies(Model M, bool res=true);
