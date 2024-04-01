@@ -16,12 +16,29 @@ int main(int argc, char ** argv){
 		par_file = argv[1];
 	}
 
+	vector<double> ba, ba1;
+
+	// reference run
+	{
+		pfate::Patch sim(par_file);
+		sim.config.continuePrevious = false;
+		sim.config.expt_dir = "cont_test_ref";
+		sim.init(1000, 1050);
+		sim.simulate();
+
+		ba = sim.props.species.basal_area_vec;
+		for (auto& b : ba) b*=1e4;
+		cout << setprecision(10) << "Basal areas [m2/Ha]: " << ba << '\n';
+
+		sim.close();
+	}
+
 	// spinup run
 	{
 		pfate::Patch sim(par_file);
 		sim.config.continuePrevious = false;
 		sim.config.expt_dir = "cont_test_spinup";
-		sim.init(1000, 1010);
+		sim.init(1000, 1020);
 		sim.simulate();
 		sim.close();
 	}
@@ -33,10 +50,17 @@ int main(int argc, char ** argv){
 		sim.config.continueFrom_stateFile    = sim.config.parent_dir + "/" + "cont_test_spinup/pf_saved_state.txt"; 
 		sim.config.continueFrom_configFile   = sim.config.parent_dir + "/" + "cont_test_spinup/pf_saved_config.ini"; 
 		sim.config.expt_dir = "cont_test_main";
-		sim.init(1000, 1020);
+		sim.init(1000, 1050);
 		sim.simulate();
+
+		ba1 = sim.props.species.basal_area_vec;
+		for (auto& b : ba1) b*=1e4;
+
 		sim.close();
 	}
+
+	cout << setprecision(10) << "Basal areas [m2/Ha]: " << ba  << '\n';
+	cout << setprecision(10) << "Basal areas [m2/Ha]: " << ba1 << '\n';
 
 	return 0;
 }

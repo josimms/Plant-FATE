@@ -10,8 +10,10 @@
 
 namespace pfate{
 
-void saveState(Solver * S, std::string state_outfile, std::string config_outfile, std::string params_file);
-void restoreState(Solver * S, std::string state_infile, std::string config_infile);
+class Patch;
+
+void saveState(Patch &P, std::string state_outfile, std::string config_outfile, std::string params_file);
+void restoreState(Patch &P, std::string state_infile, std::string config_infile);
 
 } // namespace pfate
 

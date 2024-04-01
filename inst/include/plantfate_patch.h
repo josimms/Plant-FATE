@@ -63,6 +63,9 @@ class Patch{
 
 	void close();
 
+	void save(std::ostream &fout);
+	void restore(std::istream &fin);
+
 	private: 
 	double runif(double rmin=0, double rmax=1);
 

@@ -170,7 +170,7 @@ void Patch::init(double tstart, double tend){
 
 	// Add species
 	if (config.continuePrevious){
-		restoreState(&S, config.continueFrom_stateFile, config.continueFrom_configFile);
+		restoreState(*this, config.continueFrom_stateFile, config.continueFrom_configFile);
 		config.y0 = S.current_time; // replace y0
 	}
 	else {
@@ -209,7 +209,7 @@ void Patch::close(){
 	//S.print();
 	props.closeStreams();
 
-	saveState(&S, 
+	saveState(*this, 
 	          config.out_dir + "/" + config.state_outfile, 
 			  config.out_dir + "/" + config.config_outfile, 
 			  config.paramsFile);
@@ -433,7 +433,7 @@ void Patch::simulate_to(double t){
 
 	// Save simulation state at specified intervals
 	if (t > t_next_savestate || fabs(t-t_next_savestate) < 1e-6){
-		saveState(&S, 
+		saveState(*this, 
 			config.out_dir + "/" + std::to_string(t) + "_" + config.state_outfile, 
 			config.out_dir + "/" + std::to_string(t) + "_" + config.config_outfile, 
 			config.paramsFile);
@@ -470,6 +470,109 @@ void Patch::update_climate_acclim(double t_julian, double _co2, double _tc, doub
 	C.swp  = _swp;
 	E.set_forcing_acclim(t_julian, C);
 }
+
+
+void Patch::save(std::ostream &fout){
+	fout << "Patch::v1" << '\n';
+	
+	// write patch-specific state
+	fout << std::make_tuple(
+		      t_next_disturbance
+			, t_next_invasion
+			, t_next_savestate
+			, t_next_writestate);
+
+	// write species names vector
+	fout << S.species_vec.size() << " | ";
+	for (auto s : S.species_vec){
+		auto spp = static_cast<AdaptiveSpecies<PSPM_Plant>*>(s);
+		fout << std::quoted(spp->species_name) << ' ';
+	}
+	fout << '\n';
+
+	// write species associations (list of probes)
+	for (auto s : S.species_vec){
+		auto spp = static_cast<AdaptiveSpecies<PSPM_Plant>*>(s);
+		fout << std::quoted(spp->species_name) << ' ';
+		fout << spp->probes.size() << " | "; 
+		for (auto p : spp->probes) fout << std::quoted(p->species_name) << ' ';
+		fout << '\n';
+	}
+
+	// save Solver
+	S.save(fout);
+}
+
+void Patch::restore(std::istream &fin){
+	std::cout << "Restoring Patch...\n";
+	std::string s; fin >> s; // discard version number
+	assert(s == "Patch::v1");
+
+	fin >> t_next_disturbance
+	    >> t_next_invasion
+	    >> t_next_savestate
+	    >> t_next_writestate;
+
+	// Read species associations (probes)
+	vector<string> spp_names;   
+	map<string, int> indices; // name --> index --- just a map that tells at which index in the species vector the species is located
+	vector<vector<int>> probe_lists;
+	int n; fin >> n >> s; // number of species to read, skip s = " | "
+	spp_names.resize(n); 
+	probe_lists.resize(n);
+	for (int i=0; i<n; ++i) fin >> std::quoted(spp_names[i]);
+
+	// map indices
+	for (int i=0; i<n; ++i){
+		indices[spp_names[i]] = i;
+	}
+
+	// Species read: 
+	cout << "Species read:\n";
+	for (int i=0; i<spp_names.size(); ++i) cout << i << " " << indices[spp_names[i]] << " " << spp_names[i] << "\n";
+
+	for (string s : spp_names){
+		string r_name; vector<string> probes_list;
+		// read resident name
+		fin >> std::quoted(r_name);
+		assert(r_name == s);
+		// read probe names
+		fin >> n >> s; // s has " | " 
+		cout << spp_names[indices[r_name]] << " --> " << n << " " << s;
+		for (int i=0; i<n; ++i){
+			fin >> std::quoted(s);
+			cout << spp_names[indices[s]] << " ";
+			probe_lists[indices[r_name]].push_back(indices[s]);
+		}
+		cout << '\n';
+	}
+
+	PSPM_Plant p;
+	vector<Species_Base*> spp_proto;
+	for (int i=0; i<spp_names.size(); ++i){
+		auto spp = new AdaptiveSpecies<PSPM_Plant>(p);
+		spp->configfile_for_restore = config.continueFrom_configFile; // set config file that AdaptiveSpecies will use to restore cohorts FIXME: Maybe this can be prevented by simply writing parameters only once? - but configfile will be needed even after continuation for inserting new species (immigration)
+		spp_proto.push_back(static_cast<Species_Base*>(spp));
+	}
+
+	for (auto spp : spp_proto){
+		static_cast<Species_Base*>(spp)->print();
+	}
+
+	// restore solver
+	S.restore(fin, spp_proto);
+
+	// recreate species associations
+	for (string s : spp_names){
+		int res_id = indices[s];
+		auto spp = static_cast<AdaptiveSpecies<PSPM_Plant>*>(S.species_vec[res_id]);
+		for (int probe_id : probe_lists[res_id]){
+			spp->probes.push_back(static_cast<AdaptiveSpecies<PSPM_Plant>*>(S.species_vec[probe_id]));
+		}	
+	}
+
+}
+
 
 
 /// @brief Simulate patch dynamics
@@ -523,6 +626,8 @@ void Patch::update_climate_acclim(double t_julian, double _co2, double _tc, doub
 void Patch::simulate(){
 
 	for (double t=config.y0; t <= config.yf+1e-6; t=t+config.timestep) {  // 1e-6 ensures that last timestep to reach yf is actually executed
+		if (fabs(t - S.current_time) < 1e-6) continue;
+
 		// read forcing inputs
 		// std::cout << "update Env (explicit)... t = " << S.current_time << ":\n";
 		update_climate(ts.to_julian(S.current_time)+1e-6, climate_stream); // The 1e-6 is to ensure that when t coincides exactly with time in climate file, we ensure that the value in climate file is read by asking for a slightly higher t
