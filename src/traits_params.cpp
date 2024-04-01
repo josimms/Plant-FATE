@@ -80,7 +80,7 @@ bool PlantTraits::operator == (const PlantTraits& rhs) const {
 // v2: m,n,a,c moved to traits from parameters
 // v3: added p50leaf in save/restore
 void PlantTraits::save(std::ostream &fout){
-	fout << "Traits::v3 ";
+	fout << "Traits::v3   ";
 	fout << std::quoted(species_name) << ' ';
 	fout << std::make_tuple(
 				  lma
@@ -270,7 +270,7 @@ void PlantParameters::print(){
 // v3: add m_hydraulic
 // v4: add days_per_t_unit etc
 void PlantParameters::save(std::ostream &fout){
-	fout << "Params::v4 ";
+	fout << "Params::v4   ";
 	fout << std::make_tuple(
 		  kphio
 		, alpha
