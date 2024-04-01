@@ -1,23 +1,23 @@
 library(tidyverse)
 rm(list=ls())
 
-dir = "pspm_output_cont_test3"
+dir = "pspm_output_test"
 ref_dir = paste0(dir,"/cont_test_ref")
 spinup_dir = paste0(dir,"/cont_test_spinup")
 main_dir   = paste0(dir,"/cont_test_main")
 
 setwd(paste0("~/codes/Plant-FATE/",spinup_dir))
-dat2_spin = read.delim("AmzFACE_Y_PFATE_ELE_HD.txt")
-dat_spin = read.delim("AmzFACE_D_PFATE_ELE_HD.txt")
+dat2_spin = read.csv("Y_PFATE.csv")
+dat_spin = read.csv("D_PFATE.csv")
 Yend = max(dat2_spin$YEAR)
 
 setwd(paste0("~/codes/Plant-FATE/",main_dir))
-dat2_main = read.delim("AmzFACE_Y_PFATE_ELE_HD.txt")
-dat_main = read.delim("AmzFACE_D_PFATE_ELE_HD.txt")
+dat2_main = read.csv("Y_PFATE.csv")
+dat_main = read.csv("D_PFATE.csv")
 
 setwd(paste0("~/codes/Plant-FATE/",ref_dir))
-dat2_ref = read.delim("AmzFACE_Y_PFATE_ELE_HD.txt")
-dat_ref = read.delim("AmzFACE_D_PFATE_ELE_HD.txt")
+dat2_ref = read.csv("Y_PFATE.csv")
+dat_ref = read.csv("D_PFATE.csv")
 
 
 dat2_main = dat2_main %>% filter(YEAR > Yend)
@@ -42,7 +42,7 @@ plot_data = function(dat, dat2, main){
           las=1, xlab="Time (years)", ylab="Basal area", log="")
   abline(v=1200, col="pink")
   
-  plot(dat$LAI~dat$YEAR, type="l", col="red3", ylim=c(0,max(dat$LAI,6.5)), xlab="Time (years)", ylab="Total LAI")
+  plot(dat$GPP~dat$YEAR, type="l", col="green4", xlab="Time (years)", ylab="GPP")
   abline(v=1200, col="pink")
 }
 
