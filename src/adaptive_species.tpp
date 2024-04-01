@@ -109,10 +109,10 @@ void AdaptiveSpecies<Model>::save(std::ostream &fout){
 			, r0);
 	fout << '\n';
 
-	fout << fitness_gradient
-	     << trait_variance
-		 << trait_scalars
-		 << evolvable_traits;  // trait names dont contain whitespaces, so safe to write this way
+	fout << fitness_gradient << '\n'
+	     << trait_variance << '\n'
+		 << trait_scalars << '\n'
+		 << evolvable_traits << '\n';  // trait names dont contain whitespaces, so safe to write this way without std::quoted()
 	
 	// MovingAveragers
 	seeds_hist.save(fout);

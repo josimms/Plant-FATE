@@ -79,6 +79,7 @@ void Patch::set_co2File(std::string co2file){
 	climate_stream.update_co2 = (co2file == "")? false : true;
 }
 
+
 std::vector<plant::PlantTraits> Patch::readTraitsFromFile(std::string fname){
 
 	std::ifstream fin(fname.c_str());
@@ -480,7 +481,8 @@ void Patch::save(std::ostream &fout){
 		      t_next_disturbance
 			, t_next_invasion
 			, t_next_savestate
-			, t_next_writestate);
+			, t_next_writestate)
+		 << '\n';
 
 	// write species names vector
 	fout << S.species_vec.size() << " | ";

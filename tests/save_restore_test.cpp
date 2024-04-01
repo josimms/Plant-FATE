@@ -51,6 +51,11 @@ int main(int argc, char ** argv){
 		sim.config.continueFrom_configFile   = sim.config.parent_dir + "/" + "cont_test_spinup/pf_saved_config.ini"; 
 		sim.config.expt_dir = "cont_test_main";
 		sim.init(1000, 1050);
+		saveState(sim, 
+			sim.config.out_dir + "/" + "afterRestore_" + sim.config.state_outfile, 
+			sim.config.out_dir + "/" + "afterRestore_" + sim.config.config_outfile, 
+			sim.config.paramsFile);
+
 		sim.simulate();
 
 		ba1 = sim.props.species.basal_area_vec;
