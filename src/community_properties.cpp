@@ -37,7 +37,7 @@ void CommunityProperties::update(double t, Patch &P){
 	fluxes.rroot  = m1 * m2 * integrate_prop(t, S, [](PSPM_Plant* p){return p->res.rroot;});
 	fluxes.rstem  = m1 * m2 * integrate_prop(t, S, [](PSPM_Plant* p){return p->res.rstem;});
 	fluxes.mort   = m1 * m2 * integrate_prop(t, S, [](PSPM_Plant* p){return p->get_biomass()*p->rates.dmort_dt;});
-	fluxes.gs = (fluxes.trans*55.55/86400)/1.6/(static_cast<PSPM_Environment*>(S.env)->clim_inst.vpd/1.0325e5);
+	fluxes.gs = (fluxes.trans*55.55/86400)/1.6/(static_cast<PSPM_Environment*>(S.env)->clim_inst.vpd/1.0325e5); // FIXME: replace hardcoded pressure with clim_inst.pa
 	//     ^ convert kg/m2/day --> mol/m2/s
 
 	// Note: for these vector calcs, multipliers are multiplied inside lambdas, where necesary

@@ -160,12 +160,11 @@ void AdaptiveSpecies<Model>::restore(std::istream &fin){
 	C.traits.restore(fin);
 	C.init(C.par, C.traits);
 
-	C.traits.save(std::cout); std::cout.flush(); // For debug only
+	C.traits.print();
+	C.par.print();
 
 	Species<Model>::restore(fin);
 
-	// C.traits.print();
-	// C.par.print();
 }
 
 } // namespace pfate
