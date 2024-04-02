@@ -154,6 +154,7 @@ void Plant::calc_demographic_rates(Env &env, double t){
 
 	res = assimilator.net_production(env, &geometry, par, traits);	
 	bp.dmass_dt_tot = std::max(res.npp, 0.0);  // No biomass growth if npp is negative
+	if (std::isnan(bp.dmass_dt_tot)) throw std::runtime_error("biomass production is nan");
 
 	// set rates.dlai_dt and bp.dmass_dt_lai
 	rates.dlai_dt = lai_model(res, bp.dmass_dt_tot, env);   // also sets rates.dmass_dt_lai

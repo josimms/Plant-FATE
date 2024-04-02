@@ -79,6 +79,7 @@ void Patch::set_co2File(std::string co2file){
 	climate_stream.update_co2 = (co2file == "")? false : true;
 }
 
+
 std::vector<plant::PlantTraits> Patch::readTraitsFromFile(std::string fname){
 
 	std::ifstream fin(fname.c_str());
@@ -145,10 +146,10 @@ void Patch::init(double tstart, double tend){
 	ts.set_units(config.time_unit);
 	par0.set_tscale(ts.get_tscale());
 
-	t_next_disturbance = config.T_return;
-	t_next_invasion = config.T_invasion;
-	t_next_savestate = config.y0; // this will write state once at the beginning too, which is probably unnecessary
-	t_next_writestate = config.y0; // this will write state once at the beginning too, which is probably unnecessary
+	t_next_disturbance = config.y0 + config.T_return;
+	t_next_invasion    = config.y0 + config.T_invasion;
+	t_next_savestate   = config.y0; // this will write state once at the beginning too, which is probably unnecessary
+	t_next_writestate  = config.y0; // this will write state once at the beginning too, which is probably unnecessary
 
 	// ~~~~~~~ Set up environment ~~~~~~~~~~~~~~~
 	E.use_ppa = true;
@@ -170,7 +171,7 @@ void Patch::init(double tstart, double tend){
 
 	// Add species
 	if (config.continuePrevious){
-		restoreState(&S, config.continueFrom_stateFile, config.continueFrom_configFile);
+		restoreState(*this, config.continueFrom_stateFile, config.continueFrom_configFile);
 		config.y0 = S.current_time; // replace y0
 	}
 	else {
@@ -209,7 +210,7 @@ void Patch::close(){
 	//S.print();
 	props.closeStreams();
 
-	saveState(&S, 
+	saveState(*this, 
 	          config.out_dir + "/" + config.state_outfile, 
 			  config.out_dir + "/" + config.config_outfile, 
 			  config.paramsFile);
@@ -309,7 +310,7 @@ void Patch::addRandomSpecies(double t){
 	traits.lma          = runif(0.05, 0.25);    //Tr.species[i].lma, 
 	traits.wood_density = runif(300, 900);   //Tr.species[i].wood_density, 
 	traits.hmat         = runif(2, 35);      //Tr.species[i].hmat, 
-	traits.p50_xylem    = runif(-6, -0.5);   //Tr.species[i].p50_xylem);
+	traits.p50_xylem    = -2.29; //runif(-6, -0.5);   //Tr.species[i].p50_xylem);
 
 	addSpeciesAndProbes(t, traits);
 }
@@ -406,16 +407,22 @@ void Patch::simulate_to(double t){
 	// this implies that seed tain and r0 are not updated during internal steps - I think thats okay.
 	calc_seedrain_r0(t);
 
-	// update output metrics - needed before removeDeadSpecies()
-	props.update(t, *this);
-
 	// evolve traits
 	if (config.evolve_traits && t > config.ye){
 		evolveTraits(t, dt_evol);
 	}
 
+	// update output metrics - needed before removeDeadSpecies()
+	props.update(t, *this);
+
+	// write outputs - must be done before species list is altered
+	if (t > t_next_writestate || fabs(t-t_next_writestate) < 1e-6){
+		props.writeOut(t, *this);
+		t_next_writestate += 1;
+	}
+
 	// remove species whose total abundance has fallen below threshold (its probes are also removed)
-	removeDeadSpecies(t); // needs updated cwm for species abundances
+	removeDeadSpecies(t); // needs updated props for reading species abundances
 
 	// Invasion by a random new species
 	if (t >= t_next_invasion){
@@ -433,7 +440,7 @@ void Patch::simulate_to(double t){
 
 	// Save simulation state at specified intervals
 	if (t > t_next_savestate || fabs(t-t_next_savestate) < 1e-6){
-		saveState(&S, 
+		saveState(*this, 
 			config.out_dir + "/" + std::to_string(t) + "_" + config.state_outfile, 
 			config.out_dir + "/" + std::to_string(t) + "_" + config.config_outfile, 
 			config.paramsFile);
@@ -442,7 +449,7 @@ void Patch::simulate_to(double t){
 	}
 
 	// Shuffle species - just for debugging. result shouldnt change
-	// if (int(t) % 10 == 0) shuffleSpecies(); 
+	// if (fabs(t-int(t)) < 1e-6 && (int(t) % 10) == 0) shuffleSpecies(); 
 }
 
 
@@ -470,6 +477,109 @@ void Patch::update_climate_acclim(double t_julian, double _co2, double _tc, doub
 	C.swp  = _swp;
 	E.set_forcing_acclim(t_julian, C);
 }
+
+
+void Patch::save(std::ostream &fout){
+	fout << "Patch::v1" << '\n';
+	
+	// write patch-specific state
+	fout << std::make_tuple(
+		      t_next_disturbance
+			, t_next_invasion
+			, t_next_savestate
+			, t_next_writestate)
+		 << '\n';
+
+	// write species names vector
+	fout << S.species_vec.size() << " | ";
+	for (auto s : S.species_vec){
+		auto spp = static_cast<AdaptiveSpecies<PSPM_Plant>*>(s);
+		fout << std::quoted(spp->species_name) << ' ';
+	}
+	fout << '\n';
+
+	// write species associations (list of probes)
+	for (auto s : S.species_vec){
+		auto spp = static_cast<AdaptiveSpecies<PSPM_Plant>*>(s);
+		fout << std::quoted(spp->species_name) << ' ';
+		fout << spp->probes.size() << " | "; 
+		for (auto p : spp->probes) fout << std::quoted(p->species_name) << ' ';
+		fout << '\n';
+	}
+
+	// save Solver
+	S.save(fout);
+}
+
+void Patch::restore(std::istream &fin){
+	std::cout << "Restoring Patch...\n";
+	std::string s; fin >> s; // discard version number
+	assert(s == "Patch::v1");
+
+	fin >> t_next_disturbance
+	    >> t_next_invasion
+	    >> t_next_savestate
+	    >> t_next_writestate;
+
+	// Read species associations (probes)
+	vector<string> spp_names;   
+	map<string, int> indices; // name --> index --- just a map that tells at which index in the species vector the species is located
+	vector<vector<int>> probe_lists;
+	int n; fin >> n >> s; // number of species to read, skip s = " | "
+	spp_names.resize(n); 
+	probe_lists.resize(n);
+	for (int i=0; i<n; ++i) fin >> std::quoted(spp_names[i]);
+
+	// map indices
+	for (int i=0; i<n; ++i){
+		indices[spp_names[i]] = i;
+	}
+
+	// Species read: 
+	cout << "Species read:\n";
+	for (int i=0; i<spp_names.size(); ++i) cout << i << " " << indices[spp_names[i]] << " " << spp_names[i] << "\n";
+
+	for (string s : spp_names){
+		string r_name; vector<string> probes_list;
+		// read resident name
+		fin >> std::quoted(r_name);
+		assert(r_name == s);
+		// read probe names
+		fin >> n >> s; // s has " | " 
+		cout << spp_names[indices[r_name]] << " --> " << n << " " << s;
+		for (int i=0; i<n; ++i){
+			fin >> std::quoted(s);
+			cout << spp_names[indices[s]] << " ";
+			probe_lists[indices[r_name]].push_back(indices[s]);
+		}
+		cout << '\n';
+	}
+
+	PSPM_Plant p;
+	vector<Species_Base*> spp_proto;
+	for (int i=0; i<spp_names.size(); ++i){
+		auto spp = new AdaptiveSpecies<PSPM_Plant>(p);
+		spp_proto.push_back(static_cast<Species_Base*>(spp));
+	}
+
+	for (auto spp : spp_proto){
+		static_cast<Species_Base*>(spp)->print();
+	}
+
+	// restore solver
+	S.restore(fin, spp_proto);
+
+	// recreate species associations
+	for (string s : spp_names){
+		int res_id = indices[s];
+		auto spp = static_cast<AdaptiveSpecies<PSPM_Plant>*>(S.species_vec[res_id]);
+		for (int probe_id : probe_lists[res_id]){
+			spp->probes.push_back(static_cast<AdaptiveSpecies<PSPM_Plant>*>(S.species_vec[probe_id]));
+		}	
+	}
+
+}
+
 
 
 /// @brief Simulate patch dynamics
@@ -523,6 +633,8 @@ void Patch::update_climate_acclim(double t_julian, double _co2, double _tc, doub
 void Patch::simulate(){
 
 	for (double t=config.y0; t <= config.yf+1e-6; t=t+config.timestep) {  // 1e-6 ensures that last timestep to reach yf is actually executed
+		if (fabs(t - S.current_time) < 1e-6) continue;
+
 		// read forcing inputs
 		// std::cout << "update Env (explicit)... t = " << S.current_time << ":\n";
 		update_climate(ts.to_julian(S.current_time)+1e-6, climate_stream); // The 1e-6 is to ensure that when t coincides exactly with time in climate file, we ensure that the value in climate file is read by asking for a slightly higher t
@@ -530,12 +642,6 @@ void Patch::simulate(){
 
 		// simulate patch
 		simulate_to(t);
-
-		// write outputs
-		if (t > t_next_writestate || fabs(t-t_next_writestate) < 1e-6){
-			props.writeOut(t, *this);
-			t_next_writestate += 1;
-		}
 
 	}
 }
