@@ -20,7 +20,8 @@ int is_equal(const vector<double>& v1, const vector<double>& v2, double tol=1e-6
 
 int main(int argc, char ** argv){
 
-	string par_file = "tests/params/p_test_v2.ini";
+	// string par_file = "tests/params/p_test_v2.ini";
+	string par_file = "tests/params/p_test_v2_evol3_wdxhmat.ini";
 	if (argc == 2){
 		par_file = argv[1];
 	}
