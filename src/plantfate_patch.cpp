@@ -146,10 +146,10 @@ void Patch::init(double tstart, double tend){
 	ts.set_units(config.time_unit);
 	par0.set_tscale(ts.get_tscale());
 
-	t_next_disturbance = config.T_return;
-	t_next_invasion = config.T_invasion;
-	t_next_savestate = config.y0; // this will write state once at the beginning too, which is probably unnecessary
-	t_next_writestate = config.y0; // this will write state once at the beginning too, which is probably unnecessary
+	t_next_disturbance = config.y0 + config.T_return;
+	t_next_invasion    = config.y0 + config.T_invasion;
+	t_next_savestate   = config.y0; // this will write state once at the beginning too, which is probably unnecessary
+	t_next_writestate  = config.y0; // this will write state once at the beginning too, which is probably unnecessary
 
 	// ~~~~~~~ Set up environment ~~~~~~~~~~~~~~~
 	E.use_ppa = true;
@@ -310,7 +310,7 @@ void Patch::addRandomSpecies(double t){
 	traits.lma          = runif(0.05, 0.25);    //Tr.species[i].lma, 
 	traits.wood_density = runif(300, 900);   //Tr.species[i].wood_density, 
 	traits.hmat         = runif(2, 35);      //Tr.species[i].hmat, 
-	traits.p50_xylem    = runif(-6, -0.5);   //Tr.species[i].p50_xylem);
+	traits.p50_xylem    = -2.29; //runif(-6, -0.5);   //Tr.species[i].p50_xylem);
 
 	addSpeciesAndProbes(t, traits);
 }
