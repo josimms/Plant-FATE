@@ -53,8 +53,6 @@ class PlantTraits{
 	// Just for debugging purposes - to check if 2 plants have the same traits
 	bool operator == (const PlantTraits& rhs) const;
 
-	// Changelog:
-	// v2: m,n,a,c move to traits from parameters
 	void save(std::ostream &fout);
 	void restore(std::istream &fin);
 	void print();

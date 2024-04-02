@@ -6,7 +6,7 @@ AdaptiveSpecies<Model>::AdaptiveSpecies(Model M, bool res) : Species<Model>(M) {
 	fitness_gradient.resize(n, 0);
 	trait_scalars.resize(n,1);
 	trait_variance.resize(n, 0.01);
-	for (int i=0; i<n; ++i) trait_names.push_back("T"+std::to_string(i));
+	for (int i=0; i<n; ++i) evolvable_traits.push_back("T"+std::to_string(i));
 	invasion_fitness = 0;
 	r0 = 1;
 	isResident = res;
@@ -109,10 +109,10 @@ void AdaptiveSpecies<Model>::save(std::ostream &fout){
 			, r0);
 	fout << '\n';
 
-	fout << fitness_gradient
-	     << trait_variance
-		 << trait_scalars
-		 << trait_names;  // trait names dont contain whitespaces, so safe to write this way
+	fout << fitness_gradient << '\n'
+	     << trait_variance << '\n'
+		 << trait_scalars << '\n'
+		 << evolvable_traits << '\n';  // trait names dont contain whitespaces, so safe to write this way without std::quoted()
 	
 	// MovingAveragers
 	seeds_hist.save(fout);
@@ -133,8 +133,6 @@ void AdaptiveSpecies<Model>::restore(std::istream &fin){
 	std::string s; fin >> s; // discard version number
 	assert(s == "AdaptiveSpecies<T>::v2");
 
-	if (configfile_for_restore == "") throw std::runtime_error("Config file has not been set");
-
 	// restore species-level data
 	fin >> fg_dx
 		>> std::quoted(species_name)
@@ -146,7 +144,7 @@ void AdaptiveSpecies<Model>::restore(std::istream &fin){
 	fin >> fitness_gradient
 	    >> trait_variance
 		>> trait_scalars
-		>> trait_names;
+		>> evolvable_traits;
 
 	// moving averagers go here
 	seeds_hist.restore(fin);
@@ -155,14 +153,15 @@ void AdaptiveSpecies<Model>::restore(std::istream &fin){
 	// Create a Model object and restore all individual properties to this object
 	// This will be used to copy-construct the species
 	auto& C = this->getCohort(-1);
-	//C.initFromFile(configfile_for_restore);  
 	C.par.restore(fin);
 	C.traits.restore(fin);
 	C.init(C.par, C.traits);
 
-	C.traits.save(std::cout); std::cout.flush(); // For debug only
+	C.traits.print();
+	C.par.print();
 
 	Species<Model>::restore(fin);
+
 }
 
 } // namespace pfate
