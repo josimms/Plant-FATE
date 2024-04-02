@@ -407,16 +407,22 @@ void Patch::simulate_to(double t){
 	// this implies that seed tain and r0 are not updated during internal steps - I think thats okay.
 	calc_seedrain_r0(t);
 
-	// update output metrics - needed before removeDeadSpecies()
-	props.update(t, *this);
-
 	// evolve traits
 	if (config.evolve_traits && t > config.ye){
 		evolveTraits(t, dt_evol);
 	}
 
+	// update output metrics - needed before removeDeadSpecies()
+	props.update(t, *this);
+
+	// write outputs - must be done before species list is altered
+	if (t > t_next_writestate || fabs(t-t_next_writestate) < 1e-6){
+		props.writeOut(t, *this);
+		t_next_writestate += 1;
+	}
+
 	// remove species whose total abundance has fallen below threshold (its probes are also removed)
-	removeDeadSpecies(t); // needs updated cwm for species abundances
+	removeDeadSpecies(t); // needs updated props for reading species abundances
 
 	// Invasion by a random new species
 	if (t >= t_next_invasion){
@@ -443,7 +449,7 @@ void Patch::simulate_to(double t){
 	}
 
 	// Shuffle species - just for debugging. result shouldnt change
-	// if (int(t) % 10 == 0) shuffleSpecies(); 
+	// if (fabs(t-int(t)) < 1e-6 && (int(t) % 10) == 0) shuffleSpecies(); 
 }
 
 
@@ -636,12 +642,6 @@ void Patch::simulate(){
 
 		// simulate patch
 		simulate_to(t);
-
-		// write outputs
-		if (t > t_next_writestate || fabs(t-t_next_writestate) < 1e-6){
-			props.writeOut(t, *this);
-			t_next_writestate += 1;
-		}
 
 	}
 }
