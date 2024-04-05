@@ -16,6 +16,7 @@ navbar:
     left:
     - home
     - theory 
+    - authors
     - api
     right:
     - news
@@ -29,14 +30,16 @@ navbar:
       text: Theory
       icon: fa-book fa-lg
       menu:
-        - text: Allometric relations
-          href: articles/theory_allometry.html
-        - text: Crown shape model
-          href: articles/crown_geometry.html
+        - text: Life-history optimization
+          href: articles/lho_demo.html
     api:
       text: API
       icon: fa-code fa-lg
       href: html/index.html
+    authors:
+      text: Authors
+      icon: fa-user fa-lg
+      href: AUTHORS.html
     news:
       text: 'News'
       icon: fa-newspaper fa-lg

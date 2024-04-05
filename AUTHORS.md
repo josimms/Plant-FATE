@@ -1,4 +1,6 @@
-Plant-FATE was started by Jaideep Joshi and Ulf Dieckmann in collaboration with Florian Hofhansl, Iain Colin Prentice, and Åke Brännström.
+# Plant-FATE Contributors
+
+The Plant-FATE project was founded by Jaideep Joshi and Ulf Dieckmann in collaboration with Florian Hofhansl, Iain Colin Prentice, and Åke Brännström.
 
 ## Theory
 
