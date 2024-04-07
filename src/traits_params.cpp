@@ -80,7 +80,7 @@ bool PlantTraits::operator == (const PlantTraits& rhs) const {
 // v2: m,n,a,c moved to traits from parameters
 // v3: added p50leaf in save/restore
 void PlantTraits::save(std::ostream &fout){
-	fout << "Traits::v3 ";
+	fout << "Traits::v3   ";
 	fout << std::quoted(species_name) << ' ';
 	fout << std::make_tuple(
 				  lma
@@ -220,17 +220,57 @@ void PlantParameters::set_tscale(double tscale){
 
 void PlantParameters::print(){
 	std::cout << "Params:\n";
-	std:: cout << "   rd    = " << rd  << "\n";
-	std:: cout << "   rr    = " << rr  << "\n";
-	std:: cout << "   rs    = " << rs  << "\n";
-	std:: cout << "   cbio  = " << cbio  << "\n";
-	std:: cout << "   y     = " << y  << "\n";
+	std::cout 
+		<< "   kphio = " << kphio << '\n'
+		<< "   alpha = " << alpha << '\n'
+		<< "   gamma = " << gamma << '\n'
+		<< "   fg = " << fg << '\n'
+		<< "   Cc = " << Cc << '\n'
+		<< "   Chyd = " << Chyd << '\n'
+		<< "   response_intensity = " << response_intensity << '\n'
+		<< "   max_alloc_lai = " << max_alloc_lai << '\n'
+		<< "   dl = " << dl << '\n'
+		<< "   lai0 = " << lai0 << '\n'
+		<< "   optimize_lai = " << optimize_lai << '\n'
+		<< "   les_u = " << les_u << '\n'
+		<< "   les_cc = " << les_cc << '\n'
+		<< "   les_k1 = " << les_k1 << '\n'
+		<< "   les_k2 = " << les_k2 << '\n'
+		<< "   les_hT_dH = " << les_hT_dH << '\n'
+		<< "   les_molar_R = " << les_molar_R << '\n'
+		<< "   les_hT_c = " << les_hT_c << '\n'
+		<< "   rd = " << rd << '\n'
+		<< "   rr = " << rr << '\n'
+		<< "   rs = " << rs << '\n'
+		<< "   cbio = " << cbio << '\n'
+		<< "   y = " << y << '\n'
+		<< "   k_light = " << k_light << '\n'
+		<< "   a_f1 = " << a_f1 << '\n'
+		<< "   a_f2 = " << a_f2 << '\n'
+		<< "   ll_seed = " << ll_seed << '\n'
+		<< "   Sd = " << Sd << '\n'
+		<< "   npp_Sghalf = " << npp_Sghalf << '\n'
+		<< "   cD0 = " << cD0 << '\n'
+		<< "   eD0 = " << eD0 << '\n'
+		<< "   cD1 = " << cD1 << '\n'
+		<< "   m_alpha = " << m_alpha << '\n'
+		<< "   m_beta = " << m_beta << '\n'
+		<< "   m_gamma = " << m_gamma << '\n'
+		<< "   eWD_alpha = " << eWD_alpha << '\n'
+		<< "   eWD_gamma = " << eWD_gamma << '\n'
+		<< "   cWD0 = " << cWD0 << '\n'
+		<< "   eWD = " << eWD << '\n'
+		<< "   m_hydraulic = " << m_hydraulic << '\n'
+		<< "   days_per_tunit = " << days_per_tunit << '\n'
+		<< "   years_per_tunit_avg = " << years_per_tunit_avg << '\n';
 }
 
 // Changelog:
+// v2: m,n,a,c - move to traits from parameters
 // v3: add m_hydraulic
+// v4: add days_per_t_unit etc
 void PlantParameters::save(std::ostream &fout){
-	fout << "Params::v3 ";
+	fout << "Params::v4   ";
 	fout << std::make_tuple(
 		  kphio
 		, alpha
@@ -272,6 +312,8 @@ void PlantParameters::save(std::ostream &fout){
 		, cWD0
 		, eWD
 		, m_hydraulic
+		, days_per_tunit
+		, years_per_tunit_avg
 			);
 	fout << '\n';
 }
@@ -279,7 +321,7 @@ void PlantParameters::save(std::ostream &fout){
 
 void PlantParameters::restore(std::istream &fin){
 	std::string s; fin >> s; // discard version number
-	assert(s == "Params::v3");
+	assert(s == "Params::v4");
 
 	fin >> kphio
 		>> alpha
@@ -321,6 +363,8 @@ void PlantParameters::restore(std::istream &fin){
 		>> cWD0
 		>> eWD
 		>> m_hydraulic
+		>> days_per_tunit
+		>> years_per_tunit_avg
 	;
 }
 

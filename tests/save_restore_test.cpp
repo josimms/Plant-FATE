@@ -20,8 +20,8 @@ int is_equal(const vector<double>& v1, const vector<double>& v2, double tol=1e-6
 
 int main(int argc, char ** argv){
 
-	// string par_file = "tests/params/p_test_v2.ini";
-	string par_file = "tests/params/p_test_v2_evol3_wdxhmat.ini";
+	string par_file = "tests/params/p_test_v2.ini";
+	// string par_file = "tests/params/p_test_v2_evol3_wdxhmat.ini";
 	if (argc == 2){
 		par_file = argv[1];
 	}
@@ -32,8 +32,8 @@ int main(int argc, char ** argv){
 	{
 		pfate::Patch sim(par_file);
 		sim.config.continuePrevious = false;
-		sim.config.expt_dir = "cont_test_ref";
-		sim.init(1000, 1350);
+		sim.config.expt_dir = "cont_test_short_ref";
+		sim.init(1000, 1050);
 		sim.simulate();
 
 		ba = sim.props.species.basal_area_vec;
@@ -47,8 +47,8 @@ int main(int argc, char ** argv){
 	{
 		pfate::Patch sim(par_file);
 		sim.config.continuePrevious = false;
-		sim.config.expt_dir = "cont_test_spinup";
-		sim.init(1000, 1200);
+		sim.config.expt_dir = "cont_test_short_spinup";
+		sim.init(1000, 1020);
 		sim.simulate();
 		sim.close();
 	}
@@ -57,10 +57,15 @@ int main(int argc, char ** argv){
 	{
 		pfate::Patch sim(par_file);
 		sim.config.continuePrevious = true;
-		sim.config.continueFrom_stateFile    = sim.config.parent_dir + "/" + "cont_test_spinup/pf_saved_state.txt"; 
-		sim.config.continueFrom_configFile   = sim.config.parent_dir + "/" + "cont_test_spinup/pf_saved_config.ini"; 
-		sim.config.expt_dir = "cont_test_main";
-		sim.init(1000, 1350);
+		sim.config.continueFrom_stateFile    = sim.config.parent_dir + "/" + "cont_test_short_spinup/pf_saved_state.txt"; 
+		sim.config.continueFrom_configFile   = sim.config.parent_dir + "/" + "cont_test_short_spinup/pf_saved_config.ini"; 
+		sim.config.expt_dir = "cont_test_short_main";
+		sim.init(1000, 1050);
+		saveState(sim, 
+			sim.config.out_dir + "/" + "afterRestore_" + sim.config.state_outfile, 
+			sim.config.out_dir + "/" + "afterRestore_" + sim.config.config_outfile, 
+			sim.config.paramsFile);
+
 		sim.simulate();
 
 		ba1 = sim.props.species.basal_area_vec;
@@ -72,7 +77,7 @@ int main(int argc, char ** argv){
 	cout << setprecision(10) << "Basal areas [m2/Ha]: " << ba  << '\n';
 	cout << setprecision(10) << "Basal areas [m2/Ha]: " << ba1 << '\n';
 
-	int err = is_equal(ba, ba1, 1e-2);
+	int err = is_equal(ba, ba1, 1e-3);
 
 	return err;
 }

@@ -212,6 +212,10 @@ PlantAssimilationResult Assimilator::net_production(Env &env, PlantArchitecture 
 	double T = plant_assim.tleaf + plant_assim.troot;
 
 	plant_assim.npp = par.y*(A-R) - T; // net biomass growth rate (kg unit_t-1)
+	if (std::isnan(plant_assim.npp)){
+		std::cout << "ART = " << A << " " << R << " " << T << '\n';
+		throw std::runtime_error("assimilator npp is nan");
+	}
 
 	// if (G->height > 15) std::cout << "h/A = " << G->height << " / " << A/G->crown_area << std::endl;
 	// if (env.n_layers > 1 && G->height < 5) std::cout << "h/L/ml/mr | A/R/T/Vc = " << G->height << " / " << G->lai << " / " << G->leaf_mass(traits) << " / " << G->root_mass(traits) << " | " << A << " / " << R << " / " << T << " / " << plant_assim.vcmax_avg << "\n"; 
