@@ -21,7 +21,7 @@ class CommunityProperties{
 	struct{
 		double gpp=0;      ///< Gross primary productivity [kgC m-2 day-1]
 		double npp=0;      ///< Net primary productivity [kgC m-2 day-1]
-		double trans=0;    ///< Transpiration [kg m-2 day-1 == mm day-1]
+		double trans=0;    ///< Transpiration [kg m-2 day-1 ~= mm day-1]
 		double gs=0;       ///< Stomatal conductance [mol-h2o m-2 s-1]
 		double tleaf=0;    ///< Leaf turnover rate [kgC m-2 day-1]
 		double troot=0;    ///< Fine root turnover rate [kgC m-2 day-1]
@@ -123,17 +123,15 @@ class CommunityProperties{
 	template<class Func>
 	std::vector<double> integrate_prop_per_species(double t, Solver &S, Func f){
 		std::vector<double> x; 
-		x.reserve(S.n_species());
+		x.resize(S.n_species(), 0);
 		for (int k=0; k<S.n_species(); ++k){
 			bool is_resident = static_cast<AdaptiveSpecies<PSPM_Plant>*>(S.species_vec[k])->isResident;
 			if (is_resident){
-				x.push_back(
-					S.state_integral([&S,k,f](int i, double t){
-						auto p = (static_cast<Species<PSPM_Plant>*>(S.species_vec[k]))->getCohort(i);
-						PSPM_Plant * pp = &p;
-						return f(pp);
-					}, t, k)
-				);
+				x[k] = S.state_integral([&S,k,f](int i, double t){
+						    auto p = (static_cast<Species<PSPM_Plant>*>(S.species_vec[k]))->getCohort(i);
+						    PSPM_Plant * pp = &p;
+						    return f(pp);
+					   }, t, k);
 			}
 		}
 		return x;
@@ -142,17 +140,15 @@ class CommunityProperties{
 	template<class Func>
 	std::vector<double> integrate_prop_above_per_species(double t, double xlow, Solver &S, Func f){
 		std::vector<double> x; 
-		x.reserve(S.n_species());
+		x.resize(S.n_species(), 0);
 		for (int k=0; k<S.n_species(); ++k){
 			bool is_resident = static_cast<AdaptiveSpecies<PSPM_Plant>*>(S.species_vec[k])->isResident;
 			if (is_resident){
-				x.push_back(
-					S.integrate_wudx_above([&S,k,f](int i, double t){
-						auto p = (static_cast<Species<PSPM_Plant>*>(S.species_vec[k]))->getCohort(i);
-						PSPM_Plant * pp = &p;
-						return f(pp);
-					}, t, {xlow}, k)
-				);
+				x[k] = S.integrate_wudx_above([&S,k,f](int i, double t){
+						    auto p = (static_cast<Species<PSPM_Plant>*>(S.species_vec[k]))->getCohort(i);
+						    PSPM_Plant * pp = &p;
+						    return f(pp);
+					   }, t, {xlow}, k);
 			}
 		}
 		return x;
