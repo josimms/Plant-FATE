@@ -32,7 +32,7 @@ class Patch{
 	plant::PlantTraits traits0;
 
 	// should be moved out of patch
-	env::ClimateStream  climate_stream;  
+	env::ClimateStream  climate_stream;
 	flare::TimeStepper  ts;
 
 	// io::Initializer     I;
@@ -41,11 +41,11 @@ class Patch{
 
 	// SolverIO      sio;
 	// SpeciesProps  cwm;
-	CommunityProperties props; 
+	CommunityProperties props;
 
 	public:
 	Patch(std::string params_file);
-	
+
 	void set_i_metFile(std::string file);
 	void set_a_metFile(std::string file);
 	void set_co2File(std::string co2file);
@@ -60,14 +60,15 @@ class Patch{
 	void update_climate_acclim(double t_julian, double co2, double tc, double vpd, double ppfd, double swp);
 
 	void simulate();
+	void simulateClimate();
 
 	void close();
 
-	void save(std::ostream &fout);
-	void restore(std::istream &fin);
+	void save(std::ostream& fout);
+	void restore(std::istream& fin);
 
-	private: 
-	double runif(double rmin=0, double rmax=1);
+	private:
+	double runif(double rmin = 0, double rmax = 1);
 
 	std::vector<plant::PlantTraits> readTraitsFromFile(std::string fname);
 

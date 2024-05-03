@@ -78,7 +78,7 @@ void Climate::init_co2(double _co2){
 	clim_acclim.co2 = _co2;
 }
 
-void Climate::init_forcing_acclim(double t0, const Clim &c0){
+void Climate::init_forcing_acclim(double t0, const Clim& c0){
 	t_last = t0;
 	clim_acclim = c0;
 }
@@ -88,29 +88,29 @@ void Climate::set_acclim_timescale(double tau){
 }
 
 // REF: https://stackoverflow.com/questions/1023860/exponential-moving-average-sampled-at-varying-times
-void Climate::set_forcing_acclim(double t, const Clim &c){
+void Climate::set_forcing_acclim(double t, const Clim& c){
 	double dt = t - t_last;
-	double alpha = 1 - exp(-dt/tau_acclim);
-	clim_acclim += alpha*(c - clim_acclim);   // Compute exp-weighted moving average
+	double alpha = 1 - exp(-dt / tau_acclim);
+	clim_acclim += alpha * (c - clim_acclim);   // Compute exp-weighted moving average
 	t_last = t;
 }
 
 void Climate::print(double t){
 	cout << "Current climate (inst / acclim):\n";
-	cout << "   tc      = " << clim_inst.tc       << " / " << clim_acclim.tc       << '\n';
-	cout << "   ppfd    = " << clim_inst.ppfd     << " / " << clim_acclim.ppfd     << '\n';
-	cout << "   vpd     = " << clim_inst.vpd      << " / " << clim_acclim.vpd      << '\n';
-	cout << "   co2     = " << clim_inst.co2      << " / " << clim_acclim.co2      << '\n';
-	cout << "   elv     = " << clim_inst.elv      << " / " << clim_acclim.elv      << '\n';
-	cout << "   swp     = " << clim_inst.swp      << " / " << clim_acclim.swp      << '\n';
-	cout << "   pa      = " << clim_inst.pa       << " / " << clim_acclim.pa       << '\n';
-	cout << "   rn      = " << clim_inst.rn       << " / " << clim_acclim.rn       << '\n';
-	cout << "   vwind   = " << clim_inst.vwind    << " / " << clim_acclim.vwind    << '\n';
+	cout << "   tc      = " << clim_inst.tc << " / " << clim_acclim.tc << '\n';
+	cout << "   ppfd    = " << clim_inst.ppfd << " / " << clim_acclim.ppfd << '\n';
+	cout << "   vpd     = " << clim_inst.vpd << " / " << clim_acclim.vpd << '\n';
+	cout << "   co2     = " << clim_inst.co2 << " / " << clim_acclim.co2 << '\n';
+	cout << "   elv     = " << clim_inst.elv << " / " << clim_acclim.elv << '\n';
+	cout << "   swp     = " << clim_inst.swp << " / " << clim_acclim.swp << '\n';
+	cout << "   pa      = " << clim_inst.pa << " / " << clim_acclim.pa << '\n';
+	cout << "   rn      = " << clim_inst.rn << " / " << clim_acclim.rn << '\n';
+	cout << "   vwind   = " << clim_inst.vwind << " / " << clim_acclim.vwind << '\n';
 }
 
 void Climate::print_line(double t){
 	cout << "Current climate (t=" << t << "): ";
-	cout << clim_inst.tc  << " ";
+	cout << clim_inst.tc << " ";
 	cout << clim_inst.ppfd << " ";
 	cout << clim_inst.vpd << " ";
 	cout << clim_inst.co2 << " ";

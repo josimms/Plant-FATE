@@ -36,20 +36,20 @@ void ClimateStream::updateClimate(double julian_time, Climate& C){
 		i_met_stream.advance_to_time(julian_time);
 		// std::cout << i_met_stream.current_row << std::endl;
 		C.clim_inst.tc   = as<double>(i_met_stream.current_row[3]);
-		C.clim_inst.vpd  = as<double>(i_met_stream.current_row[4])*100; // convert hPa to Pa
+		C.clim_inst.vpd  = as<double>(i_met_stream.current_row[4]) * 100; // convert hPa to Pa
 		C.clim_inst.ppfd = as<double>(i_met_stream.current_row[5]);      // ppfd
-		C.clim_inst.swp  = as<double>(i_met_stream.current_row[7])*(-1); // convert -MPa to MPa
+		C.clim_inst.swp  = as<double>(i_met_stream.current_row[7]) * (-1); // convert -MPa to MPa
 	}
 	if (update_a_met){
 		a_met_stream.advance_to_time(julian_time);
 		// std::cout << a_met_stream.current_row << std::endl;
 		Clim cnew = C.clim_acclim;
 		cnew.tc   = as<double>(a_met_stream.current_row[3]);
-		cnew.vpd  = as<double>(a_met_stream.current_row[4])*100; // convert hPa to Pa
+		cnew.vpd  = as<double>(a_met_stream.current_row[4]) * 100; // convert hPa to Pa
 		cnew.ppfd = as<double>(a_met_stream.current_row[6]);      // max ppfd
-		cnew.swp  = as<double>(a_met_stream.current_row[7])*(-1); // convert -MPa to MPa
+		cnew.swp  = as<double>(a_met_stream.current_row[7]) * (-1); // convert -MPa to MPa
 		C.set_forcing_acclim(julian_time, cnew);
-	} 
+	}
 	else {
 		// TODO. Replace with a proper function that computes acclim forcing from inst
 		Clim cnew = C.clim_acclim;

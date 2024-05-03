@@ -1,12 +1,12 @@
 namespace pfate{
 
 template <class Model>
-AdaptiveSpecies<Model>::AdaptiveSpecies(Model M, bool res) : Species<Model>(M) {
+AdaptiveSpecies<Model>::AdaptiveSpecies(Model M, bool res) : Species<Model>(M){
 	int n = get_traits().size();
 	fitness_gradient.resize(n, 0);
-	trait_scalars.resize(n,1);
+	trait_scalars.resize(n, 1);
 	trait_variance.resize(n, 0.01);
-	for (int i=0; i<n; ++i) evolvable_traits.push_back("T"+std::to_string(i));
+	for (int i = 0; i < n; ++i) evolvable_traits.push_back("T" + std::to_string(i));
 	invasion_fitness = 0;
 	r0 = 1;
 	isResident = res;
@@ -30,10 +30,10 @@ std::vector<double> AdaptiveSpecies<Model>::get_traits(){
 template <class Model>
 void AdaptiveSpecies<Model>::createVariants(Model M){
 	std::vector<double> traits = get_traits();
-	for (int i=0; i<traits.size(); ++i){
+	for (int i = 0; i < traits.size(); ++i){
 		std::vector<double> traits_mutant = traits;
 		traits_mutant[i] += fg_dx * trait_scalars[i];
-		AdaptiveSpecies<Model> * m = new AdaptiveSpecies<Model>(*this); // copy-construct the variant, then edit traits
+		AdaptiveSpecies<Model>* m = new AdaptiveSpecies<Model>(*this); // copy-construct the variant, then edit traits
 		m->set_traits(traits_mutant);
 		m->isResident = false;
 		m->probes.clear(); // mutants dont have probes
@@ -50,17 +50,17 @@ void AdaptiveSpecies<Model>::evolveTraits(double dt){
 	std::vector<double> traits_res = get_traits();
 	std::vector<double> dx(traits_res.size());
 
-	for (int i=0; i<dx.size(); ++i){
-		double dx_norm = fitness_gradient[i]*trait_variance[i]*dt; // Landes equation for normalized trait
+	for (int i = 0; i < dx.size(); ++i){
+		double dx_norm = fitness_gradient[i] * trait_variance[i] * dt; // Landes equation for normalized trait
 		dx[i] = trait_scalars[i] * dx_norm;
 	}
 
-	for (int i=0; i<dx.size(); ++i) traits_res[i] += dx[i];
+	for (int i = 0; i < dx.size(); ++i) traits_res[i] += dx[i];
 	set_traits(traits_res);
 
 	for (auto m : probes){
 		std::vector<double> traits_mut = m->get_traits();
-		for (int j=0; j<traits_mut.size(); ++j) traits_mut[j] += dx[j];
+		for (int j = 0; j < traits_mut.size(); ++j) traits_mut[j] += dx[j];
 		m->set_traits(traits_mut);
 	}
 }
@@ -72,7 +72,7 @@ void AdaptiveSpecies<Model>::calcFitnessGradient(){
 
 	fitness_gradient.clear();
 	for (auto m : probes){
-		double grad = (m->r0_hist.get()-r0_hist.get()) / fg_dx;
+		double grad = (m->r0_hist.get() - r0_hist.get()) / fg_dx;
 		fitness_gradient.push_back(grad);
 		//cout << "   " << m->invasion_fitness << " " << spp->invasion_fitness << " " << *spp->fitness_gradient.rbegin() << "\n";
 	}
@@ -82,7 +82,7 @@ void AdaptiveSpecies<Model>::calcFitnessGradient(){
 template <class Model>
 void AdaptiveSpecies<Model>::print_extra(){
 	std::cout << "Name: " << species_name << "\n";
-	std::cout << "Resident: " << ((isResident)? "Yes" : "No") << "\n";
+	std::cout << "Resident: " << ((isResident) ? "Yes" : "No") << "\n";
 	std::cout << "Probes: ";
 	for (auto x : probes) std::cout << x->species_name << " ";
 	std::cout << "\n";
@@ -96,39 +96,39 @@ void AdaptiveSpecies<Model>::print_extra(){
 // Changelog:
 // v2: Save plant parameters also from boundary cohort, so that ini file is not needed during restore (for plant parameters)
 template <class Model>
-void AdaptiveSpecies<Model>::save(std::ostream &fout){
+void AdaptiveSpecies<Model>::save(std::ostream& fout){
 	fout << "AdaptiveSpecies<T>::v2\n";
-	
+
 	// save species-level data
 	fout << std::make_tuple(
-		      fg_dx
-			, std::quoted(species_name)
-			, isResident
-			, t_introduction
-			, invasion_fitness
-			, r0);
+		fg_dx
+		, std::quoted(species_name)
+		, isResident
+		, t_introduction
+		, invasion_fitness
+		, r0);
 	fout << '\n';
 
 	fout << fitness_gradient << '\n'
-	     << trait_variance << '\n'
-		 << trait_scalars << '\n'
-		 << evolvable_traits << '\n';  // trait names dont contain whitespaces, so safe to write this way without std::quoted()
-	
+		<< trait_variance << '\n'
+		<< trait_scalars << '\n'
+		<< evolvable_traits << '\n';  // trait names dont contain whitespaces, so safe to write this way without std::quoted()
+
 	// MovingAveragers
 	seeds_hist.save(fout);
 	r0_hist.save(fout);
 
 	// save both par and traits from boundary cohort
 	auto& C = this->getCohort(-1);
-	C.par.save(fout); 
-	C.traits.save(fout); 
+	C.par.save(fout);
+	C.traits.save(fout);
 
 	Species<Model>::save(fout);
 }
 
 
 template <class Model>
-void AdaptiveSpecies<Model>::restore(std::istream &fin){
+void AdaptiveSpecies<Model>::restore(std::istream& fin){
 	std::cout << "Restoring AdaptiveSpecies<Model>...\n";
 	std::string s; fin >> s; // discard version number
 	assert(s == "AdaptiveSpecies<T>::v2");
@@ -140,9 +140,9 @@ void AdaptiveSpecies<Model>::restore(std::istream &fin){
 		>> t_introduction
 		>> invasion_fitness
 		>> r0;
-	
+
 	fin >> fitness_gradient
-	    >> trait_variance
+		>> trait_variance
 		>> trait_scalars
 		>> evolvable_traits;
 

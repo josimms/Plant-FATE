@@ -5,7 +5,7 @@ using namespace std;
 
 namespace pfate{
 
-void saveState(Patch &P, string state_outfile, string config_outfile, string params_file){
+void saveState(Patch& P, string state_outfile, string config_outfile, string params_file){
 
 	cout << "Saving state to: " << state_outfile << '\n';
 	cout << "Saving config to: " << config_outfile << '\n';
@@ -18,7 +18,7 @@ void saveState(Patch &P, string state_outfile, string config_outfile, string par
 
 	// open file for writing state
 	ofstream fout(state_outfile.c_str());
-	if (!fout) throw runtime_error("Could not open file for saving state: "+state_outfile);
+	if (!fout) throw runtime_error("Could not open file for saving state: " + state_outfile);
 
 	fout << setprecision(12);
 
@@ -31,13 +31,13 @@ void saveState(Patch &P, string state_outfile, string config_outfile, string par
 }
 
 
-void restoreState(Patch &P, string state_infile, string config_infile){
+void restoreState(Patch& P, string state_infile, string config_infile){
 
 	cout << "Restoring state from: " << state_infile << '\n';
 	cout << "Restoring config from: " << config_infile << '\n';
 
 	ifstream fin(state_infile.c_str());
-	if (!fin) throw runtime_error("Could not open file for restoring state: "+state_infile);
+	if (!fin) throw runtime_error("Could not open file for restoring state: " + state_infile);
 
 	string s; fin >> s;  // discard version number
 
