@@ -23,13 +23,13 @@ class ClimateStream{
 	std::string i_metFile = "";
 	std::string a_metFile = "";
 	std::string co2File = "";
-	
+
 	bool update_i_met = false;
 	bool update_a_met = false;
 	bool update_co2 = false;
 
-	private: 
-	template<class T> 
+	private:
+	template<class T>
 	T as(std::string s);
 
 	public:
@@ -38,7 +38,7 @@ class ClimateStream{
 };
 
 
-template<class T> 
+template<class T>
 T ClimateStream::as(std::string s){
 	std::stringstream sin(s);
 	T data;

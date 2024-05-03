@@ -2,20 +2,21 @@ namespace plant{
 
 inline void print_phydro(const phydro::PHydroResult& res, std::string s){
 	std::cout << "phydro: " << s << '\n';
-	std::cout << "   a = " << res.a << '\n' 
-	          << "   e = " << res.e << '\n' 
-			  << "   vcmax = " << res.vcmax << '\n' 
-			  << "   vcmax25 = " << res.vcmax25 << '\n'
-			  << "   rd = " << res.rd << '\n'
-			  << "   gs = " << res.gs << '\n'
-			  << "   dpsi = " << res.dpsi << '\n';
+	std::cout 
+		<< "   a = " << res.a << '\n'
+		<< "   e = " << res.e << '\n'
+		<< "   vcmax = " << res.vcmax << '\n'
+		<< "   vcmax25 = " << res.vcmax25 << '\n'
+		<< "   rd = " << res.rd << '\n'
+		<< "   gs = " << res.gs << '\n'
+		<< "   dpsi = " << res.dpsi << '\n';
 }
 
 // **
 // ** Gross and Net Assimilation 
 // **
 template<class _Climate>
-phydro::PHydroResult Assimilator::leaf_assimilation_rate(double fipar, double fapar, _Climate &C, PlantParameters &par, PlantTraits &traits){
+phydro::PHydroResult Assimilator::leaf_assimilation_rate(double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits){
 	phydro::ParCost par_cost(par.alpha, par.gamma);
 	phydro::ParPlant par_plant(traits.K_leaf, traits.p50_leaf, traits.b_leaf);
 	phydro::ParControl par_control;
@@ -25,9 +26,9 @@ phydro::PHydroResult Assimilator::leaf_assimilation_rate(double fipar, double fa
 
 	double f_day_length = 0.5;
 
-	double Iabs_acclim = fipar*C.clim_acclim.ppfd;
-	double Iabs_day    = fipar*C.clim_inst.ppfd/f_day_length;
-	double Iabs_24hr   = fipar*C.clim_inst.ppfd;
+	double Iabs_acclim = fipar * C.clim_acclim.ppfd;
+	double Iabs_day    = fipar * C.clim_inst.ppfd / f_day_length;
+	double Iabs_24hr   = fipar * C.clim_inst.ppfd;
 
 	auto out_phydro_acclim = phydro::phydro_analytical(
 		C.clim_acclim.tc,     // current temperature
@@ -110,16 +111,16 @@ phydro::PHydroResult Assimilator::leaf_assimilation_rate(double fipar, double fa
 	// print_phydro(photo_leaf2, "inst real 24 hr");
 
 
-	return photo_leaf;	
+	return photo_leaf;
 }
 
 
 template<class Env>
-void  Assimilator::calc_plant_assimilation_rate(Env &env, PlantArchitecture *G, PlantParameters &par, PlantTraits &traits){
+void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits){
 	//double GPP_plant = 0, Rl_plant = 0, dpsi_avg = 0;
-	double fapar = 1-exp(-par.k_light*G->lai);
+	double fapar = 1 - exp(-par.k_light * G->lai);
 	bool by_layer = false;
-	
+
 	plant_assim.gpp        = 0;
 	plant_assim.rleaf      = 0;
 	plant_assim.trans      = 0;
@@ -129,18 +130,18 @@ void  Assimilator::calc_plant_assimilation_rate(Env &env, PlantArchitecture *G, 
 	plant_assim.mc_avg     = 0;
 	plant_assim.gs_avg     = 0;
 	plant_assim.c_open_avg = 0;
-	
+
 	double ca_cumm = 0;
 	//std::cout << "--- PPA Assim begin ---" << "\n";
 	for (int ilayer=0; ilayer <= env.n_layers; ++ilayer){ // for l in 1:layers{	
 		double zst = env.z_star[ilayer];
 		double ca_layer = G->crown_area_above(zst, traits) - ca_cumm;
 		//std::cout << "h = " << G->height << ", z* = " << zst << ", I = " << env.canopy_openness[ilayer] << ", fapar = " << fapar << /*", A = " << (res.a + res.vcmax*par.rd) << " umol/m2/s x " <<*/ ", ca_layer = " << ca_layer << /*" m2 = " << (res.a + res.vcmax*par.rd) * ca_layer << ", vcmax = " << res.vcmax <<*/ "\n"; 
-		
+
 		if (by_layer == true){
 			auto res = leaf_assimilation_rate(env.canopy_openness[ilayer], fapar, env, par, traits);
-			plant_assim.gpp        += (res.a + res.vcmax*par.rd) * ca_layer;
-			plant_assim.rleaf      += (res.vcmax*par.rd) * ca_layer;
+			plant_assim.gpp        += (res.a + res.vcmax * par.rd) * ca_layer;
+			plant_assim.rleaf      += (res.vcmax * par.rd) * ca_layer;
 			plant_assim.trans      += res.e * ca_layer;
 			plant_assim.dpsi_avg   += res.dpsi * ca_layer;
 			plant_assim.vcmax_avg  += res.vcmax * ca_layer;
@@ -148,12 +149,12 @@ void  Assimilator::calc_plant_assimilation_rate(Env &env, PlantArchitecture *G, 
 			plant_assim.vcmax25_avg += res.vcmax25 * ca_layer;
 			plant_assim.mc_avg     += res.mc * ca_layer;
 		}
-		
+
 		plant_assim.c_open_avg += env.canopy_openness[ilayer] * ca_layer;
 		ca_cumm += ca_layer;
-		
+
 	}
-	assert(fabs(ca_cumm/G->crown_area - 1) < 1e-6);
+	assert(fabs(ca_cumm / G->crown_area - 1) < 1e-6);
 	double ca_total = G->crown_area;                   // total crown area
 	plant_assim.c_open_avg /= ca_total;                // unitless
 	if (by_layer == true){
@@ -168,8 +169,8 @@ void  Assimilator::calc_plant_assimilation_rate(Env &env, PlantArchitecture *G, 
 
 	if (by_layer == false){
 		auto res = leaf_assimilation_rate(plant_assim.c_open_avg, fapar, env, par, traits);
-		plant_assim.gpp        = (res.a + res.vcmax*par.rd) * ca_total;
-		plant_assim.rleaf      = (res.vcmax*par.rd) * ca_total;
+		plant_assim.gpp        = (res.a + res.vcmax * par.rd) * ca_total;
+		plant_assim.rleaf      = (res.vcmax * par.rd) * ca_total;
 		plant_assim.trans      = res.e * ca_total;
 		plant_assim.dpsi_avg   = res.dpsi;
 		plant_assim.vcmax_avg  = res.vcmax;
@@ -183,7 +184,7 @@ void  Assimilator::calc_plant_assimilation_rate(Env &env, PlantArchitecture *G, 
 	//std::cout << "---\nCA traversed = " << ca_cumm << " -- " << G->crown_area << "\n";
 
 	// Convert units from per sec to per unit_t (unit_t is the unit in which time is counted, e.g. yr, day)
-	double sec_per_unit_t = 86400*par.days_per_tunit; // s-1 ---> unit_t-1
+	double sec_per_unit_t = 86400 * par.days_per_tunit; // s-1 ---> unit_t-1
 
 	plant_assim.gpp   *= (sec_per_unit_t * 1e-6 * par.cbio);        // umol co2/s ----> umol co2/unit_t --> mol co2/unit_t --> kg/unit_t 
 	plant_assim.rleaf *= (sec_per_unit_t * 1e-6 * par.cbio);        // umol co2/s ----> umol co2/unit_t --> mol co2/unit_t --> kg/unit_t 
@@ -194,24 +195,24 @@ void  Assimilator::calc_plant_assimilation_rate(Env &env, PlantArchitecture *G, 
 
 
 template<class Env>
-PlantAssimilationResult Assimilator::net_production(Env &env, PlantArchitecture *G, PlantParameters &par, PlantTraits &traits){
+PlantAssimilationResult Assimilator::net_production(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits){
 	plant_assim = PlantAssimilationResult(); // reset plant_assim
 
 	calc_plant_assimilation_rate(env, G, par, traits); // update plant_assim
 	les_update_lifespans(G->lai, par, traits);
 
-	plant_assim.rleaf = leaf_respiration_rate(G,par,traits);      // kg unit_t-1  
-	plant_assim.rroot = root_respiration_rate(G, par,traits);     // kg unit_t-1
-	plant_assim.rstem = sapwood_respiration_rate(G, par,traits);  // kg unit_t-1
-	
-	plant_assim.tleaf = leaf_turnover_rate(kappa_l, G, par,traits);  // kg unit_t-1
-	plant_assim.troot = root_turnover_rate(kappa_r, G, par,traits);  // kg unit_t-1
-	
+	plant_assim.rleaf = leaf_respiration_rate(G, par, traits);      // kg unit_t-1  
+	plant_assim.rroot = root_respiration_rate(G, par, traits);     // kg unit_t-1
+	plant_assim.rstem = sapwood_respiration_rate(G, par, traits);  // kg unit_t-1
+
+	plant_assim.tleaf = leaf_turnover_rate(kappa_l, G, par, traits);  // kg unit_t-1
+	plant_assim.troot = root_turnover_rate(kappa_r, G, par, traits);  // kg unit_t-1
+
 	double A = plant_assim.gpp;
 	double R = plant_assim.rleaf + plant_assim.rroot + plant_assim.rstem;
 	double T = plant_assim.tleaf + plant_assim.troot;
 
-	plant_assim.npp = par.y*(A-R) - T; // net biomass growth rate (kg unit_t-1)
+	plant_assim.npp = par.y * (A - R) - T; // net biomass growth rate (kg unit_t-1)
 	if (std::isnan(plant_assim.npp)){
 		std::cout << "ART = " << A << " " << R << " " << T << '\n';
 		throw std::runtime_error("assimilator npp is nan");

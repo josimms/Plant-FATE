@@ -9,7 +9,7 @@
 namespace pfate{
 namespace env{
 
-class LightEnvironment : public EnvironmentBase {
+class LightEnvironment : public EnvironmentBase{
 	public:
 	bool use_ppa = true;
 
@@ -21,17 +21,17 @@ class LightEnvironment : public EnvironmentBase {
 	std::vector<double> z_star;
 	std::vector<double> fapar_tot;
 	std::vector<double> canopy_openness;
-	
+
 	public:
 	LightEnvironment();
 
-	double projected_crown_area_above_z(double t, double z, Solver *S);
-	double fapar_layer(double t, int layer, Solver *S);
+	double projected_crown_area_above_z(double t, double z, Solver* S);
+	double fapar_layer(double t, int layer, Solver* S);
 
-	void computeEnv(double t, Solver * sol, std::vector<double>::iterator S, std::vector<double>::iterator dSdt) override;
+	void computeEnv(double t, Solver* sol, std::vector<double>::iterator S, std::vector<double>::iterator dSdt) override;
 
 	virtual void print(double t);
-	
+
 };
 
 } // env

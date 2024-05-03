@@ -17,8 +17,8 @@ class Clim{
 	double tc = 25.5;         ///< Temperature [C]
 	double ppfd = 500;        ///< PAR (daily 24-hr mean) [umol m-2 s-1]
 	double rn = 250;          ///< Net radiation at surface [W m-2]
-	double vpd  = 540;        ///< Vapour pressure deficit [Pa]
-	double co2  = 368.9;      ///< Atmospheric CO2 [ppm]
+	double vpd = 540;         ///< Vapour pressure deficit [Pa]
+	double co2 = 368.9;       ///< Atmospheric CO2 [ppm]
 	double elv = 0;           ///< Site elevation [m.a.s.l]
 	double swp = -0.04;       ///< Soil water potential [MPa]
 	double vwind = 3;         ///< Wind speed [m s-1]
@@ -89,7 +89,7 @@ class Climate{
 	/// @brief Initialize acclim forcing 
 	/// @param t0  initial time [julian day]
 	/// @param c0  initial forcing value
-	void init_forcing_acclim(double t0, const Clim &c0);
+	void init_forcing_acclim(double t0, const Clim& c0);
 
 	/// @brief Set acclimation timescale
 	/// @param tau timescale [days]
@@ -98,7 +98,7 @@ class Climate{
 	/// @brief Update acclim forcing as exp-weighted average of current and new value 
 	/// @param t0  current time [julian day]
 	/// @param c0  current forcing value
-	void set_forcing_acclim(double t, const Clim &c);
+	void set_forcing_acclim(double t, const Clim& c);
 
 	virtual void print(double t);
 	void print_line(double t);
