@@ -630,6 +630,11 @@ void Patch::restore(std::istream& fin){
 //      for (double t=y0; t <= yf+1e-6; t=t+T_long) {
 //      	simulate_to(t);
 //      }
+//
+// IMP NOTE: To avoid issues with floating point time comparisons, we recommend that you offset the start time by a fraction of the timestep.
+//           e.g., if input data has decimal years starting 2000, with time step of 0.08333333333, 
+//           start the simulation at t0=2000.005 instead of exactly 2000. There is a small drawback of this, that the ODE stepper will have to 
+//           substep for cohort insertion, but that's only once a year
 void Patch::simulate(){
 
 	for (double t=config.y0; t <= config.yf + 1e-6; t=t + config.timestep) {  // 1e-6 ensures that last timestep to reach yf is actually executed
