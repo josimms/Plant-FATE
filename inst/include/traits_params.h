@@ -93,6 +93,7 @@ class PlantParameters{
 	double rd;              ///< leaf dark respiration rate per unit photosynthetic capacity (r_leaf = rl*vcmax*leaf_area) [kg yr-1]
 	double rr;              ///< fine-root respiration rate [kg yr-1]
 	double rs;              ///< sapwood respiration rate [kg yr-1]
+	double p50x_cost;        ///< Extra respiratory cost of maintining high P50x 
 
 	double cbio;            ///< Biomass expansion factor: kg biomass per mol CO2 
 	double y;               ///< Growth respiration factor [-]
