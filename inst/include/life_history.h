@@ -17,13 +17,13 @@
 
 namespace pfate{
 
-class ErgodicEnvironment : public env::LightEnvironment, public env::Climate {
+class ErgodicEnvironment : public env::LightEnvironment, public env::Climate{
 	public:
 	ErgodicEnvironment();
 	void print(double t) override;
 
 	// override computeEnv() to NOT update the light profile
-	void computeEnv(double t, Solver * sol, std::vector<double>::iterator S, std::vector<double>::iterator dSdt) override;
+	void computeEnv(double t, Solver* sol, std::vector<double>::iterator S, std::vector<double>::iterator dSdt) override;
 };
 
 
@@ -43,7 +43,7 @@ class LifeHistoryOptimizer{
 
 	io::Initializer I;
 
-	double dt = 0.1; 
+	double dt = 0.1;
 
 	double rep;
 	double litter_pool;
@@ -53,7 +53,7 @@ class LifeHistoryOptimizer{
 	public:
 
 	LifeHistoryOptimizer(std::string params_file);
-	
+
 	void set_i_metFile(std::string file);
 	void set_a_metFile(std::string file);
 	void set_co2File(std::string co2file);
@@ -64,7 +64,7 @@ class LifeHistoryOptimizer{
 	void update_climate(double julian_time);
 
 	std::vector<std::string> get_header();
-	void printHeader(std::ostream &lfout);
+	void printHeader(std::ostream& lfout);
 
 	std::vector<double> get_state(double t);
 	void printState(double t, std::ostream& lfout);

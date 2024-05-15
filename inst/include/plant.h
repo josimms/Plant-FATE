@@ -25,7 +25,7 @@ class Plant{
 		double mortality = 0;     ///< Cummulative mortality
 		//double seed_pool = 0;
 	} state;
-	
+
 	/// @brief Core demographic rates
 	struct{
 		double dlai_dt;    ///< Rate of change of LAI
@@ -35,7 +35,7 @@ class Plant{
 		double rgr;        ///< Relative growth rate (RGR)
 		// double dseeds_dt_pool;
 		// double dseeds_dt_germ;
-	} rates;	
+	} rates;
 
 	/// @brief Mortality components
 	struct{
@@ -43,10 +43,10 @@ class Plant{
 		double mu_hyd;     ///< Mortality rate due to xylem cavitation
 		double mu_d;       ///< Diameter dependent mortality rate
 		double mu_growth;  ///< growth dependent mortality rate
-	} mort;	
+	} mort;
 
 	/// @brief Derivatives used for biomass partitioning
-	struct {
+	struct{
 		double dmass_dt_lai;
 		double dmass_dt_rep;
 		double dmass_dt_growth;
@@ -62,7 +62,7 @@ class Plant{
 	PlantTraits traits;   ///< Collection of all functional traits
 	PlantParameters par;  ///< Collection of all model parameters that are not traits
 
-	Assimilator assimilator; 
+	Assimilator assimilator;
 	PlantArchitecture geometry;
 
 	protected:
@@ -73,10 +73,10 @@ class Plant{
 
 	public:
 	/// @brief  This function initializes the plant (traits, par, and geometry) from params and traits objects
-	void init(const PlantParameters &_par, const PlantTraits &_traits);
+	void init(const PlantParameters& _par, const PlantTraits& _traits);
 
 	/// @brief  This function initializes the plant (traits, par, and geometry) from an Initialzer object
-	void init(io::Initializer &I);
+	void init(io::Initializer& I);
 
 	/// @brief  This function initializes the plant (traits, par, and geometry) from an ini file
 	void initFromFile(std::string file);
@@ -96,37 +96,37 @@ class Plant{
 
 	/// @brief LAI model
 	template <class Env>
-	double lai_model(PlantAssimilationResult &res, double _dmass_dt_tot, Env &env);
+	double lai_model(PlantAssimilationResult& res, double _dmass_dt_tot, Env& env);
 
 	/// @brief  Partition total biomass dm_dt_tot into various carbon pools
 	/// @param dm_dt_tot  Total biomass to partition
 	/// @param dm_dt_lai  Biomass that goes into LAI increment
 	template <class Env>
-	void partition_biomass(double dm_dt_tot, double dm_dt_lai, Env &env);
+	void partition_biomass(double dm_dt_tot, double dm_dt_lai, Env& env);
 
 	// Core demographic rates
 	/// @addtogroup libpspm_interface
 	/// @{
 	template <class Env>
-	double size_growth_rate(double _dmass_dt_growth, Env &env);
+	double size_growth_rate(double _dmass_dt_growth, Env& env);
 
 	template <class Env>
-	double mortality_rate(Env &env, double t);
+	double mortality_rate(Env& env, double t);
 
 	template <class Env>
-	double fecundity_rate(double _dmass_dt_rep, Env &env);
+	double fecundity_rate(double _dmass_dt_rep, Env& env);
 
 	template <class Env>
-	void calc_demographic_rates(Env &env, double t);
+	void calc_demographic_rates(Env& env, double t);
 	/// @}
 
 	/// @brief  Probability of survival during germination (i.e. until recruitment stage)
 	template <class Env>
-	double p_survival_germination(Env &env);
+	double p_survival_germination(Env& env);
 
 	/// @brief  Probability of survival during dispersal
 	template <class Env>
-	double p_survival_dispersal(Env &env);
+	double p_survival_dispersal(Env& env);
 
 	void print();
 

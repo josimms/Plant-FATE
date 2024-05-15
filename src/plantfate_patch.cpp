@@ -5,15 +5,15 @@ using namespace std;
 
 namespace pfate{
 
-Patch::Patch(std::string params_file) : S("IEBT", "rk45ck") {
+Patch::Patch(std::string params_file) : S("IEBT", "rk45ck"){
 	config.paramsFile = params_file; // = "tests/params/p.ini";
 	io::Initializer I;
 	I.parse(params_file);
 
 	config.parent_dir = I.get<string>("outDir");
 	config.expt_dir   = I.get<string>("exptName");
-	
-	config.save_state = (I.get<string>("saveState") == "yes")? true : false;
+
+	config.save_state = (I.get<string>("saveState") == "yes") ? true : false;
 
 	config.state_outfile  = I.get<string>("savedStateFile");
 	config.config_outfile = I.get<string>("savedConfigFile");
@@ -26,7 +26,7 @@ Patch::Patch(std::string params_file) : S("IEBT", "rk45ck") {
 	config.traits_file = I.get<string>("traitsFile");
 	config.n_species = I.get<double>("nSpecies");
 
-	config.evolve_traits = (I.get<string>("evolveTraits") == "yes")? true : false;
+	config.evolve_traits = (I.get<string>("evolveTraits") == "yes") ? true : false;
 	config.evolvable_traits = I.get_vector<std::string>("evolvableTraits");
 	config.trait_scalars = I.get_vector<double>("traitScalars");
 	config.trait_variances = I.get_vector<double>("traitVariances");
@@ -48,9 +48,9 @@ Patch::Patch(std::string params_file) : S("IEBT", "rk45ck") {
 	climate_stream.i_metFile = I.get<string>("i_metFile");
 	climate_stream.a_metFile = I.get<string>("a_metFile");
 	climate_stream.co2File   = I.get<string>("co2File");
-	climate_stream.update_i_met = (climate_stream.i_metFile == "null")? false : true;
-	climate_stream.update_a_met = (climate_stream.a_metFile == "null")? false : true;
-	climate_stream.update_co2   = (climate_stream.co2File   == "null")? false : true;
+	climate_stream.update_i_met = (climate_stream.i_metFile == "null") ? false : true;
+	climate_stream.update_a_met = (climate_stream.a_metFile == "null") ? false : true;
+	climate_stream.update_co2   = (climate_stream.co2File == "null") ? false : true;
 
 	props.emgProps_file = I.get<std::string>("emgProps");
 	props.cwmAvg_file = I.get<std::string>("cwmAvg");
@@ -64,19 +64,19 @@ Patch::Patch(std::string params_file) : S("IEBT", "rk45ck") {
 
 void Patch::set_i_metFile(std::string file){
 	climate_stream.i_metFile = file;
-	climate_stream.update_i_met = (file == "")? false : true;
+	climate_stream.update_i_met = (file == "") ? false : true;
 }
 
 
 void Patch::set_a_metFile(std::string file){
 	climate_stream.a_metFile = file;
-	climate_stream.update_a_met = (file == "")? false : true;
+	climate_stream.update_a_met = (file == "") ? false : true;
 }
 
 
 void Patch::set_co2File(std::string co2file){
 	climate_stream.co2File = co2file;
-	climate_stream.update_co2 = (co2file == "")? false : true;
+	climate_stream.update_co2 = (co2file == "") ? false : true;
 }
 
 
@@ -86,23 +86,23 @@ std::vector<plant::PlantTraits> Patch::readTraitsFromFile(std::string fname){
 	if (!fin){
 		throw std::runtime_error("Could not open file " + fname + "\n");
 	}
-	
+
 	std::vector<plant::PlantTraits> species;
-	
+
 	// read header
 	flare::CSVRow row;
 	fin >> row;
-	
+
 	plant::PlantTraits traits;
 	// read time column for all rows
-	while(fin >> row){
+	while (fin >> row){
 		std::string cell;
 
 		cell = row[1];
-		traits.species_name = cell;	
+		traits.species_name = cell;
 
 		cell = row[4];
-		if (cell != "" && cell != "NA")	traits.wood_density = std::stod(cell)*1000; // g/cc to kg/m3
+		if (cell != "" && cell != "NA")	traits.wood_density = std::stod(cell) * 1000; // g/cc to kg/m3
 		else traits.wood_density = 686.638;
 
 		cell = row[5];
@@ -110,16 +110,16 @@ std::vector<plant::PlantTraits> Patch::readTraitsFromFile(std::string fname){
 		else traits.hmat = 23.99;
 
 		cell = row[6];
-		if (cell != "" && cell != "NA")	traits.lma = std::stod(cell)*1e-3;  // convert g/m2 to kg/m2
+		if (cell != "" && cell != "NA")	traits.lma = std::stod(cell) * 1e-3;  // convert g/m2 to kg/m2
 		else traits.lma = 0.119378;
 
 		cell = row[7];
-		if (cell != "" && cell != "NA")	traits.p50_xylem = std::stod(cell); 
+		if (cell != "" && cell != "NA")	traits.p50_xylem = std::stod(cell);
 		else traits.p50_xylem = -2.29;
 
 		// ignore further data (for now)	
 
-		species.push_back(traits);		
+		species.push_back(traits);
 	}
 
 	return species;
@@ -127,7 +127,7 @@ std::vector<plant::PlantTraits> Patch::readTraitsFromFile(std::string fname){
 
 
 void Patch::init(double tstart, double tend){
-	config.out_dir  = config.parent_dir  + "/" + config.expt_dir; // TODO: Move to config::init()?
+	config.out_dir  = config.parent_dir + "/" + config.expt_dir; // TODO: Move to config::init()?
 
 	// string command = "mkdir -p " + out_dir;
 	std::filesystem::create_directories(config.out_dir);
@@ -154,7 +154,7 @@ void Patch::init(double tstart, double tend){
 	// ~~~~~~~ Set up environment ~~~~~~~~~~~~~~~
 	E.use_ppa = true;
 	E.set_elevation(0);
-	E.set_acclim_timescale(7); 
+	E.set_acclim_timescale(7);
 	climate_stream.init();
 
 	// ~~~~~~~~~~ Create solver ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -182,8 +182,8 @@ void Patch::init(double tstart, double tend){
 		}
 
 		// ~~~ Create initial resident species pool from traits file ~~~~
-		for (int i=0; i<config.n_species; ++i){
-			plant::PlantTraits traits = traits0; 
+		for (int i=0; i < config.n_species; ++i){
+			plant::PlantTraits traits = traits0;
 			traits.species_name = file_species[i].species_name;
 			traits.lma          = file_species[i].lma;
 			traits.wood_density = file_species[i].wood_density;
@@ -195,11 +195,11 @@ void Patch::init(double tstart, double tend){
 
 		// S.resetState(y0);
 		S.initialize(config.y0);
-	} 
+	}
 
 //	std::random_shuffle(S.species_vec.begin(), S.species_vec.end());
 
-	S.print();	
+	S.print();
 
 	// sio.S = &S;
 	props.openStreams(config.out_dir);
@@ -210,20 +210,20 @@ void Patch::close(){
 	//S.print();
 	props.closeStreams();
 
-	saveState(*this, 
-	          config.out_dir + "/" + config.state_outfile, 
-			  config.out_dir + "/" + config.config_outfile, 
-			  config.paramsFile);
+	saveState(*this,
+		config.out_dir + "/" + config.state_outfile,
+		config.out_dir + "/" + config.config_outfile,
+		config.paramsFile);
 
-	// free memory associated
-	for (auto s : S.species_vec) delete static_cast<AdaptiveSpecies<PSPM_Plant>*>(s); 
+// free memory associated
+	for (auto s : S.species_vec) delete static_cast<AdaptiveSpecies<PSPM_Plant>*>(s);
 
 }
 
 
 double Patch::runif(double rmin, double rmax){
-	double r = double(rand())/RAND_MAX; 
-	return rmin + (rmax-rmin)*r;
+	double r = double(rand()) / RAND_MAX;
+	return rmin + (rmax - rmin) * r;
 }
 
 
@@ -251,10 +251,10 @@ void Patch::addSpeciesAndProbes(double t, const plant::PlantTraits& traits){
 	p1.init(par0, traits);
 
 	((plant::Plant*)&p1)->print();
-	
+
 	//p1.geometry.set_lai(p1.par.lai0); // these are automatically set by init_state() in pspm_interface
 	p1.set_size({0.01});
-	
+
 	AdaptiveSpecies<PSPM_Plant>* spp = new AdaptiveSpecies<PSPM_Plant>(p1);
 	spp->species_name = traits.species_name;
 	spp->evolvable_traits = config.evolvable_traits;
@@ -273,7 +273,7 @@ void Patch::addSpeciesAndProbes(double t, const plant::PlantTraits& traits){
 
 	// Add variants (probes) to solver
 	if (config.evolve_traits){
-		for (auto m : static_cast<AdaptiveSpecies<PSPM_Plant>*>(spp)->probes) 
+		for (auto m : static_cast<AdaptiveSpecies<PSPM_Plant>*>(spp)->probes)
 			S.addSpecies({static_cast<int>(config.res)}, {0.01}, {10}, {true}, m, 2, 1e-3);
 	}
 
@@ -292,10 +292,10 @@ void Patch::shuffleSpecies(){
 void Patch::removeDeadSpecies(double t){
 	// Remove dead species
 	vector<AdaptiveSpecies<PSPM_Plant>*> toRemove;
-	for (int k=0; k<S.species_vec.size(); ++k){
+	for (int k=0; k < S.species_vec.size(); ++k){
 		auto spp = static_cast<AdaptiveSpecies<PSPM_Plant>*>(S.species_vec[k]);
 		if (spp->isResident){
-			if (props.species.n_ind_vec[k] < 1e-6 && (t-spp->t_introduction) > 50) toRemove.push_back(spp);
+			if (props.species.n_ind_vec[k] < 1e-6 && (t - spp->t_introduction) > 50) toRemove.push_back(spp);
 		}
 	}
 	for (auto spp : toRemove) removeSpeciesAndProbes(spp);
@@ -306,7 +306,7 @@ void Patch::addRandomSpecies(double t){
 	cout << "**** Invasion ****\n";
 
 	plant::PlantTraits traits = traits0;
-	traits.species_name = "spp_t"+to_string(t);
+	traits.species_name = "spp_t" + to_string(t);
 	traits.lma          = runif(0.05, 0.25);    //Tr.species[i].lma, 
 	traits.wood_density = runif(300, 900);   //Tr.species[i].wood_density, 
 	traits.hmat         = runif(2, 35);      //Tr.species[i].hmat, 
@@ -322,13 +322,13 @@ void Patch::evolveTraits(double t, double dt_evolution){
 
 void Patch::disturbPatch(double t){
 	for (auto spp : S.species_vec){
-		for (int i=0; i<spp->xsize(); ++i){
+		for (int i=0; i < spp->xsize(); ++i){
 			auto& p = (static_cast<AdaptiveSpecies<PSPM_Plant>*>(spp))->getCohort(i);
 			p.geometry.lai = p.par.lai0;
-			double u_new = spp->getU(i) * 0 * double(rand())/RAND_MAX;
+			double u_new = spp->getU(i) * 0 * double(rand()) / RAND_MAX;
 			spp->setU(i, u_new);
 		}
-		spp->setX(spp->xsize()-1, spp->xb);
+		spp->setX(spp->xsize() - 1, spp->xb);
 	}
 	S.copyCohortsToState();
 }
@@ -343,24 +343,24 @@ void Patch::disturbPatch(double t){
 /// @details   Species growth rate is defined from the seed perspective, i.e., 
 ///            \f[r = \frac{1}{\Delta t}log\left(\frac{S_\text{out}}{S_\text{in}}\right),\f] where \f$S\f$ is the seed rain (rate of seed production summed over all individuals of the species) 
 void Patch::calc_seedrain_r0(double t){
-	
+
 	// calculate output seed rain at time t, S(t)
 	vector<double> seeds = S.newborns_out(t);
-	for (int k=0; k<seeds.size(); ++k){
+	for (int k=0; k < seeds.size(); ++k){
 		if (seeds[k] < 0){
 			cout << "seeds[" << k << "] = " << seeds[k] << endl;
 			S.print();
-			static_cast<AdaptiveSpecies<PSPM_Plant>*>(S.species_vec[k])->seeds_hist.print_summary(); 
+			static_cast<AdaptiveSpecies<PSPM_Plant>*>(S.species_vec[k])->seeds_hist.print_summary();
 			cout.flush();
 		}
 	}
 
 	// calculate r0 and update input seed rain
-	for (int k=0; k<S.species_vec.size(); ++k){
+	for (int k=0; k < S.species_vec.size(); ++k){
 		auto spp = static_cast<AdaptiveSpecies<PSPM_Plant>*>(S.species_vec[k]);
 
 		double dt = t - spp->seeds_hist.get_last_t(); // Note: Due to this line, first value of r0 will be garbage, unless initialized!
-		if (dt < config.timestep/2){
+		if (dt < config.timestep / 2){
 			cout << "dt = " << dt << '\n';
 			spp->r0_hist.print();
 			spp->seeds_hist.print();
@@ -372,8 +372,8 @@ void Patch::calc_seedrain_r0(double t){
 		double seeds_in = spp->birth_flux_in;     // This was S_avg(t-dt)
 		double seeds_out = spp->seeds_hist.get(); // This is  S_avg(t),    i.e. average over seed-rain-avg interval, either a year or successional time window 
 		double eps = 1e-20;
-		double r0 = log((seeds_out+eps)/(seeds_in+eps))/dt;   // t0 = (log(S_avg(t)/S_avg(t-dt))/dt
-		
+		double r0 = log((seeds_out + eps) / (seeds_in + eps)) / dt;   // t0 = (log(S_avg(t)/S_avg(t-dt))/dt
+
 		spp->set_inputBirthFlux(seeds_out);       // S_avg(t) will be input for next step
 		spp->r0_hist.push(t, r0);                 // r0 is averaged again for better evolutoinary convergence 
 		// spp->r0_hist.print_summary();
@@ -384,7 +384,7 @@ void Patch::calc_seedrain_r0(double t){
 /// @brief This function simulates patch to time t
 /// @param t Final time up to which patch should be simulated
 void Patch::simulate_to(double t){
-	if (int(t*12) % 12 == 0){
+	if (int(t * 12) % 12 == 0){
 		double t_years_ce = flare::julian_to_yearsCE(ts.to_julian(S.current_time));
 		double tplus_years_ce = flare::julian_to_yearsCE(ts.to_julian(t));
 		cout << "stepping = " << setprecision(6) << S.current_time << " (" << t_years_ce << " CE)" << " --> " << t << " (" << tplus_years_ce << " CE)" << "\t(";
@@ -393,13 +393,13 @@ void Patch::simulate_to(double t){
 	}
 	// Step size to be used for evolutionary dynamics, 
 	// since trait evolution is done after completing step_to call
-	double dt_evol = t - S.current_time; 
+	double dt_evol = t - S.current_time;
 
 	// perform step
 	auto after_step = [this](double _t){
 		// Calc r0, update seed rain
 		// calc_seedrain_r0(_t);
-	};
+		};
 
 	S.step_to(t, after_step);
 
@@ -416,7 +416,7 @@ void Patch::simulate_to(double t){
 	props.update(t, *this);
 
 	// write outputs - must be done before species list is altered
-	if (t > t_next_writestate || fabs(t-t_next_writestate) < 1e-6){
+	if (t > t_next_writestate || fabs(t - t_next_writestate) < 1e-6){
 		props.writeOut(t, *this);
 		t_next_writestate += 1;
 	}
@@ -433,18 +433,18 @@ void Patch::simulate_to(double t){
 	// clear patch by disturbance	
 	if (t >= t_next_disturbance){
 		disturbPatch(t);
-		double dt_next = -log(double(rand())/RAND_MAX) * config.T_return;
-		dt_next = std::clamp(dt_next, 0.0, 10*config.T_return);
+		double dt_next = -log(double(rand()) / RAND_MAX) * config.T_return;
+		dt_next = std::clamp(dt_next, 0.0, 10 * config.T_return);
 		t_next_disturbance = t + dt_next;
 	}
 
 	// Save simulation state at specified intervals
-	if (t > t_next_savestate || fabs(t-t_next_savestate) < 1e-6){
-		saveState(*this, 
-			config.out_dir + "/" + std::to_string(t) + "_" + config.state_outfile, 
-			config.out_dir + "/" + std::to_string(t) + "_" + config.config_outfile, 
+	if (t > t_next_savestate || fabs(t - t_next_savestate) < 1e-6){
+		saveState(*this,
+			config.out_dir + "/" + std::to_string(t) + "_" + config.state_outfile,
+			config.out_dir + "/" + std::to_string(t) + "_" + config.config_outfile,
 			config.paramsFile);
-		
+
 		t_next_savestate += config.saveStateInterval;
 	}
 
@@ -461,7 +461,7 @@ void Patch::update_climate(double julian_time, env::ClimateStream& c_stream){
 void Patch::update_climate(double _co2, double _tc, double _vpd, double _ppfd, double _swp){
 	E.clim_inst.tc   = _tc;
 	E.clim_inst.ppfd = _ppfd;
-	E.clim_inst.rn   = _ppfd/2;  // Tentative, placeholder
+	E.clim_inst.rn   = _ppfd / 2;  // Tentative, placeholder
 	E.clim_inst.vpd  = _vpd;
 	E.clim_inst.co2  = _co2;
 	E.clim_inst.swp  = _swp;
@@ -471,7 +471,7 @@ void Patch::update_climate_acclim(double t_julian, double _co2, double _tc, doub
 	env::Clim C = E.clim_acclim;
 	C.tc   = _tc;
 	C.ppfd = _ppfd;
-	C.rn   = _ppfd/2;  // Tentative, placeholder
+	C.rn   = _ppfd / 2;  // Tentative, placeholder
 	C.vpd  = _vpd;
 	C.co2  = _co2;
 	C.swp  = _swp;
@@ -479,18 +479,18 @@ void Patch::update_climate_acclim(double t_julian, double _co2, double _tc, doub
 }
 
 
-void Patch::save(std::ostream &fout){
+void Patch::save(std::ostream& fout){
 	fout << "Patch::v1" << '\n';
-	
+
 	// write patch-specific state
 	fout << std::make_tuple(
-		      t_next_disturbance
-			, t_next_invasion
-			, t_next_savestate
-			, t_next_writestate)
-		 << '\n';
+		t_next_disturbance
+		, t_next_invasion
+		, t_next_savestate
+		, t_next_writestate)
+		<< '\n';
 
-	// write species names vector
+   // write species names vector
 	fout << S.species_vec.size() << " | ";
 	for (auto s : S.species_vec){
 		auto spp = static_cast<AdaptiveSpecies<PSPM_Plant>*>(s);
@@ -502,7 +502,7 @@ void Patch::save(std::ostream &fout){
 	for (auto s : S.species_vec){
 		auto spp = static_cast<AdaptiveSpecies<PSPM_Plant>*>(s);
 		fout << std::quoted(spp->species_name) << ' ';
-		fout << spp->probes.size() << " | "; 
+		fout << spp->probes.size() << " | ";
 		for (auto p : spp->probes) fout << std::quoted(p->species_name) << ' ';
 		fout << '\n';
 	}
@@ -511,33 +511,33 @@ void Patch::save(std::ostream &fout){
 	S.save(fout);
 }
 
-void Patch::restore(std::istream &fin){
+void Patch::restore(std::istream& fin){
 	std::cout << "Restoring Patch...\n";
 	std::string s; fin >> s; // discard version number
 	assert(s == "Patch::v1");
 
 	fin >> t_next_disturbance
-	    >> t_next_invasion
-	    >> t_next_savestate
-	    >> t_next_writestate;
+		>> t_next_invasion
+		>> t_next_savestate
+		>> t_next_writestate;
 
 	// Read species associations (probes)
-	vector<string> spp_names;   
+	vector<string> spp_names;
 	map<string, int> indices; // name --> index --- just a map that tells at which index in the species vector the species is located
 	vector<vector<int>> probe_lists;
 	int n; fin >> n >> s; // number of species to read, skip s = " | "
-	spp_names.resize(n); 
+	spp_names.resize(n);
 	probe_lists.resize(n);
-	for (int i=0; i<n; ++i) fin >> std::quoted(spp_names[i]);
+	for (int i=0; i < n; ++i) fin >> std::quoted(spp_names[i]);
 
 	// map indices
-	for (int i=0; i<n; ++i){
+	for (int i=0; i < n; ++i){
 		indices[spp_names[i]] = i;
 	}
 
 	// Species read: 
 	cout << "Species read:\n";
-	for (int i=0; i<spp_names.size(); ++i) cout << i << " " << indices[spp_names[i]] << " " << spp_names[i] << "\n";
+	for (int i=0; i < spp_names.size(); ++i) cout << i << " " << indices[spp_names[i]] << " " << spp_names[i] << "\n";
 
 	for (string s : spp_names){
 		string r_name; vector<string> probes_list;
@@ -547,7 +547,7 @@ void Patch::restore(std::istream &fin){
 		// read probe names
 		fin >> n >> s; // s has " | " 
 		cout << spp_names[indices[r_name]] << " --> " << n << " " << s;
-		for (int i=0; i<n; ++i){
+		for (int i=0; i < n; ++i){
 			fin >> std::quoted(s);
 			cout << spp_names[indices[s]] << " ";
 			probe_lists[indices[r_name]].push_back(indices[s]);
@@ -557,7 +557,7 @@ void Patch::restore(std::istream &fin){
 
 	PSPM_Plant p;
 	vector<Species_Base*> spp_proto;
-	for (int i=0; i<spp_names.size(); ++i){
+	for (int i=0; i < spp_names.size(); ++i){
 		auto spp = new AdaptiveSpecies<PSPM_Plant>(p);
 		spp_proto.push_back(static_cast<Species_Base*>(spp));
 	}
@@ -575,7 +575,7 @@ void Patch::restore(std::istream &fin){
 		auto spp = static_cast<AdaptiveSpecies<PSPM_Plant>*>(S.species_vec[res_id]);
 		for (int probe_id : probe_lists[res_id]){
 			spp->probes.push_back(static_cast<AdaptiveSpecies<PSPM_Plant>*>(S.species_vec[probe_id]));
-		}	
+		}
 	}
 
 }
@@ -630,14 +630,19 @@ void Patch::restore(std::istream &fin){
 //      for (double t=y0; t <= yf+1e-6; t=t+T_long) {
 //      	simulate_to(t);
 //      }
+//
+// IMP NOTE: To avoid issues with floating point time comparisons, we recommend that you offset the start time by a fraction of the timestep.
+//           e.g., if input data has decimal years starting 2000, with time step of 0.08333333333, 
+//           start the simulation at t0=2000.005 instead of exactly 2000. There is a small drawback of this, that the ODE stepper will have to 
+//           substep for cohort insertion, but that's only once a year
 void Patch::simulate(){
 
-	for (double t=config.y0; t <= config.yf+1e-6; t=t+config.timestep) {  // 1e-6 ensures that last timestep to reach yf is actually executed
+	for (double t=config.y0; t <= config.yf + 1e-6; t=t + config.timestep) {  // 1e-6 ensures that last timestep to reach yf is actually executed
 		if (fabs(t - S.current_time) < 1e-6) continue;
 
 		// read forcing inputs
 		// std::cout << "update Env (explicit)... t = " << S.current_time << ":\n";
-		update_climate(ts.to_julian(S.current_time)+1e-6, climate_stream); // The 1e-6 is to ensure that when t coincides exactly with time in climate file, we ensure that the value in climate file is read by asking for a slightly higher t
+		update_climate(ts.to_julian(S.current_time) + 1e-6, climate_stream); // The 1e-6 is to ensure that when t coincides exactly with time in climate file, we ensure that the value in climate file is read by asking for a slightly higher t
 		// ((env::Climate&)E).print(t);
 
 		// simulate patch
@@ -645,5 +650,56 @@ void Patch::simulate(){
 
 	}
 }
+
+/// @brief Simulate the climate input and write to file, without actually simulating the patch
+void Patch::simulateClimate(){
+
+	ofstream fout(std::string(config.out_dir + "/climate.csv").c_str());
+	fout << "t, " <<
+		"tc_acclim, " << 
+		"ppfd_acclim, " << 
+		"vpd_acclim, " << 
+		"co2_acclim, " << 
+		"elv_acclim, " << 
+		"swp_acclim, " << 
+		"tc_inst, " <<
+		"ppfd_inst, " <<
+		"vpd_inst, " <<
+		"co2_inst, " <<
+		"elv_inst, " <<
+		"swp_inst\n";
+
+	for (double t=config.y0; t <= config.yf + 1e-6; t=t + config.timestep) {  // 1e-6 ensures that last timestep to reach yf is actually executed
+		cout << "stepping = " << setprecision(6) << S.current_time << " --> " << t << "\n";
+
+		if (fabs(t - S.current_time) < 1e-6) continue;
+
+		// read forcing inputs
+		// std::cout << "update Env (explicit)... t = " << S.current_time << ":\n";
+		update_climate(ts.to_julian(S.current_time) + 1e-6, climate_stream); // The 1e-6 is to ensure that when t coincides exactly with time in climate file, we ensure that the value in climate file is read by asking for a slightly higher t
+		// ((env::Climate&)E).print(t);
+
+		fout << S.current_time << ", ";
+		fout << E.clim_acclim.tc << ", "
+		     << E.clim_acclim.ppfd << ", "
+		     << E.clim_acclim.vpd << ", "
+		     << E.clim_acclim.co2 << ", "
+		     << E.clim_acclim.elv << ", "
+		     << E.clim_acclim.swp << ", ";
+		fout << E.clim_inst.tc << ", "
+		     << E.clim_inst.ppfd << ", "
+		     << E.clim_inst.vpd << ", "
+		     << E.clim_inst.co2 << ", "
+		     << E.clim_inst.elv << ", "
+		     << E.clim_inst.swp << "\n";
+
+		S.current_time = t;
+	}
+
+
+	fout.close();
+
+}
+
 
 } // namespace pfate

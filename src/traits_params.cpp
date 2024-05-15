@@ -2,7 +2,7 @@
 
 namespace plant{
 
-std::unordered_map<std::string, double PlantTraits::*> PlantTraits::members {
+std::unordered_map<std::string, double PlantTraits::*> PlantTraits::members{
 	{"lma", &PlantTraits::lma},
 	{"zeta", &PlantTraits::zeta},
 	{"fcr", &PlantTraits::fcr},
@@ -20,9 +20,9 @@ std::unordered_map<std::string, double PlantTraits::*> PlantTraits::members {
 	{"n", &PlantTraits::n},
 	{"a", &PlantTraits::a},
 	{"c", &PlantTraits::c}
-};        
+};
 
-void PlantTraits::init(io::Initializer &I){
+void PlantTraits::init(io::Initializer& I){
 	lma = I.get<double>("lma");
 	zeta = I.get<double>("zeta");
 	fcr = I.get<double>("fcr");
@@ -33,12 +33,12 @@ void PlantTraits::init(io::Initializer &I){
 	p50_xylem = I.get<double>("p50_xylem");
 	K_leaf = I.get<double>("K_leaf");
 	K_xylem = I.get<double>("K_xylem");
-	b_leaf = I.get<double>("b_leaf");	
+	b_leaf = I.get<double>("b_leaf");
 	b_xylem = I.get<double>("b_xylem");
 	sm_xylem = I.get<double>("sm_xylem");
 	m = I.get<double>("m");
 	n = I.get<double>("n");
-	a = I.get<double>("a");	
+	a = I.get<double>("a");
 	c = I.get<double>("c");
 	// p50_leaf = // set by coordination
 }
@@ -54,74 +54,74 @@ double& PlantTraits::operator[](const std::string& s){
 }
 
 // Just for debugging purposes - to check if 2 plants have the same traits
-bool PlantTraits::operator == (const PlantTraits& rhs) const {
-	return 
-		(this->lma	== rhs.lma &&
-		this->zeta	== rhs.zeta &&
-		this->fcr	== rhs.fcr &&
-		this->hmat	== rhs.hmat &&
-		this->fhmat	== rhs.fhmat &&
-		this->seed_mass	== rhs.seed_mass &&
-		this->wood_density	== rhs.wood_density &&
-		this->p50_xylem	== rhs.p50_xylem &&
-		this->K_leaf	== rhs.K_leaf &&
-		this->K_xylem  == rhs.K_xylem &&
-		this->b_leaf	== rhs.b_leaf &&
-		this->b_xylem == rhs.b_xylem &&
-		this->sm_xylem == rhs.sm_xylem &&
-		this->m	== rhs.m &&
-		this->n	== rhs.n &&
-		this->a	== rhs.a &&
-		this->c	== rhs.c);
+bool PlantTraits::operator == (const PlantTraits& rhs) const{
+	return
+		(this->lma == rhs.lma &&
+			this->zeta == rhs.zeta &&
+			this->fcr == rhs.fcr &&
+			this->hmat == rhs.hmat &&
+			this->fhmat == rhs.fhmat &&
+			this->seed_mass == rhs.seed_mass &&
+			this->wood_density == rhs.wood_density &&
+			this->p50_xylem == rhs.p50_xylem &&
+			this->K_leaf == rhs.K_leaf &&
+			this->K_xylem == rhs.K_xylem &&
+			this->b_leaf == rhs.b_leaf &&
+			this->b_xylem == rhs.b_xylem &&
+			this->sm_xylem == rhs.sm_xylem &&
+			this->m == rhs.m &&
+			this->n == rhs.n &&
+			this->a == rhs.a &&
+			this->c == rhs.c);
 }
 
 
 // Changelog:
 // v2: m,n,a,c moved to traits from parameters
 // v3: added p50leaf in save/restore
-void PlantTraits::save(std::ostream &fout){
+void PlantTraits::save(std::ostream& fout){
 	fout << "Traits::v3   ";
 	fout << std::quoted(species_name) << ' ';
 	fout << std::make_tuple(
-				  lma
-				, zeta        
-				, fcr         
-				, hmat        
-				, fhmat       
-				, seed_mass   
-				, wood_density
-				, p50_xylem   
-				, K_leaf      
-				, K_xylem     
-				, b_leaf      
-				, b_xylem
-				, sm_xylem
-				, m
-				, n
-				, a
-				, c
-				, p50_leaf  
-				);
+		lma
+		, zeta
+		, fcr
+		, hmat
+		, fhmat
+		, seed_mass
+		, wood_density
+		, p50_xylem
+		, K_leaf
+		, K_xylem
+		, b_leaf
+		, b_xylem
+		, sm_xylem
+		, m
+		, n
+		, a
+		, c
+		, p50_leaf
+	);
 	fout << '\n';
 }
 
 
-void PlantTraits::restore(std::istream &fin){
+void PlantTraits::restore(std::istream& fin){
 	std::string s; fin >> s; // discard version number
 	assert(s == "Traits::v3");
 
 	fin >> std::quoted(species_name);
 	fin >> lma
-		>> zeta        
-		>> fcr         
-		>> hmat        
-		>> fhmat       
-		>> seed_mass   
+		>> zeta
+		>> fcr
+		>> hmat
+		>> fhmat
+		>> seed_mass
 		>> wood_density
-		>> p50_xylem   
-		>> K_leaf      
-		>> K_xylem     
-		>> b_leaf      
+		>> p50_xylem
+		>> K_leaf
+		>> K_xylem
+		>> b_leaf
 		>> b_xylem
 		>> sm_xylem
 		>> m
@@ -133,29 +133,29 @@ void PlantTraits::restore(std::istream &fin){
 
 void PlantTraits::print(){
 	std::cout << "Traits:\n";
-	std::cout << "   lma          = " << lma          << '\n';
-	std::cout << "   zeta         = " << zeta         << '\n';
-	std::cout << "   fcr          = " << fcr          << '\n';
-	std::cout << "   hmat         = " << hmat         << '\n';
-	std::cout << "   fhmat        = " << fhmat        << '\n';
-	std::cout << "   seed_mass    = " << seed_mass    << '\n';
+	std::cout << "   lma          = " << lma << '\n';
+	std::cout << "   zeta         = " << zeta << '\n';
+	std::cout << "   fcr          = " << fcr << '\n';
+	std::cout << "   hmat         = " << hmat << '\n';
+	std::cout << "   fhmat        = " << fhmat << '\n';
+	std::cout << "   seed_mass    = " << seed_mass << '\n';
 	std::cout << "   wood_density = " << wood_density << '\n';
-	std::cout << "   p50_xylem    = " << p50_xylem    << '\n';
-	std::cout << "   K_leaf       = " << K_leaf       << '\n';
-	std::cout << "   K_xylem      = " << K_xylem      << '\n';
-	std::cout << "   b_leaf       = " << b_leaf       << '\n';
-	std::cout << "   b_xylem      = " << b_xylem      << '\n';
-	std::cout << "   sm_xylem     = " << sm_xylem     << '\n';
-	std::cout << "   m            = " << m            << '\n';
-	std::cout << "   n            = " << n            << '\n';
-	std::cout << "   a            = " << a            << '\n';
-	std::cout << "   c            = " << c            << '\n';
-	std::cout << "   p50_leaf     = " << p50_leaf     << '\n';
+	std::cout << "   p50_xylem    = " << p50_xylem << '\n';
+	std::cout << "   K_leaf       = " << K_leaf << '\n';
+	std::cout << "   K_xylem      = " << K_xylem << '\n';
+	std::cout << "   b_leaf       = " << b_leaf << '\n';
+	std::cout << "   b_xylem      = " << b_xylem << '\n';
+	std::cout << "   sm_xylem     = " << sm_xylem << '\n';
+	std::cout << "   m            = " << m << '\n';
+	std::cout << "   n            = " << n << '\n';
+	std::cout << "   a            = " << a << '\n';
+	std::cout << "   c            = " << c << '\n';
+	std::cout << "   p50_leaf     = " << p50_leaf << '\n';
 }
 
 
 
-void PlantParameters::init(io::Initializer &I){
+void PlantParameters::init(io::Initializer& I){
 	// #define GET(x) x = I.get<double>(#_x);
 	kphio              = I.get<double>("kphio");
 	alpha              = I.get<double>("alpha");
@@ -168,12 +168,12 @@ void PlantParameters::init(io::Initializer &I){
 	max_alloc_lai      = I.get<double>("max_alloc_lai");
 	dl                 = I.get<double>("lai_deriv_step");
 	lai0               = I.get<double>("lai0");
-	optimize_lai       = (I.get<double>("optimize_lai") == 1) ? true:false;
+	optimize_lai       = (I.get<double>("optimize_lai") == 1) ? true : false;
 
 	les_u              = I.get<double>("les_u");
 	les_cc             = I.get<double>("les_cc");
 	les_k1             = I.get<double>("les_k1");
-	les_k2             = I.get<double>("les_k2"); 
+	les_k2             = I.get<double>("les_k2");
 	les_hT_dH          = I.get<double>("les_hT_dH");
 	les_molar_R        = I.get<double>("les_molar_R");
 	les_hT_c           = I.get<double>("les_hT_c");
@@ -214,13 +214,13 @@ void PlantParameters::initFromFile(std::string fname){
 
 void PlantParameters::set_tscale(double tscale){
 	days_per_tunit = tscale;
-	years_per_tunit_avg = tscale/365.2425;
+	years_per_tunit_avg = tscale / 365.2425;
 }
 
 
 void PlantParameters::print(){
 	std::cout << "Params:\n";
-	std::cout 
+	std::cout
 		<< "   kphio = " << kphio << '\n'
 		<< "   alpha = " << alpha << '\n'
 		<< "   gamma = " << gamma << '\n'
@@ -269,10 +269,10 @@ void PlantParameters::print(){
 // v2: m,n,a,c - move to traits from parameters
 // v3: add m_hydraulic
 // v4: add days_per_t_unit etc
-void PlantParameters::save(std::ostream &fout){
+void PlantParameters::save(std::ostream& fout){
 	fout << "Params::v4   ";
 	fout << std::make_tuple(
-		  kphio
+		kphio
 		, alpha
 		, gamma
 		, fg
@@ -314,12 +314,12 @@ void PlantParameters::save(std::ostream &fout){
 		, m_hydraulic
 		, days_per_tunit
 		, years_per_tunit_avg
-			);
+	);
 	fout << '\n';
 }
 
 
-void PlantParameters::restore(std::istream &fin){
+void PlantParameters::restore(std::istream& fin){
 	std::string s; fin >> s; // discard version number
 	assert(s == "Params::v4");
 
@@ -365,7 +365,7 @@ void PlantParameters::restore(std::istream &fin){
 		>> m_hydraulic
 		>> days_per_tunit
 		>> years_per_tunit_avg
-	;
+		;
 }
 
 } // namespace plant

@@ -10,7 +10,9 @@ template:
 authors:
   Jaideep Joshi:
     href: https://jaideep777.github.io
-
+  Plant-FATE Core Team:
+    href: "AUTHORS.html"
+    # html: "<img src='https://website.com/name-picture.png' width=72 alt=''>"
 navbar:
   structure:
     left:

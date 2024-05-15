@@ -18,7 +18,7 @@ class PlantTraits{
 
 	public:
 	std::string species_name = "Tectona grandis";
-	
+
 	// fixed (genetic) traits
 	public:
 	double lma;             ///< leaf mass per leaf area [kg/m2]
@@ -41,10 +41,10 @@ class PlantTraits{
 	double a;               ///< Initial height to diameter ratio 
 	double c;               ///< Crown area to sapwood area ratio
 	double p50_leaf;        ///< Leaf or whole-plant hydraulic vulnerability [MPa] (calculated from Xylem P50 and Safety margin)
-	
+
 
 	public:
-	void init(io::Initializer &I);
+	void init(io::Initializer& I);
 	void initFromFile(std::string fname);
 
 	// function to get/set traits by name. Needed for specifying evolvable traits from config file
@@ -53,8 +53,8 @@ class PlantTraits{
 	// Just for debugging purposes - to check if 2 plants have the same traits
 	bool operator == (const PlantTraits& rhs) const;
 
-	void save(std::ostream &fout);
-	void restore(std::istream &fin);
+	void save(std::ostream& fout);
+	void restore(std::istream& fin);
 	void print();
 
 };
@@ -102,33 +102,33 @@ class PlantParameters{
 	// Demographics
 	double a_f1;            ///< max fractional allocation to reproduction
 	double a_f2;            ///< rate of increase in reproductive investment
-	
+
 	double ll_seed;         ///< longevity of seeds in the seed pool
-	
+
 	// Dispersal and germination
 	double Sd;              ///< probability of survival during dispersal
 	double npp_Sghalf;      ///< required productivity for 0.5 probability of survival during germination
-	
+
 	// Mortality	
 	double cD0, cD1, eD0;
 	double m_alpha, m_beta, m_gamma;
 	double eWD_alpha, eWD_gamma;
 	double cWD0, eWD;
 	double m_hydraulic;
-	
+
 	// time stepping
 	// below parameter is not explicitly specified in ini file. It is set bythe time stepper for PlantFATE and manually in TreeLife
 	double days_per_tunit;      ///< Days in time unit used (e.g., if the unit of time is years, this will be 365.2425)
 	double years_per_tunit_avg; ///< Average number of years per time unit, assuming 1 year = 365.2425 days
 
 	public:
-	void init(io::Initializer &I);
+	void init(io::Initializer& I);
 	void initFromFile(std::string fname);
 	void set_tscale(double tscale);
 	void print();
-	void save(std::ostream &fout);
-	void restore(std::istream &fin);
-	
+	void save(std::ostream& fout);
+	void restore(std::istream& fin);
+
 };
 
 

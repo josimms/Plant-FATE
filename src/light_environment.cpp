@@ -9,7 +9,7 @@
 namespace pfate{
 namespace env{
 
-LightEnvironment::LightEnvironment(){ 
+LightEnvironment::LightEnvironment(){
 	n_layers = 0;
 	z_star = {0};
 	fapar_tot = {0};
@@ -29,53 +29,53 @@ LightEnvironment::LightEnvironment(){
 ///             where \f$A_{cp}\f$ is the projected crown area at height z, including area covered by gaps. This is
 ///             calculated by the function plant::PlantArchitecture::crown_area_extent_projected.  
 ///             The total crown area above z is the \f[A = \sum_k {A_k}\f]
-double LightEnvironment::projected_crown_area_above_z(double t, double z, Solver *S){
+double LightEnvironment::projected_crown_area_above_z(double t, double z, Solver* S){
 	double ca_above_z = 0;
 	// Loop over resident species --->
-	for (int k=0; k<S->species_vec.size(); ++k){
+	for (int k=0; k < S->species_vec.size(); ++k){
 
 		// skip mutants
 		auto spp = static_cast<AdaptiveSpecies<PSPM_Plant>*>(S->species_vec[k]);
 		if (!spp->isResident) continue;
 
-		auto ca_above = [z,spp](int i, double t){
+		auto ca_above = [z, spp](int i, double t){
 			auto& p = spp->getCohort(i);
 //				double a = p.area_leaf_above(z, p.vars.height, p.vars.area_leaf);
 			double ca_p = p.geometry.crown_area_extent_projected(z, p.traits);
 //				std::cout << "(" << i << "," << p.geometry.get_size() << ", " << p.geometry.diameter << ", " << p.geometry.height << ", " << p.u << ", " << p.geometry.crown_area << " | " << ca_p << ")" << "\n";
-			return ca_p;	
-		};
-//			ca_above_z += S->integrate_wudx_above(ca_above, t, z, k);
-//			std::cout << "\n";
+			return ca_p;
+			};
+	//			ca_above_z += S->integrate_wudx_above(ca_above, t, z, k);
+	//			std::cout << "\n";
 		ca_above_z += S->state_integral(ca_above, t, k);
 	}
-	return ca_above_z;	
+	return ca_above_z;
 }
 
 /// @ingroup    ppa_module
-double LightEnvironment::fapar_layer(double t, int layer, Solver *S){
+double LightEnvironment::fapar_layer(double t, int layer, Solver* S){
 
 	double photons_abs = 0;
-	for (int k=0; k<S->species_vec.size(); ++k){
-		
+	for (int k=0; k < S->species_vec.size(); ++k){
+
 		// skip mutants
 		auto spp = static_cast<AdaptiveSpecies<PSPM_Plant>*>(S->species_vec[k]);
 		if (!spp->isResident) continue;
 
-		auto photons_absorbed_plant_layer = [layer,spp, this](int i, double t){
+		auto photons_absorbed_plant_layer = [layer, spp, this](int i, double t){
 			auto& p = spp->getCohort(i);
 
 			double cap_z    =            p.geometry.crown_area_above(z_star[layer], p.traits);
-			double cap_ztop = (layer>0)? p.geometry.crown_area_above(z_star[layer-1], p.traits) : 0;
+			double cap_ztop = (layer > 0) ? p.geometry.crown_area_above(z_star[layer - 1], p.traits) : 0;
 			double cap_layer = cap_z - cap_ztop;
-			
+
 			double Iabs_plant_layer = cap_layer * (1 - exp(-p.par.k_light * p.geometry.lai));
 //				std::cout << "(" << i << "," << p.geometry.diameter << ", " << p.geometry.height << ", " << p.u << ", " << p.geometry.crown_area << ", " << cap_layer << ", " << p.geometry.lai << " | " << Iabs_plant_layer << ")" << "\n";
 			return Iabs_plant_layer;
-		};
-//			std::cout << "\n";
+			};
+	//			std::cout << "\n";
 		photons_abs += S->state_integral(photons_absorbed_plant_layer, t, k);
-	}		
+	}
 	return photons_abs;
 }
 
@@ -99,7 +99,7 @@ double LightEnvironment::fapar_layer(double t, int layer, Solver *S){
 /// Interface to the rates vector can be used for computing the rates of ODE-based environmental 
 /// variables if any such have been added as system variables - e.g., species-level seed pools can be implemented 
 /// through this mechanism. 
-void LightEnvironment::computeEnv(double t, Solver *sol, std::vector<double>::iterator _S, std::vector<double>::iterator _dSdt){
+void LightEnvironment::computeEnv(double t, Solver* sol, std::vector<double>::iterator _S, std::vector<double>::iterator _dSdt){
 	// updateClimate(t); // not done here. See comment in plantfate.cpp
 	// std::cout << "update Env ... t = " << t << ": tc = " << clim_inst.tc << '\n';
 
@@ -110,7 +110,7 @@ void LightEnvironment::computeEnv(double t, Solver *sol, std::vector<double>::it
 		double fG = 0.99;
 		z_star.clear();
 		total_crown_area = projected_crown_area_above_z(t, 0, sol);
-		n_layers = int(total_crown_area/fG); // Total crown projection area 
+		n_layers = int(total_crown_area / fG); // Total crown projection area 
 
 		if (n_layers < 0 || n_layers >= 50) {
 			std::cout << "nlayers = " << n_layers << "\n";
@@ -120,26 +120,26 @@ void LightEnvironment::computeEnv(double t, Solver *sol, std::vector<double>::it
 		assert(n_layers >= 0 && n_layers < 50);
 
 		for (int layer = 1; layer <= n_layers; ++layer){
-			auto CA_above_zstar_layer = [t, sol, layer, fG, this](double z) -> double {
-				return projected_crown_area_above_z(t, z, sol) - layer*fG;
-			};
+			auto CA_above_zstar_layer = [t, sol, layer, fG, this](double z) -> double{
+				return projected_crown_area_above_z(t, z, sol) - layer * fG;
+				};
 			auto res = pn::zero(0, 100, CA_above_zstar_layer, 1e-4);
 			z_star.push_back(res.root);
 //				std::cout << "z*(" << layer << ") = " << res.root << ", CA(z*) = " << projected_crown_area_above_z(t, res.root, S) << ", " << "iter = " << res.nfnct << "\n";
 		}
 		z_star.push_back(0);
 		//std::cout << "z*_vec (" << z_star.size() << ") = "; for(auto z: z_star) std::cout << z << " "; cout << "\n"; cout.flush();
-		assert(z_star.size() == n_layers+1);
+		assert(z_star.size() == n_layers + 1);
 		canopy_openness.clear();
 		fapar_tot.clear();
-		canopy_openness.resize(n_layers+1);  
+		canopy_openness.resize(n_layers + 1);
 		fapar_tot.resize(n_layers);
 		canopy_openness[0] = 1; // top layer gets 100% light
-		for (int layer = 0; layer < n_layers; ++layer){  
+		for (int layer = 0; layer < n_layers; ++layer){
 			fapar_tot[layer] = fapar_layer(t, layer, sol);
-			canopy_openness[layer+1] = canopy_openness[layer] * (1-fapar_tot[layer]);
+			canopy_openness[layer + 1] = canopy_openness[layer] * (1 - fapar_tot[layer]);
 		}
-		
+
 	}
 	else{
 		throw std::runtime_error("Only PPA mode is implemented currently. Set use_ppa to true");
@@ -155,16 +155,16 @@ void LightEnvironment::computeEnv(double t, Solver *sol, std::vector<double>::it
 		// //time = t;
 		// //for (int s=0; s<S->n_species(); ++s) S->get_species(s)->u0_save = S->get_u0(t, s);
 		// light_profile.construct(canopy_openness, 0, S->maxSize());
-	}	
+	}
 }
 
 
 void LightEnvironment::print(double t){
 
 	std::cout << "PPA:" << "\n";
-	std::cout << "z* (" << n_layers << ") = "; for (auto z:z_star) std::cout << z << " "; 
-	std::cout << "\nfapar layer* = "; for (auto z:fapar_tot) std::cout << z << " "; 
-	std::cout << "\ncanopy openness* = "; for (auto z:canopy_openness) std::cout << z << " "; 
+	std::cout << "z* (" << n_layers << ") = "; for (auto z : z_star) std::cout << z << " ";
+	std::cout << "\nfapar layer* = "; for (auto z : fapar_tot) std::cout << z << " ";
+	std::cout << "\ncanopy openness* = "; for (auto z : canopy_openness) std::cout << z << " ";
 	std::cout << "\n";
 	//std::cout << "Light profile Interpolator:" << "\n";
 	//light_profile.print();
