@@ -412,7 +412,7 @@ void Patch::simulate_to(double t){
 	//                              ^ env update happens before dynamics update, so env is at the last solver step
 
 	// evolve traits
-	if (config.evolve_traits && t > config.ye){
+	if (config.evolve_traits){
 		// update r0 and seed rain after dynamics update
 		// this implies that seed tain and r0 are not updated during internal steps - I think thats okay.
 		// ---------------
@@ -429,7 +429,7 @@ void Patch::simulate_to(double t){
 		// calculate r0
 		calc_r0(t);
 
-		evolveTraits(t, dt_evol);
+		if (t > config.ye) evolveTraits(t, dt_evol);
 	}
 	// state now: t, x(t), u(t), E(t, u(t), x(t-dt)), S1[a(t-dt, x(t-dt))], S2[a(t, x(t-dt))]
 
