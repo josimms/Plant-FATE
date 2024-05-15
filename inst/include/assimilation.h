@@ -43,7 +43,7 @@ class Assimilator{
 	double kappa_l;   ///< leaf turnover rate, updated by les functions
 	double kappa_r;   ///< fine root turnover rate, updated by les functions
 
-	public:	
+	public:
 
 	/// @brief  Calculate leaf-level assimilation rate using the Phydro model	/// @tparam _Climate 
 	/// @param fipar   fraction of top-canopy PAR incident on the crown of this plant
@@ -53,39 +53,39 @@ class Assimilator{
 	/// @param traits  plant traits
 	/// @return        leaf assimilatio rate and a bunch of other leaf-level things
 	template<class _Climate>
-	phydro::PHydroResult leaf_assimilation_rate(double fipar, double fapar, _Climate &clim, PlantParameters &par, PlantTraits &traits);
-	
+	phydro::PHydroResult leaf_assimilation_rate(double fipar, double fapar, _Climate& clim, PlantParameters& par, PlantTraits& traits);
+
 
 	/// @brief  Calculate whole-plant gross assimilation, transpiration, gs, etc. 
 	template<class Env>
-	void  calc_plant_assimilation_rate(Env &env, PlantArchitecture *G, PlantParameters &par, PlantTraits &traits);
+	void  calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
 
 
 	/// @brief  Calculate whole-plant net assimilation 
 	template<class Env>
-	PlantAssimilationResult net_production(Env &env, PlantArchitecture *G, PlantParameters &par, PlantTraits &traits);
+	PlantAssimilationResult net_production(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
 
 
 	/// @brief Leaf economics - calculate optimal leaf lifespan 
 	/// @{
-	void   les_update_lifespans(double lai, PlantParameters &par, PlantTraits &traits);
-	double les_assim_reduction_factor(phydro::PHydroResult& res, PlantParameters &par);
+	void   les_update_lifespans(double lai, PlantParameters& par, PlantTraits& traits);
+	double les_assim_reduction_factor(phydro::PHydroResult& res, PlantParameters& par);
 	/// @}
 
 
 	/// @brief Calculate leaf and fine-root respiration rates 
 	/// @{
 	// leaf respiration rate - should be calculated AFTER asimialtion (needs updated Phydro outputs)
-	double leaf_respiration_rate(PlantArchitecture *G, PlantParameters &par, PlantTraits &traits);
-	double root_respiration_rate(PlantArchitecture *G, PlantParameters &par, PlantTraits &traits);
-	double sapwood_respiration_rate(PlantArchitecture *G, PlantParameters &par, PlantTraits &traits);
+	double leaf_respiration_rate(PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
+	double root_respiration_rate(PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
+	double sapwood_respiration_rate(PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
 	/// @}
 
 
 	/// @brief Calculate leaf and fine-root turnover rates 
 	/// @{
-	double leaf_turnover_rate(double _kappa_l, PlantArchitecture *G, PlantParameters &par, PlantTraits &traits);
-	double root_turnover_rate(double _kappa_r, PlantArchitecture *G, PlantParameters &par, PlantTraits &traits);
+	double leaf_turnover_rate(double _kappa_l, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
+	double root_turnover_rate(double _kappa_r, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
 	/// @}
 
 };
