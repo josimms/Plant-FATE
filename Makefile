@@ -105,6 +105,8 @@ $(OBJECTS): build/%.o : src/%.cpp $(HEADERS)
 
 libclean:
 	rm -f $(TARGET) build/*.o lib/*.a src/*.o bin/* log.txt gmon.out
+
+extclean:
 	(cd $(EXTERNAL_DIR)/libpspm && $(MAKE) clean)
 
 re: clean all
