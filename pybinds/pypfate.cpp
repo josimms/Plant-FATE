@@ -3,7 +3,7 @@
 #include <pybind11/stl.h>
 #include <vector>
 // #include "pybind_override.cpp"
-#include "environment_base.h"
+// #include "environment_base.h"
 #include "plantfate_patch.cpp"
 #include "light_environment.cpp"
 #include "climate.cpp"
@@ -13,19 +13,21 @@
 #include "plant.cpp"
 #include "state_restore.cpp"
 #include "adaptive_species.h"
+#include "community_properties.h"
 #include "community_properties.cpp"
-#include "traits_params.h"
+#include "traits_params.cpp"
+#include "climate_stream.cpp"
 
 namespace py = pybind11;
 namespace pf = pfate;
 namespace pfenv = pfate::env;
 
-PYBIND11_MODULE(plantFATE, m)
+PYBIND11_MODULE(pypfate, m)
 {
-    py::class_<pfenv::Clim>(m, "Clim", py::dynamic_attr())
-        .def(py::init<>())
+	py::class_<pfenv::Clim>(m, "Clim", py::dynamic_attr())
+		.def(py::init<>())
 		.def("print", &pfenv::Clim::print)
-        .def_readwrite("tc", &pfenv::Clim::tc)
+		.def_readwrite("tc", &pfenv::Clim::tc)
 		.def_readwrite("ppfd", &pfenv::Clim::ppfd)
 		.def_readwrite("rn", &pfenv::Clim::rn)
 		.def_readwrite("vpd", &pfenv::Clim::vpd)
@@ -44,18 +46,6 @@ PYBIND11_MODULE(plantFATE, m)
 		.def("set_forcing_acclim", &pfenv::Climate::set_forcing_acclim)
 		.def_readwrite("clim_inst", &pfenv::Climate::clim_inst)
 		.def_readwrite("clim_acclim", &pfenv::Climate::clim_acclim);
-	
-	py::class_<pf::Patch>(m, "Patch")
-		.def(py::init<std::string>())
-		.def("init", &pf::Patch::init)
-		.def("simulate_to", &pf::Patch::simulate_to)
-		.def("update_climate", static_cast<void (pf::Patch::*)(double, double, double, double, double)>(&pf::Patch::update_climate))
-		.def("update_climate_acclim", &pf::Patch::update_climate_acclim)
-		.def("simulate", &pf::Patch::simulate)
-		.def("close", &pf::Patch::close)
-		.def_readwrite("config", &pf::Patch::config)
-		.def_readwrite("cwm", &pf::Patch::cwm)
-		.def_readwrite("props", &pf::Patch::props);
 
 	py::class_<pf::PlantFateConfig>(m, "PlantFateConfig")
 		.def(py::init<>())
@@ -87,7 +77,7 @@ PYBIND11_MODULE(plantFATE, m)
 		.def_readwrite("trait_variances", &pf::PlantFateConfig::trait_variances)
 		.def_readwrite("trait_scalars", &pf::PlantFateConfig::trait_scalars)
 		.def_readwrite("T_r0_avg", &pf::PlantFateConfig::T_r0_avg);
-	
+
 	py::class_<plant::PlantTraits>(m, "PlantTraits")
 		.def(py::init<>())
 		.def("print", &plant::PlantTraits::print)
@@ -107,11 +97,76 @@ PYBIND11_MODULE(plantFATE, m)
 
 	py::class_<plant::PlantParameters>(m, "PlantParameters")
 		.def(py::init<>())
-		.def("print", &plant::PlantParameters::print)
+		// .def("print", &plant::PlantParameters::print)
 		.def_readwrite("cD0", &plant::PlantParameters::cD0)
 		.def_readwrite("cD1", &plant::PlantParameters::cD1)
 		.def_readwrite("m_alpha", &plant::PlantParameters::m_alpha)
 		.def_readwrite("m_beta", &plant::PlantParameters::m_beta)
 		.def_readwrite("m_gamma", &plant::PlantParameters::m_gamma);
-	
+
+	py::class_<pf::CommunityProperties> communityProperties(m, "CommunityProperties");
+
+	communityProperties.def(py::init<>())
+		.def_readwrite("fluxes", &pf::CommunityProperties::fluxes)
+		.def_readwrite("structure", &pf::CommunityProperties::structure)
+		.def_readwrite("species", &pf::CommunityProperties::species)
+		.def_readwrite("misc", &pf::CommunityProperties::misc)
+		.def_readwrite("acc_traits", &pf::CommunityProperties::acc_traits);
+
+	py::class_<pf::CommunityProperties::Fluxes>(communityProperties, "Fluxes")
+		.def(py::init<>())
+		.def_readwrite("gpp", &pf::CommunityProperties::Fluxes::gpp)
+		.def_readwrite("npp", &pf::CommunityProperties::Fluxes::npp)
+		.def_readwrite("trans", &pf::CommunityProperties::Fluxes::trans)
+		.def_readwrite("gs", &pf::CommunityProperties::Fluxes::gs)
+		.def_readwrite("tleaf", &pf::CommunityProperties::Fluxes::tleaf)
+		.def_readwrite("troot", &pf::CommunityProperties::Fluxes::troot)
+		.def_readwrite("rleaf", &pf::CommunityProperties::Fluxes::rleaf)
+		.def_readwrite("rroot", &pf::CommunityProperties::Fluxes::rroot)
+		.def_readwrite("rstem", &pf::CommunityProperties::Fluxes::rstem)
+		.def_readwrite("mort", &pf::CommunityProperties::Fluxes::mort);
+
+	py::class_<pf::CommunityProperties::Structure>(communityProperties, "Structure")
+		.def(py::init<>())
+		.def_readwrite("leaf_mass", &pf::CommunityProperties::Structure::leaf_mass)
+		.def_readwrite("stem_mass",&pf::CommunityProperties::Structure::stem_mass)
+		.def_readwrite("croot_mass", &pf::CommunityProperties::Structure::croot_mass)
+		.def_readwrite("froot_mass",&pf::CommunityProperties::Structure::froot_mass)
+		.def_readwrite("biomass", &pf::CommunityProperties::Structure::biomass)
+		.def_readwrite("basal_area", &pf::CommunityProperties::Structure::basal_area)
+		.def_readwrite("canopy_area", &pf::CommunityProperties::Structure::canopy_area)
+		.def_readwrite("canopy_area_uc", &pf::CommunityProperties::Structure::canopy_area_uc)
+		.def_readwrite("n_ind", &pf::CommunityProperties::Structure::n_ind)
+		.def_readwrite("height", &pf::CommunityProperties::Structure::height)
+		.def_readwrite("lai", &pf::CommunityProperties::Structure::lai)
+		.def_readwrite("lai_vert", &pf::CommunityProperties::Structure::lai_vert);
+
+	py::class_<pf::CommunityProperties::CommunitySpecies>(communityProperties, "CommunitySpecies")
+		.def(py::init<>())
+		.def_readwrite("n_ind_vec", &pf::CommunityProperties::CommunitySpecies::n_ind_vec)
+		.def_readwrite("biomass_vec", &pf::CommunityProperties::CommunitySpecies::biomass_vec)
+		.def_readwrite("basal_area_vec", &pf::CommunityProperties::CommunitySpecies::basal_area_vec)
+		.def_readwrite("canopy_area_vec", &pf::CommunityProperties::CommunitySpecies::canopy_area_vec)
+		.def_readwrite("height_vec", &pf::CommunityProperties::CommunitySpecies::height_vec)
+		.def_readwrite("mortality_vec", &pf::CommunityProperties::CommunitySpecies::mortality_vec);
+
+	py::class_<pf::CommunityProperties::Misc>(communityProperties, "Misc")
+		.def(py::init<>())
+		.def_readwrite("cc_est", &pf::CommunityProperties::Misc::cc_est);
+
+	py::class_<pf::CommunityProperties::Acc_traits>(communityProperties, "")
+		.def(py::init<>())
+		.def_readwrite("vcmax", &pf::CommunityProperties::Acc_traits::vcmax)
+		.def_readwrite("dpsi", &pf::CommunityProperties::Acc_traits::dpsi);
+
+	py::class_<pf::Patch>(m, "Patch")
+		.def(py::init<std::string>())
+		.def("init", &pf::Patch::init)
+		.def("simulate_to", &pf::Patch::simulate_to)
+		.def("update_climate", static_cast<void (pf::Patch::*)(double, double, double, double, double)>(&pf::Patch::update_climate))
+		.def("update_climate_acclim", &pf::Patch::update_climate_acclim)
+		.def("simulate", &pf::Patch::simulate)
+		.def("close", &pf::Patch::close)
+		.def_readwrite("config", &pf::Patch::config)
+		.def_readonly("props", &pf::Patch::props);
 };

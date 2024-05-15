@@ -15,8 +15,8 @@ class Patch;
 
 /// @brief This class calculates and stores community-level properties of interest
 class CommunityProperties{
-	public:
-
+	
+	public: 
 	// CO2 and water fluxes
 	struct{
 		double gpp = 0;      ///< Gross primary productivity [kgC m-2 day-1]
@@ -45,10 +45,10 @@ class CommunityProperties{
 		double height = 0;          ///< Average height of all individuals [m]
 		double lai = 0;             ///< Community leaf area index [m2 m-2]
 		std::vector <double> lai_vert; ///< Vertical profile of LAI (cumulative LAI above height i metres, where i is index in this vector)
-	} structure;
+	};
 
 	// Species level totals of some properties in the same units as above
-	struct{
+	struct CommunitySpecies{
 		std::vector<double> n_ind_vec;
 		std::vector<double> biomass_vec;
 		std::vector<double> basal_area_vec;
@@ -58,7 +58,7 @@ class CommunityProperties{
 		// std::vector<double> mortality_vec_base;
 		// std::vector<double> mortality_vec_light;
 		// std::vector<double> mortality_vec_hyd;
-	} species;
+	};
 
 	// Miscellaneous properties
 	struct{
@@ -72,13 +72,21 @@ class CommunityProperties{
 	} acc_traits;
 
 
+	public:
 	bool b_output_cohort_props = false;
 	std::string emgProps_file;
 	std::string cwmAvg_file;
 	std::string cwmperSpecies_file;
 	std::string traits_file;
 
-	public:
+	// public:
+
+	Structure structure;
+	Fluxes fluxes;
+	CommunitySpecies species;
+	Misc misc;
+	Acc_traits acc_traits;
+
 	void openStreams(std::string dir);
 	void closeStreams();
 	void writeOut(double t, Patch& P);
