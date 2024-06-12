@@ -1,0 +1,82 @@
+---
+title: "YSSP_Log"
+author: "Joanna"
+date: "2024-06-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+```
+
+```{r}
+library(PlantFATE)
+library(tidyverse)
+
+print(getwd())
+```
+## Aim of the markdown
+
+This markdown should be to keep track of the progress throughout the YSSP programme and to make it easier to write the final report.
+
+First we reparameterise the model for the boreal ecosystem!
+
+```{r cars}
+
+# TODO: the file references are wrong here! Sort them out when I have time!
+
+sim_v2 = new(Patch, "/home/josimms/Documents/Austria/Plant-FATE/tests/params/p_test_v2.ini")
+  sim_v2$init(1000, 1050) # This determines the steps
+  sim_v2$simulate()
+  sim_v2$close()
+  
+  output_dir = "pspm_output_test" # NOTE: changed from "pspm_output2", as matches close()
+  prefix = "test_3spp_100yr"
+  solver = "" # NOTE: changed from "main_ref2", as matches close()
+  dir_v2 = paste0("",output_dir,"/",prefix,"",solver)
+  
+  ###
+  # New simulation with the parameters that have changed
+  ###
+  sim_boreal = new(Patch, "/home/josimms/Documents/Austria/Plant-FATE/tests/params/p_test_boreal.ini")
+  sim_boreal$init(1000, 1050) # This determines the steps
+  ### TODO: need to make sure I save these in a different place!
+  sim_boreal$simulate()
+  sim_boreal$close()
+  
+  output_dir = "pspm_output_test" # NOTE: changed from "pspm_output2", as matches close()
+  prefix = "boreal_calibration"
+  solver = "" # NOTE: changed from "main_ref2", as matches close()
+  dir_boreal = paste0("",output_dir,"/",prefix,"",solver)
+
+  
+  dat_boreal = read.delim(paste0(dir_boreal,"/D_PFATE.csv"), sep = ",")
+  dat_v2 = read.delim(paste0(dir_v2,"/D_PFATE.csv"), sep = ",")
+  
+  ###
+  # Plots for the differences betweeen the Boreal and Original!
+  ###
+  
+  par(mfrow=c(1,2))
+  matplot(y=cbind(dat_boreal$GPP, dat_boreal$NPP)*1e-3*365, x=dat_boreal$YEAR, type="l", lty=1, col=c("green4", "green3"), main = "Boreal", ylab="GPP, NPP (kgC/m2/yr)", xlab="Time (years)")
+  matplot(y=cbind(dat_v2$GPP, dat_v2$NPP)*1e-3*365, x=dat_v2$YEAR, type="l", lty=1, col=c("green4", "green3"), main = "Original", ylab="GPP, NPP (kgC/m2/yr)", xlab="Time (years)")
+  
+  matplot(y=cbind(dat_boreal$GS), x=dat_boreal$YEAR, type="l", lty=1, col=c("cyan3"), main = "Boreal", ylab="Stomatal conductance (mol/m2/s)", xlab="Time (years)")
+  matplot(y=cbind(dat_v2$GS), x=dat_v2$YEAR, type="l", lty=1, col=c("cyan3"), main = "Original", ylab="Stomatal conductance (mol/m2/s)", xlab="Time (years)")
+  
+  dist_v2 = read.delim(paste0(dir_v2,"/size_distributions.csv"), header=F, sep = ",")
+  dist_v2 = dist_v2[,-ncol(dist_v2)]
+  x = exp(seq(log(0.01), log(10), length.out=100))
+  names(dist_v2)[1:2] = c("YEAR", "SPP")
+  dist_amb_v2 = dist_v2 %>% filter(YEAR == max(YEAR)) %>% pivot_longer(cols=-(YEAR:SPP), names_to="size_class") %>% group_by(YEAR,size_class) %>% summarize(de = sum(value, na.rm=T)) %>% pivot_wider(names_from = size_class, values_from = de) %>% colMeans(na.rm=T)
+  
+  dist_boreal = read.delim(paste0(dir_boreal,"/size_distributions.csv"), header=F, sep = ",")
+  dist_boreal = dist_boreal[,-ncol(dist_boreal)]
+  x = exp(seq(log(0.01), log(10), length.out=100))
+  names(dist_boreal)[1:2] = c("YEAR", "SPP")
+  dist_amb_boreal = dist_boreal %>% filter(YEAR == max(YEAR)) %>% pivot_longer(cols=-(YEAR:SPP), names_to="size_class") %>% group_by(YEAR,size_class) %>% summarize(de = sum(value, na.rm=T)) %>% pivot_wider(names_from = size_class, values_from = de) %>% colMeans(na.rm=T)
+    
+
+```
+

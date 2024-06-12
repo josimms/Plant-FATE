@@ -242,7 +242,7 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 
 	std::vector<double> S = {P.geometry.lai, P.geometry.get_size(), prod, litter_pool, rep, seeds, P.state.mortality};
 	RK4(t, dt, S, derivs);
-	//Euler(t, dt, S, derivs);
+	// Euler(t, dt, S, derivs);
 	set_state(S.begin());
 }
 
