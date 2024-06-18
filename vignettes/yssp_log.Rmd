@@ -17,9 +17,9 @@ library(tidyverse)
 print(getwd())
 ```
 ## Aim of the markdown
-
 This markdown should be to keep track of the progress throughout the YSSP programme and to make it easier to write the final report.
 
+### Parameters
 First we reparameterise the model for the boreal ecosystem!
 
 ```{r cars}
@@ -79,4 +79,12 @@ sim_v2 = new(Patch, "/home/josimms/Documents/Austria/Plant-FATE/tests/params/p_t
     
 
 ```
+
+### Weather
+Next I changed the weather files
+
+```{r weather}
+
+```
+
 
