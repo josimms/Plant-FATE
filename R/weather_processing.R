@@ -16,6 +16,8 @@ weather_processing <- function(direct = "./tests/data/") {
   title(sub = paste("Percentage missing", round(100*sum(is.na(data_IIASA_smear$Glob_max))/nrow(data_IIASA_smear), 2), "%"))
   plot(data_IIASA_smear$Date, data_IIASA_smear$wpsoil_B, main = "SWP", xlab = "Dates", ylab = "-kPa (should be MPa for PlantFATE")
   title(sub = paste("Percentage missing", round(100*sum(is.na(data_IIASA_smear$wpsoil_B))/nrow(data_IIASA_smear), 2), "%"))
+  plot(data_IIASA_smear$Glob_mean, data_IIASA_smear$Glob_max, main = "Gobal: Mean vs Max", xlab = "Mean", ylab = "Max")
+  abline(lm(Glob_mean ~ Glob_max, data = data_IIASA_smear, na.action = na.omit ))
   
   ###
   # Daily weather
@@ -50,37 +52,37 @@ weather_processing <- function(direct = "./tests/data/") {
   ###
   
   # Year, Month, Decimal_year, 
-  # PAR_max (umol m-2 s-1), SWP (-MPa, i.e., absolute value), further columns are ignored
   Amazon_data_reference <- read.csv("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
   
-  PlantFATE_weather_monthly_temp <- aggregate(. ~ substring(Date, 1, 7), PlantFATE_weather, mean)
-  names(PlantFATE_weather_monthly_temp)[1:2] <- c("YM", "Temp")
+  PlantFATE_weather_monthly_temp <- aggregate(. ~ substring(Date, 1, 7), PlantFATE_weather_daily, mean, na.rm = T, na.action = NULL)
+  names(PlantFATE_weather_monthly_temp)[1] <- c("YM")
   PlantFATE_weather_monthly_temp$Decimal_year <- seq(PlantFATE_weather_monthly_temp$Year[1], 
                                                      PlantFATE_weather_monthly_temp$Year[nrow(PlantFATE_weather_monthly_temp)],
                                                      length.out = nrow(PlantFATE_weather_monthly_temp))
   PlantFATE_weather_monthly_temp$Month <- rep(1:12, length.out = nrow(PlantFATE_weather_monthly_temp))
   PlantFATE_weather_monthly <- PlantFATE_weather_monthly_temp[,c("Year", "Month", "Decimal_year", "Temp", "VPD", "PAR", "PAR_max", "SWP")]
-  PlantFATE_weather_monthly$SWP = rep(Amazon_data_reference$SWP, length.out = nrow(PlantFATE_weather_monthly))
-  PlantFATE_weather_monthly$Temp = rep(Amazon_data_reference$Temp, length.out = nrow(PlantFATE_weather_monthly))
-  ## TODO: I think something is wrong in the temperature! It worked once with the boreal climate!
-
+  # TODO: values added temporarily so that the model can be run
+  PlantFATE_weather_monthly$VPD[is.na(PlantFATE_weather_monthly$VPD)] <- mean(PlantFATE_weather_monthly$VPD, na.rm = T)
+  PlantFATE_weather_monthly$PAR[is.na(PlantFATE_weather_monthly$PAR)] <- mean(PlantFATE_weather_monthly$PAR, na.rm = T)
+  
   ### PLOT
   par(mfrow = c(2, 3))
   dates_hyy = as.Date(paste(PlantFATE_weather_monthly$Year, PlantFATE_weather_monthly$Month, sep = "-"), format = "%Y-%M")
   dates_ama = as.Date(paste(Amazon_data_reference$Year, Amazon_data_reference$Month, sep = "-"), format = "%Y-%M")
-  plot(dates_hyy, PlantFATE_weather_monthly$Temp, main = "Temperature", xlab = "Dates", ylab = "Degrees C")
+  plot(dates_hyy, PlantFATE_weather_monthly$Temp, main = "Temperature", xlab = "Dates", ylab = "Degrees C",
+       ylim = c(min(PlantFATE_weather_monthly$Temp, na.rm = T), max(Amazon_data_reference$Temp, na.rm = T)))
   points(dates_ama, Amazon_data_reference$Temp, col = "blue")
   title(sub = paste("Percentage missing", round(100*sum(is.na(PlantFATE_weather_monthly$T168))/nrow(PlantFATE_weather_monthly), 2), "%"))
-  plot(dates, PlantFATE_weather_monthly$VPD, main = "VPD", xlab = "Dates", ylab = "hPa", ylim = c(0, max(Amazon_data_reference$VPD)))
+  plot(dates_hyy, PlantFATE_weather_monthly$VPD, main = "VPD", xlab = "Dates", ylab = "hPa", ylim = c(0, max(Amazon_data_reference$VPD)))
   points(dates_ama, Amazon_data_reference$VPD, col = "blue")
   title(sub = paste("Percentage missing", round(100*sum(is.na(PlantFATE_weather_monthly$VPD))/nrow(PlantFATE_weather_monthly), 2), "%"))
-  plot(dates, PlantFATE_weather_monthly$PAR, main = "PAR", xlab = "Dates", ylab = "umol m-2 s-1", ylim = c(0, max(Amazon_data_reference$PAR)))
+  plot(dates_hyy, PlantFATE_weather_monthly$PAR, main = "PAR", xlab = "Dates", ylab = "umol m-2 s-1", ylim = c(0, max(Amazon_data_reference$PAR)))
   points(dates_ama, Amazon_data_reference$PAR, col = "blue")
   title(sub = paste("Percentage missing", round(100*sum(is.na(PlantFATE_weather_monthly$PAR))/nrow(PlantFATE_weather_monthly), 2), "%"))
-  plot(dates, PlantFATE_weather_monthly$PAR_max, main = "PAR_max", xlab = "Dates", ylab = "umol m-2 s-1", ylim = c(0, max(Amazon_data_reference$PAR_max)))
+  plot(dates_hyy, PlantFATE_weather_monthly$PAR_max, main = "PAR_max", xlab = "Dates", ylab = "umol m-2 s-1", ylim = c(0, max(Amazon_data_reference$PAR_max)))
   points(dates_ama, Amazon_data_reference$PAR_max, col = "blue")
   title(sub = paste("Percentage missing", round(100*sum(is.na(PlantFATE_weather_monthly$PAR_max))/nrow(PlantFATE_weather_monthly), 2), "%"))
-  plot(dates, PlantFATE_weather_monthly$SWP, main = "SWP", xlab = "Dates", ylab = "-MPa", ylim = c(0, max(Amazon_data_reference$SWP)))
+  plot(dates_hyy, PlantFATE_weather_monthly$SWP, main = "SWP", xlab = "Dates", ylab = "-MPa", ylim = c(0, max(Amazon_data_reference$SWP)))
   points(dates_ama, Amazon_data_reference$SWP, col = "blue")
   title(sub = paste("Percentage missing", round(100*sum(is.na(PlantFATE_weather_monthly$SWP))/nrow(PlantFATE_weather_monthly), 2), "%"))
   
@@ -93,6 +95,17 @@ weather_processing <- function(direct = "./tests/data/") {
   write.csv(PlantFATE_weather_daily, 
             file = paste0(direct, "PlantFATE_weather_Hyytiala_daily.csv"),
             row.names = F)
+  
+  PlantFATE_weather_monthly_temp <- Amazon_data_reference
+  PlantFATE_weather_monthly_temp$Year <- rep(PlantFATE_weather_monthly$Year, length.out = nrow(PlantFATE_weather_monthly_temp))
+  PlantFATE_weather_monthly_temp$Month <- rep(PlantFATE_weather_monthly$Month, length.out = nrow(PlantFATE_weather_monthly_temp))
+  PlantFATE_weather_monthly_temp$Decimal_year <- rep(PlantFATE_weather_monthly$Decimal_year, length.out = nrow(PlantFATE_weather_monthly_temp))
+  PlantFATE_weather_monthly_temp$Temp <- rep(PlantFATE_weather_monthly$Temp, length.out = nrow(PlantFATE_weather_monthly_temp))
+  PlantFATE_weather_monthly_temp$VPD <- rep(PlantFATE_weather_monthly$VPD, length.out = nrow(PlantFATE_weather_monthly_temp))
+  PlantFATE_weather_monthly_temp$PAR <- rep(PlantFATE_weather_monthly$PAR, length.out = nrow(PlantFATE_weather_monthly_temp))
+  PlantFATE_weather_monthly_temp$PAR_max <- rep(PlantFATE_weather_monthly$PAR_max, length.out = nrow(PlantFATE_weather_monthly_temp))
+  # TODO: found the problem! It doesn't like PAR_max
+  
   write.csv(PlantFATE_weather_monthly, 
             file = paste0(direct, "PlantFATE_weather_Hyytiala.csv"),
             row.names = F)
