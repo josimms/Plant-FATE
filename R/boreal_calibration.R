@@ -26,7 +26,6 @@ boreal_calibration <- function() {
   solver = "" # NOTE: changed from "main_ref2", as matches close()
   dir_boreal = paste0("",output_dir,"/",prefix,"",solver)
 
-  
   dat_boreal = read.delim(paste0(dir_boreal,"/D_PFATE.csv"), sep = ",")
   dat_v2 = read.delim(paste0(dir_v2,"/D_PFATE.csv"), sep = ",")
   
