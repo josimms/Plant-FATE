@@ -33,6 +33,7 @@ exec_*
 *.out
 *.test
 *.exec
+*.nc
 
 *.swp
 *.swo
