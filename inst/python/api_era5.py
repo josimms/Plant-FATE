@@ -18,7 +18,7 @@ for year in range(1960, 2023): # Hyytiälä was planted in 1962
 	    {
 		'product_type': 'reanalysis',
 		'format': 'netcdf',
-		'variable': ['2m_temperature', 'relative_humidity', 'leaf_area_index_high_vegetation', 'surface_solar_radiation_downwards', 'type_of_high_vegetation', 'volumetric_soil_water_layer_1', 'volumetric_soil_water_layer_2',],
+		'variable': ['2m_temperature', 'relative_humidity', 'leaf_area_index_high_vegetation', 'surface_solar_radiation_downwards', 'volumetric_soil_water_layer_1', 'volumetric_soil_water_layer_2',],
 		'month': ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12',],
 		'year': year,
 		'day': ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31',],
@@ -27,4 +27,4 @@ for year in range(1960, 2023): # Hyytiälä was planted in 1962
 	    },
 	    str(year)+'download.nc')
 
-    
+   

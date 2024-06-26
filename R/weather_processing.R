@@ -17,7 +17,8 @@ weather_processing <- function(direct = "./tests/data/") {
   plot(data_IIASA_smear$Date, data_IIASA_smear$wpsoil_B, main = "SWP", xlab = "Dates", ylab = "-kPa (should be MPa for PlantFATE")
   title(sub = paste("Percentage missing", round(100*sum(is.na(data_IIASA_smear$wpsoil_B))/nrow(data_IIASA_smear), 2), "%"))
   plot(data_IIASA_smear$Glob_mean, data_IIASA_smear$Glob_max, main = "Gobal: Mean vs Max", xlab = "Mean", ylab = "Max")
-  abline(lm(Glob_mean ~ Glob_max, data = data_IIASA_smear, na.action = na.omit ))
+  lm(Glob_mean ~ Glob_max, data = data_IIASA_smear[!is.na(data_IIASA_smear$Glob_max),])
+  abline(, col = "red")
   
   ###
   # Daily weather
