@@ -1,6 +1,7 @@
 boreal_calibration <- function() {
   ###
   # AMAZON RUN
+  # Original simulation used to test if I have changed anything!
   ###
   sim_v2 = new(Patch, "tests/params/p_test_v2.ini")
   sim_v2$init(1000, 1050) # This determines the steps
@@ -59,6 +60,7 @@ boreal_calibration <- function() {
   dat_boreal_monthly = read.delim(paste0(dir_boreal_monthly,"/D_PFATE.csv"), sep = ",")
   dat_boreal_monthly_CO2_medium = read.delim(paste0(sim_boreal_monthly_CO2_medium,"/D_PFATE.csv"), sep = ",")
   dat_boreal_monthly_CO2_high = read.delim(paste0(sim_boreal_monthly_CO2_high,"/D_PFATE.csv"), sep = ",")
+  
   dat_v2 = read.delim(paste0(dir_v2,"/D_PFATE.csv"), sep = ",")
   
   ###

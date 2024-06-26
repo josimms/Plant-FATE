@@ -17,7 +17,7 @@ weather_processing <- function(direct = "./tests/data/") {
   plot(data_IIASA_smear$Date, data_IIASA_smear$wpsoil_B, main = "SWP", xlab = "Dates", ylab = "-kPa (should be MPa for PlantFATE")
   title(sub = paste("Percentage missing", round(100*sum(is.na(data_IIASA_smear$wpsoil_B))/nrow(data_IIASA_smear), 2), "%"))
   plot(data_IIASA_smear$Glob_mean, data_IIASA_smear$Glob_max, main = "Gobal: Mean vs Max", xlab = "Mean", ylab = "Max")
-  
+
   ###
   # Daily weather
   ###
@@ -94,7 +94,7 @@ weather_processing <- function(direct = "./tests/data/") {
   write.csv(PlantFATE_weather_daily, 
             file = paste0(direct, "PlantFATE_weather_Hyytiala_daily.csv"),
             row.names = F)
-  
+
   PlantFATE_weather_monthly_temp <- Amazon_data_reference
   PlantFATE_weather_monthly_temp$Year <- rep(PlantFATE_weather_monthly$Year, length.out = nrow(PlantFATE_weather_monthly_temp))
   PlantFATE_weather_monthly_temp$Month <- rep(PlantFATE_weather_monthly$Month, length.out = nrow(PlantFATE_weather_monthly_temp))
