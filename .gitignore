@@ -9,7 +9,7 @@ pspm_output_*
 *.pdf 
 *.xlsx
 *.csv
-*.RData
+.RData
 gprof2dot.py
 
 *~
