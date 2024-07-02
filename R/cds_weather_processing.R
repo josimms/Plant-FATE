@@ -1,5 +1,33 @@
 # READING NC FILE
 
+# Plotting function (reuse for both monthly and daily)
+plot_data <- function(data, title_prefix, monthly) {
+  par(mfrow = c(3, 3))
+  if (monthly) {
+    data$YM <- paste0(data$YM, "-01")
+    data$date <- as.Date(data$YM, format = "%Y-%m-%d")
+  } else {
+    data$date <- as.Date(data$YMD, format = "%Y-%m-%d")
+  }
+  
+  # "vpd",
+  plot_vars <- c("t2m", "ssrd", "ssrd_max", "swvl2", "vpd", "sp")
+  for (var in plot_vars) {
+    plot(data$date, data[[var]], main = paste(title_prefix, var), 
+         xlab = "Dates", ylab = switch(var,
+                                       t2m = "Degrees C",
+                                       ssrd = "umol m-2 s-1",
+                                       ssrd_max = "umol m-2 s-1",
+                                       swvl2 = "-kPa",
+                                       vpd = "kPa",
+                                       sp = "kPa")) # TODO: check units
+    title(sub = sprintf("Percentage missing: %.2f%%", 100 * sum(is.na(data[[var]])) / nrow(data)))
+  }
+  plot(data$ssrd, data$ssrd_max, main = "Global: Mean vs Max", xlab = "Mean", ylab = "Max")
+  abline(lm(ssrd_max ~ ssrd, data = data), col = "red")
+  title(sub = sprintf("Gradient: %.2f", coef(lm(ssrd_max ~ ssrd, data = data))[2]))
+}
+
 ###
 # NEW function
 ###
@@ -74,37 +102,47 @@ reading_nc <- function() {
   fwrite(monthy_dataset, file = file.path(path_test, "montly_dataset.csv"))
   fwrite(daily_dataset, file = file.path(path_test, "daily_dataset.csv"))
   
-  # Plotting function (reuse for both monthly and daily)
-  plot_data <- function(data, title_prefix, monthly) {
-    par(mfrow = c(3, 2))
-    if (monthly) {
-      data$YM <- paste0(data$YM, "-01")
-      data$date <- as.Date(data$YM, format = "%Y-%m-%d")
-    } else {
-      data$date <- as.Date(data$YMD, format = "%Y-%m-%d")
-    }
-    
-    
-    # "vpd",
-    plot_vars <- c("t2m", "ssrd", "ssrd_max", "swvl2")
-    for (var in plot_vars) {
-      plot(data$date, data[[var]], main = paste(title_prefix, var), 
-           xlab = "Dates", ylab = switch(var,
-                                         t2m = "Degrees C",
-                                         ssrd = "umol m-2 s-1",
-                                         ssrd_max = "umol m-2 s-1",
-                                         swvl2 = "-kPa"))
-      title(sub = sprintf("Percentage missing: %.2f%%", 100 * sum(is.na(data[[var]])) / nrow(data)))
-    }
-    plot(data$ssrd, data$ssrd_max, main = "Global: Mean vs Max", xlab = "Mean", ylab = "Max")
-    abline(lm(ssrd_max ~ ssrd, data = data), col = "red")
-    title(sub = sprintf("Gradient: %.2f", coef(lm(ssrd_max ~ ssrd, data = data))[2]))
+  ####
+  # Generate the weather file in the right format
+  ####
+  raw.directory = "/home/josimms/Documents/CASSIA_Calibration/Raw_Data/hyytiala_weather/"
+  soil_water_potential_list <- list()
+  count = 1
+  for (var in c("wpsoil_A", "wpsoil_B")) {
+    soil_water_potential_list[[count]] <- data.table::rbindlist(lapply(paste0(raw.directory, list.files(raw.directory, var)), data.table::fread))
+    count = count + 1
   }
+  soil_water_potential <- data.table::rbindlist(soil_water_potential_list, fill = TRUE)
   
+  soil_water_potential[, MD := paste(soil_water_potential$Month, 
+                                     soil_water_potential$Day, sep = "-")]
+  # Gapfil
+  soil_water_potential$HYY_META.wpsoil_B[is.na(soil_water_potential$HYY_META.wpsoil_B)] = soil_water_potential$HYY_META.wpsoil_A[is.na(soil_water_potential$HYY_META.wpsoil_B)] - 
+    mean(soil_water_potential$HYY_META.wpsoil_A, na.rm = T) + 
+    mean(soil_water_potential$HYY_META.wpsoil_B, na.rm = T)
+  
+  # Monthly aggregation
+  soil_water_potential_montly <- soil_water_potential[, lapply(.SD, mean, na.rm = T), by = Month, .SDcols = -c("MD")]
+  # Daily aggregation
+  soil_water_potential_daily <- soil_water_potential[, lapply(.SD, mean, na.rm = T), by = MD]
+  
+  plantfate_monthy_dataset <- monthy_dataset
+  plantfate_monthy_dataset$rh <- 0.2
+  plantfate_monthy_dataset$sp <- rep(soil_water_potential_montly$HYY_META.wpsoil_B, 
+                                     length.out = nrow(plantfate_monthy_dataset))
+  fwrite(plantfate_monthy_dataset, file = file.path(path_test, "ERAS_Monthly.csv"))
+  
+  plantfate_daily_dataset <- daily_dataset
+  plantfate_daily_dataset$rh <- 0.2
+  plantfate_daily_dataset$sp <- rep(soil_water_potential_daily$HYY_META.wpsoil_B, 
+                                    length.out = nrow(plantfate_daily_dataset))
+  fwrite(plantfate_daily_dataset, file = file.path(path_test, "ERAS_dataset.csv"))
+  
+  ####
   # Plot monthly and daily data
-  plot_data(monthy_dataset, "Monthly", monthly = TRUE)
-  plot_data(daily_dataset, "Daily", monthly = FALSE)
+  ####
+  plot_data(plantfate_monthy_dataset, "Monthly", monthly = TRUE)
+  plot_data(plantfate_daily_dataset, "Daily", monthly = FALSE)
   
-  beepr::beep(3)
-  return(dataset_cds_raw)
+  return("Your code is done - check the generated code")
 }
