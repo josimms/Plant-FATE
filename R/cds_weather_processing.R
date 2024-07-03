@@ -11,7 +11,7 @@ plot_data <- function(data, title_prefix, monthly) {
   }
   
   # "vpd",
-  plot_vars <- c("t2m", "ssrd", "ssrd_max", "swvl2", "vpd", "sp")
+  plot_vars <- c("t2m", "ssrd", "ssrd_max", "swvl2", "vpd", "sp", "co2")
   for (var in plot_vars) {
     plot(data$date, data[[var]], main = paste(title_prefix, var), 
          xlab = "Dates", ylab = switch(var,
@@ -20,7 +20,8 @@ plot_data <- function(data, title_prefix, monthly) {
                                        ssrd_max = "umol m-2 s-1",
                                        swvl2 = "-kPa",
                                        vpd = "kPa",
-                                       sp = "kPa")) # TODO: check units
+                                       sp = "kPa",
+                                       co2 = "ppm")) # TODO: check units
     title(sub = sprintf("Percentage missing: %.2f%%", 100 * sum(is.na(data[[var]])) / nrow(data)))
   }
   plot(data$ssrd, data$ssrd_max, main = "Global: Mean vs Max", xlab = "Mean", ylab = "Max")
@@ -128,12 +129,14 @@ reading_nc <- function() {
   
   plantfate_monthy_dataset <- monthy_dataset
   plantfate_monthy_dataset$rh <- 0.2
+  plantfate_monthy_dataset$co2 <- 380
   plantfate_monthy_dataset$sp <- rep(soil_water_potential_montly$HYY_META.wpsoil_B, 
                                      length.out = nrow(plantfate_monthy_dataset))
   fwrite(plantfate_monthy_dataset, file = file.path(path_test, "ERAS_Monthly.csv"))
   
   plantfate_daily_dataset <- daily_dataset
   plantfate_daily_dataset$rh <- 0.2
+  plantfate_daily_dataset$co2 <- 380
   plantfate_daily_dataset$sp <- rep(soil_water_potential_daily$HYY_META.wpsoil_B, 
                                     length.out = nrow(plantfate_daily_dataset))
   fwrite(plantfate_daily_dataset, file = file.path(path_test, "ERAS_dataset.csv"))

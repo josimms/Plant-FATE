@@ -1,55 +1,21 @@
-get_CMIP <- function(urls_ssp, source_id, ssp_scenario, download = FALSE) {
-  urls_ssp
-  source_id
-  ssp_scenario = 245
-  
+sort_CMIP <- function() {
   # Constants
-  TEMP_DIR <- "~/Documents/Austria/Plant-FATE/cmip6_data/temp/"
-  ANSWER_DIR <- "~/Documents/Austria/Plant-FATE/cmip6_data/"
+  TEMP_DIR <- "~/Documents/Austria/Plant-FATE/inst/cmip6_data/temp"
+  ANSWER_DIR <- "~/Documents/Austria/Plant-FATE/inst/cmip6_data/"
+  path_test <- "/home/josimms/Documents/Austria/Plant-FATE/tests/data"
   TARGET_LON <- 17.483333
   TARGET_LAT <- 60.083333
   
-  # Filter data for the specified source
-  urls_ssp_source <- urls_ssp[urls_ssp$source_id %in% source_id, ]
-  
-  if (nrow(urls_ssp_source) == 0) {
-    stop("No data found for the specified source_id")
-  }
-  
-  if (any(urls_ssp_source$source_id != source_id)) {
-    stop("Taking data from the wrong source_id!")
-  }
-  
-  # Download files if requested
-  if (download) {
-    options(timeout = max(3000, getOption("timeout")))
-    files <- file.path(TEMP_DIR, 
-                       paste(ssp_scenario, 
-                             urls_ssp_source$source_id, 
-                             urls_ssp_source$variable_id, 
-                             urls_ssp_source$member_id, 
-                             urls_ssp_source$datetime_start, 
-                             urls_ssp_source$datetime_end, 
-                             sep = "_"), 
-                       ".nc")
-    files_missing <- files[!file.exists(files)]
-    if (length(files_missing) > 0) {
-      mapply(download.file, urls_ssp_source$file_url[!file.exists(files)], files_missing)
-    }
-    message("Download Complete!")
-  }
-  
   # Process each variable
-  parameters <- unique(urls_ssp_source$variable_id)
+  ssp_scenario = 245
+  parameters <- c("tas", "hurs", "rsds")
   results <- list()
+  
+  # CO2 Processed Seperately
   
   for (variable in parameters) {
     spp_files <- list.files(path = TEMP_DIR,
-                            pattern = paste(ssp_scenario, 
-                                            urls_ssp_source$source_id[1], 
-                                            variable, 
-                                            urls_ssp_source$member_id[1], 
-                                            sep = "_"),
+                            pattern = variable,
                             full.names = TRUE)
     
     spp <- process_files(spp_files, variable, TARGET_LON, TARGET_LAT)
@@ -62,30 +28,41 @@ get_CMIP <- function(urls_ssp, source_id, ssp_scenario, download = FALSE) {
   results$VPD <- bigleaf::rH.to.VPD(results$hurs * 0.01, results$tas)
   
   # Create date sequence
-  date <- seq(as.Date(urls_ssp_source$datetime_start[1]), 
-              as.Date(tail(urls_ssp_source$datetime_end, n = 1)), 
-              by = "day")
+  date <- seq(as.Date("2015-01-01"), 
+              as.Date("2100-12-30"), 
+              length.out = length(results$tas)) # TODO: dates are wrong here, but want graphs
   
-  # Adjust for non-leap years if necessary
-  if (length(date) != length(results$tas)) {
-    date <- date[!find_leap(date)]
-    if (source_id == "CESM2-WACCM") {
-      results <- lapply(results, function(x) x[-length(x)])
-    }
-  }
-  
+  # Get soil potenital from historical data
+  monthy_dataset <- fread(file.path(path_test, "ERAS_Monthly.csv"))
+  daily_dataset <- fread(file.path(path_test, "ERAS_dataset.csv"))
+
   # Create final dataset
-  dataset_cmip <- data.frame(date = date,
-                             TAir = results$tas,
-                             PAR = results$rsds,
-                             VPD = results$VPD)
+  dataset_cmip <- data.table::data.table(date = date,
+                                         t2m = results$tas,
+                                         ssrd = results$rsds,
+                                         vpd = results$VPD,
+                                         sp = rep(daily_dataset$sp, length.out = length(results$tas)))
+  dataset_cmip[, YMD := format(date, "%Y-%m-%d")]
+  dataset_cmip[, YM := format(date, "%Y-%m")]
+  # NOTE: Mean and max the same as the values are from a daily source!
+  dataset_cmip[, ssrd_max := dataset_cmip[, .(ssrd_max = 3*max(ssrd)), by = YMD]$ssrd_max] 
+  dataset_cmip$co2 <- 380 # TODO: replace with real values!
+  
+  # Monthly
+  dataset_cmip_monthly <- dataset_cmip[, lapply(.SD, mean), by = YM, .SDcols = -c("date", "YMD", "ssrd_max")]
+  dataset_cmip_monthly[, ssrd_max := dataset_cmip[, .(ssrd_max = max(ssrd)), by = YM]$ssrd_max]
   
   # Save results
-  save(dataset_cmip, 
-       file = file.path(ANSWER_DIR, paste0(source_id, "_", ssp_scenario, ".RData")))
+  fwrite(dataset_cmip, 
+       file = file.path(ANSWER_DIR, paste0("PlantFATE", ssp_scenario, ".csv")))
+  fwrite(dataset_cmip_monthly, 
+         file = file.path(ANSWER_DIR, paste0("PlantFATE_monthly", ssp_scenario, ".csv")))
   
-  beepr::beep(3)
-  return(dataset_cmip)
+  # Plot results
+  plot_data(dataset_cmip_monthly, "Monthly", monthly = TRUE)
+  plot_data(dataset_cmip, "Daily", monthly = FALSE)
+  
+  return("Data processed look to files for the datasets")
 }
 
 # Helper functions
@@ -122,6 +99,9 @@ transform_variable <- function(variable, spp) {
          "hurs" = {
            if (any(spp < 0)) warning("RH contains negative values")
            spp  # %
+         },
+         "co2" = {
+           spp
          },
          stop("Unsupported variable: ", variable)
   )
