@@ -38,7 +38,7 @@ reading_nc <- function() {
   library(bigleaf)
   library(data.table)
   
-  path_nc <- "/home/josimms/Documents/Austria/Plant-FATE/inst/python"
+  path_nc <- "/home/josimms/Documents/Austria/eras_data"
   path_test <- "/home/josimms/Documents/Austria/Plant-FATE/tests/data"
   
   variables <- c('t2m', 'ssrd', 'swvl1', 'swvl2')
