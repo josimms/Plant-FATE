@@ -34,7 +34,7 @@ boreal_calibration <- function() {
   ### ssp 245
   sim_boreal_monthly_CO2_high = new(Patch, "tests/params/p_test_boreal_monthly_co2_high.ini")
   sim_boreal_monthly_CO2_high$init(1000, 1050) # This determines the steps
-  sim_boreal_monthly_CO2_high$simulate()
+  sim_boreal_monthly_CO2_high$simulate() 
   sim_boreal_monthly_CO2_high$close()
   
   output_dir = "pspm_output_test" # NOTE: changed from "pspm_output2", as matches close()

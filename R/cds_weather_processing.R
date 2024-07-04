@@ -11,22 +11,22 @@ plot_data <- function(data, title_prefix, monthly) {
   }
   
   # "vpd",
-  plot_vars <- c("t2m", "ssrd", "ssrd_max", "swvl2", "vpd", "sp", "co2")
+  plot_vars <- c("Temp", "PAR", "PAR_max", "swvl2", "VPD", "SWP", "co2")
   for (var in plot_vars) {
     plot(data$date, data[[var]], main = paste(title_prefix, var), 
          xlab = "Dates", ylab = switch(var,
-                                       t2m = "Degrees C",
-                                       ssrd = "umol m-2 s-1",
-                                       ssrd_max = "umol m-2 s-1",
+                                       Temp = "Degrees C",
+                                       PAR = "umol m-2 s-1",
+                                       PAR_max = "umol m-2 s-1",
                                        swvl2 = "-kPa",
-                                       vpd = "kPa",
-                                       sp = "kPa",
+                                       VPD = "kPa",
+                                       SWP = "kPa",
                                        co2 = "ppm")) # TODO: check units
     title(sub = sprintf("Percentage missing: %.2f%%", 100 * sum(is.na(data[[var]])) / nrow(data)))
   }
-  plot(data$ssrd, data$ssrd_max, main = "Global: Mean vs Max", xlab = "Mean", ylab = "Max")
-  abline(lm(ssrd_max ~ ssrd, data = data), col = "red")
-  title(sub = sprintf("Gradient: %.2f", coef(lm(ssrd_max ~ ssrd, data = data))[2]))
+  plot(data$PAR, data$PAR_max, main = "Global: Mean vs Max", xlab = "Mean", ylab = "Max")
+  abline(lm(PAR_max ~ PAR, data = data), col = "red")
+  title(sub = sprintf("Gradient: %.2f", coef(lm(PAR_max ~ PAR, data = data))[2]))
 }
 
 ###
@@ -75,8 +75,8 @@ reading_nc <- function() {
     
     # Create data.table
     dataset_cds_raw_year <- data.table(
-      t2m = nc_data$t2m  - 273.15,
-      ssrd = Rg.to.PPFD(nc_data$ssrd),
+      Temp = nc_data$t2m  - 273.15,
+      PAR = bigleaf::Rg.to.PPFD(nc_data$ssrd),
       swvl1 = nc_data$swvl1,
       swvl2 = nc_data$swvl2,
       date = as.POSIXct(dates*3600, origin = "1900-01-01", tz = "GMT")
@@ -93,11 +93,11 @@ reading_nc <- function() {
   
   # Monthly aggregation
   monthy_dataset <- dataset_cds_raw_all[, lapply(.SD, mean), by = YM, .SDcols = -c("YMD", "date")]
-  monthy_dataset[, ssrd_max := dataset_cds_raw_all[, .(ssrd_max = max(ssrd)), by = YM]$ssrd_max]
+  monthy_dataset[, PAR_max := dataset_cds_raw_all[, .(PAR_max = max(PAR)), by = YM]$PAR_max]
   
   # Daily aggregation
   daily_dataset <- dataset_cds_raw_all[, lapply(.SD, mean), by = YMD, .SDcols = -c("YM", "date")]
-  daily_dataset[, ssrd_max := dataset_cds_raw_all[, .(ssrd_max = max(ssrd)), by = YMD]$ssrd_max]
+  daily_dataset[, PAR_max := dataset_cds_raw_all[, .(PAR_max = max(PAR)), by = YMD]$PAR_max]
   
   # Save datasets
   fwrite(monthy_dataset, file = file.path(path_test, "montly_dataset.csv"))
@@ -128,16 +128,16 @@ reading_nc <- function() {
   soil_water_potential_daily <- soil_water_potential[, lapply(.SD, mean, na.rm = T), by = MD]
   
   plantfate_monthy_dataset <- monthy_dataset
-  plantfate_monthy_dataset$rh <- 0.2
-  plantfate_monthy_dataset$co2 <- 380
-  plantfate_monthy_dataset$sp <- rep(soil_water_potential_montly$HYY_META.wpsoil_B, 
+  plantfate_monthy_dataset$rh <- 0.8
+  plantfate_monthy_dataset$co2 <- 380 # TODO: if time get the values from Hyytiala like in the SWP
+  plantfate_monthy_dataset$SWP <- rep(soil_water_potential_montly$HYY_META.wpsoil_B, 
                                      length.out = nrow(plantfate_monthy_dataset))
   fwrite(plantfate_monthy_dataset, file = file.path(path_test, "ERAS_Monthly.csv"))
   
   plantfate_daily_dataset <- daily_dataset
-  plantfate_daily_dataset$rh <- 0.2
+  plantfate_daily_dataset$rh <- 0.8
   plantfate_daily_dataset$co2 <- 380
-  plantfate_daily_dataset$sp <- rep(soil_water_potential_daily$HYY_META.wpsoil_B, 
+  plantfate_daily_dataset$SWP <- rep(soil_water_potential_daily$HYY_META.wpsoil_B, 
                                     length.out = nrow(plantfate_daily_dataset))
   fwrite(plantfate_daily_dataset, file = file.path(path_test, "ERAS_dataset.csv"))
   
