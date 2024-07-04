@@ -26,7 +26,7 @@ sort_CMIP <- function() {
     }
     
     # Compute VPD
-    results$VPD <- bigleaf::rH.to.VPD(results$hurs * 0.01, results$tas)
+    results$VPD <- 10 * bigleaf::rH.to.VPD(results$hurs * 0.01, results$tas) # kPa to hPa
     
     # Create date sequence
     date <- seq(as.Date("2015-01-01"), 
@@ -50,7 +50,7 @@ sort_CMIP <- function() {
                                            Temp = results$tas,
                                            VPD = results$VPD,
                                            PAR = results$rsds,
-                                           SWP = rep(daily_dataset$SWP, length.out = length(results$tas)), # TODO: why are these longer?
+                                           SWP = - 0.001 * rep(daily_dataset$SWP, length.out = length(results$tas)), # TODO: why are these longer?
                                            date = date,
                                            co2 = rep(daily_to_average(co2), length.out = length(results$tas))) # TODO: why are these longer?
     dataset_cmip[, YMD := format(date, "%Y-%m-%d")]
@@ -120,7 +120,7 @@ transform_variable <- function(variable, spp) {
          },
          "tas" = spp - 273.15,  # 'C
          "rsds" = {
-           result <- bigleaf::Rg.to.PPFD(spp) * 0.000001 * 86400  # umol m-2 s-1 to sum mmol m-2 day-1
+           result <- bigleaf::Rg.to.PPFD(spp)  # umol m-2 s-1
            if (any(result < 0)) warning("PAR contains negative values")
            result
          },

@@ -19,8 +19,8 @@ plot_data <- function(data, title_prefix, monthly) {
                                        PAR = "umol m-2 s-1",
                                        PAR_max = "umol m-2 s-1",
                                        swvl2 = "-kPa",
-                                       VPD = "kPa",
-                                       SWP = "kPa",
+                                       VPD = "hPa",
+                                       SWP = "- Ma",
                                        co2 = "ppm")) # TODO: check units
     title(sub = sprintf("Percentage missing: %.2f%%", 100 * sum(is.na(data[[var]])) / nrow(data)))
   }
@@ -87,9 +87,12 @@ reading_nc <- function() {
   
   dataset_cds_raw_all <- rbindlist(dataset_cds_raw)
   
-  #dataset_cds_raw[, vpd := 10 * rH.to.VPD(r, t2m)]
+  #dataset_cds_raw[, vpd := 10 * rH.to.VPD(r, t2m)] # hPa
   dataset_cds_raw_all[, YM := format(date, "%Y-%m")]
   dataset_cds_raw_all[, YMD := format(date, "%Y-%m-%d")]
+  dataset_cds_raw_all[, Year := as.numeric(format(date, "%Y"))]
+  dataset_cds_raw_all[, Month := as.numeric(format(date, "%m"))]
+  dataset_cds_raw_all[, Decimal_year := seq(2000, 2050, length.out = nrow(dataset_cds_raw_all))]
   
   # Monthly aggregation
   monthy_dataset <- dataset_cds_raw_all[, lapply(.SD, mean), by = YM, .SDcols = -c("YMD", "date")]
@@ -128,18 +131,20 @@ reading_nc <- function() {
   soil_water_potential_daily <- soil_water_potential[, lapply(.SD, mean, na.rm = T), by = MD]
   
   plantfate_monthy_dataset <- monthy_dataset
-  plantfate_monthy_dataset$rh <- 0.8
+  plantfate_monthy_dataset$VPD <- 0.8
   plantfate_monthy_dataset$co2 <- 380 # TODO: if time get the values from Hyytiala like in the SWP
-  plantfate_monthy_dataset$SWP <- rep(soil_water_potential_montly$HYY_META.wpsoil_B, 
+  plantfate_monthy_dataset$SWP <- - 0.001 * rep(soil_water_potential_montly$HYY_META.wpsoil_B, 
                                      length.out = nrow(plantfate_monthy_dataset))
-  fwrite(plantfate_monthy_dataset, file = file.path(path_test, "ERAS_Monthly.csv"))
+  fwrite(plantfate_monthy_dataset[,c("Year", "Month", "Decimal_year", "Temp", "VPD", "PAR", "PAR_max", "SWP")],
+         file = file.path(path_test, "ERAS_Monthly.csv"))
   
   plantfate_daily_dataset <- daily_dataset
-  plantfate_daily_dataset$rh <- 0.8
+  plantfate_daily_dataset$VPD <- 0.8
   plantfate_daily_dataset$co2 <- 380
-  plantfate_daily_dataset$SWP <- rep(soil_water_potential_daily$HYY_META.wpsoil_B, 
+  plantfate_daily_dataset$SWP <- - 0.001 * rep(soil_water_potential_daily$HYY_META.wpsoil_B, 
                                     length.out = nrow(plantfate_daily_dataset))
-  fwrite(plantfate_daily_dataset, file = file.path(path_test, "ERAS_dataset.csv"))
+  fwrite(plantfate_daily_dataset[,c("Year", "Month", "Decimal_year", "Temp", "VPD", "PAR", "PAR_max", "SWP")],
+         file = file.path(path_test, "ERAS_dataset.csv"))
   
   ####
   # Plot monthly and daily data
