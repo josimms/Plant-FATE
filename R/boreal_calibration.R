@@ -17,7 +17,7 @@ boreal_calibration <- function() {
   # BOREAL CALIBRATION
   ###
   sim_boreal_monthly = new(Patch, "tests/params/p_test_boreal.ini")
-  sim_boreal_monthly$init(1000, 1050) # This determines the steps
+  sim_boreal_monthly$init(1960, 2022) # This determines the steps
   ### TODO: need to make sure I save these in a different place!
   sim_boreal_monthly$simulate()
   sim_boreal_monthly$close()
@@ -33,7 +33,7 @@ boreal_calibration <- function() {
   
   ### ssp 585
   sim_boreal_monthly_CO2_high = new(Patch, "tests/params/p_test_boreal_monthly_co2_high.ini")
-  sim_boreal_monthly_CO2_high$init(1000, 1050) # This determines the steps
+  sim_boreal_monthly_CO2_high$init(2015, 2100) # This determines the steps
   sim_boreal_monthly_CO2_high$simulate() 
   sim_boreal_monthly_CO2_high$close()
   
@@ -45,7 +45,7 @@ boreal_calibration <- function() {
   ### spp 245
 
   sim_boreal_monthly_CO2_medium = new(Patch, "tests/params/p_test_boreal_monthly_co2_medium.ini")
-  sim_boreal_monthly_CO2_medium$init(1000, 1050) # This determines the steps
+  sim_boreal_monthly_CO2_medium$init(2015, 2100) # This determines the steps
   sim_boreal_monthly_CO2_medium$simulate()
   sim_boreal_monthly_CO2_medium$close()
   
@@ -60,7 +60,6 @@ boreal_calibration <- function() {
   dat_boreal_monthly = read.delim(paste0(dir_boreal_monthly,"/D_PFATE.csv"), sep = ",")
   dat_boreal_monthly_CO2_medium = read.delim(paste0(dir_boreal_monthly_CO2_medium,"/D_PFATE.csv"), sep = ",")
   dat_boreal_monthly_CO2_high = read.delim(paste0(dir_boreal_monthly_CO2_medium,"/D_PFATE.csv"), sep = ",")
-  
   dat_v2 = read.delim(paste0(dir_v2,"/D_PFATE.csv"), sep = ",")
   
   ###
@@ -72,7 +71,7 @@ boreal_calibration <- function() {
   ## TODO: plot the biomass data here!
   matplot(y=cbind(dat_boreal_monthly_CO2_medium$GPP, dat_boreal_monthly_CO2_medium$NPP)*1e-3*365, x=dat_boreal_monthly_CO2_medium$YEAR, type="l", col=c("orange", "orange"), pch = c(1, 2), main = "Boreal, Medium CO2", ylab="GPP, NPP (kgC/m2/yr)", xlab="Time (years)")
   matplot(y=cbind(dat_boreal_monthly_CO2_high$GPP, dat_boreal_monthly_CO2_high$NPP)*1e-3*365, x=dat_boreal_monthly_CO2_high$YEAR, type="l", col=c("red", "red"), lty = c(1, 2), main = "Boreal, High CO2", ylab="GPP, NPP (kgC/m2/yr)", xlab="Time (years)")
-  matplot(y=cbind(dat_v2$GPP, dat_v2$NPP)*1e-3*365, x=dat_v2$YEAR, type="l", col=c("green4", "green3"), lty = c(1, 2), main = "Original", ylab="GPP, NPP (kgC/m2/yr)", xlab="Time (years)")
+  matplot(y=cbind(dat_v2$GPP, dat_v2$NPP)*1e-3*365, x=dat_v2$YEAR, type="l", col=c("green4", "green3"), lty = c(1, 2), main = "Original, Amazon", ylab="GPP, NPP (kgC/m2/yr)", xlab="Time (years)")
   
   matplot(y=cbind(dat_boreal_monthly$GS), x=dat_boreal_monthly$YEAR, type="l", lty=1, col=c("cyan3"), main = "Boreal", ylab="Stomatal conductance (mol/m2/s)", xlab="Time (years)")
   matplot(y=cbind(dat_boreal_monthly_CO2_medium$GS), x=dat_boreal_monthly_CO2_medium$YEAR, type="l", lty=1, col=c("orange"), main = "Boreal", ylab="Stomatal conductance (mol/m2/s)", xlab="Time (years)")

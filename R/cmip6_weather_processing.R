@@ -46,7 +46,9 @@ sort_CMIP <- function() {
     # Create final dataset
     dataset_cmip <- data.table::data.table(Year = as.numeric(substring(date, 1, 4)),
                                            Month = as.numeric(substring(date, 6, 7)),
-                                           Decimal_year = seq(1000, 1050, length.out = length(results$tas)), # TODO: make into an actual decimal year!
+                                           Decimal_year = seq(as.numeric(substring(date[1], 1, 4)), 
+                                                              as.numeric(substring(date[length(date)], 1, 4)), 
+                                                              length.out = length(results$tas)),
                                            Temp = results$tas,
                                            VPD = results$VPD,
                                            PAR = results$rsds,
@@ -63,11 +65,16 @@ sort_CMIP <- function() {
     dataset_cmip_monthly[, PAR_max := dataset_cmip[, .(PAR_max = max(PAR)), by = YM]$PAR_max]
     dataset_cmip_monthly$Decimal_year <- seq(1000, 1050, length.out = nrow(dataset_cmip_monthly))
     
+    # Yearly CO2
+    dataset_cmip_yearly <- dataset_cmip[, lapply(.SD, mean), by = Year, .SDcols = -c("date", "YMD", "YM", "PAR_max", "Decimal_year")]
+    
     # Save results
     fwrite(dataset_cmip[,c("Year", "Month", "Decimal_year", "Temp", "VPD", "PAR", "PAR_max", "SWP")], 
            file = file.path(ANSWER_DIR, paste0("PlantFATE", ssp_scenario, ".csv")))
     fwrite(dataset_cmip_monthly[,c("Year", "Month", "Decimal_year", "Temp", "VPD", "PAR", "PAR_max", "SWP")], 
            file = file.path(ANSWER_DIR, paste0("PlantFATE_monthly", ssp_scenario, ".csv")))
+    fwrite(dataset_cmip_yearly[,c("Year", "co2")], 
+           file = file.path(ANSWER_DIR, paste0("PlantFATE_yearly", ssp_scenario, ".csv")))
     
     # Plot results
     plot_data(dataset_cmip_monthly, "Monthly", monthly = TRUE)
@@ -107,9 +114,10 @@ process_files_co2 <- function(files, variable) {
               start = 1, 
               count = c(-1))
   })
-  unlist(spp_temp)
-}
-
+  
+  out <- 0.0000000000001 * unlist(spp_temp)
+  return(out)
+} # TODO: although these are now the right scale, make sure that there is a logic here!
 
 transform_variable <- function(variable, spp) {
   switch(variable,
@@ -138,6 +146,5 @@ daily_to_average <- function(daily) {
   four_years_start_2015 <- c(month_length, month_length, month_length_leapyear, month_length)
   
   monthly <- rep(daily, times = rep(four_years_start_2015, length.out = length(co2)))
-  
   return(monthly)
 }

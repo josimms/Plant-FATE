@@ -92,7 +92,6 @@ reading_nc <- function() {
   dataset_cds_raw_all[, YMD := format(date, "%Y-%m-%d")]
   dataset_cds_raw_all[, Year := as.numeric(format(date, "%Y"))]
   dataset_cds_raw_all[, Month := as.numeric(format(date, "%m"))]
-  dataset_cds_raw_all[, Decimal_year := seq(2000, 2050, length.out = nrow(dataset_cds_raw_all))]
   
   # Monthly aggregation
   monthy_dataset <- dataset_cds_raw_all[, lapply(.SD, mean), by = YM, .SDcols = -c("YMD", "date")]
@@ -112,7 +111,7 @@ reading_nc <- function() {
   raw.directory = "/home/josimms/Documents/CASSIA_Calibration/Raw_Data/hyytiala_weather/"
   soil_water_potential_list <- list()
   count = 1
-  for (var in c("wpsoil_A", "wpsoil_B")) {
+  for (var in c("wpsoil_A", "wpsoil_B", "GPP")) {
     soil_water_potential_list[[count]] <- data.table::rbindlist(lapply(paste0(raw.directory, list.files(raw.directory, var)), data.table::fread))
     count = count + 1
   }
@@ -126,15 +125,28 @@ reading_nc <- function() {
     mean(soil_water_potential$HYY_META.wpsoil_B, na.rm = T)
   
   # Monthly aggregation
-  soil_water_potential_montly <- soil_water_potential[, lapply(.SD, mean, na.rm = T), by = Month, .SDcols = -c("MD")]
+  soil_water_potential[, YM := paste(soil_water_potential$Year, sprintf("%02d", soil_water_potential$Month), sep = "-")]
+  gpp <- soil_water_potential[, lapply(.SD, mean, na.rm = T), by = YM, .SDcols = -c("MD")]
+  names(gpp) <- gsub("HYY_EDDY233.", "", names(gpp))
+  
+  # Monthly aggregation - for only one year!
+  soil_water_potential_montly <- soil_water_potential[, lapply(.SD, mean, na.rm = T), by = Month, .SDcols = -c("MD", "YM")]
+  
   # Daily aggregation
-  soil_water_potential_daily <- soil_water_potential[, lapply(.SD, mean, na.rm = T), by = MD]
+  soil_water_potential_daily <- soil_water_potential[, lapply(.SD, mean, na.rm = T), by = MD,  .SDcols = -c("YM")]
   
   plantfate_monthy_dataset <- monthy_dataset
   plantfate_monthy_dataset$VPD <- 0.8
   plantfate_monthy_dataset$co2 <- 380 # TODO: if time get the values from Hyytiala like in the SWP
   plantfate_monthy_dataset$SWP <- - 0.001 * rep(soil_water_potential_montly$HYY_META.wpsoil_B, 
                                      length.out = nrow(plantfate_monthy_dataset))
+  plantfate_monthy_dataset$Decimal_year <- seq(plantfate_monthy_dataset$Year[1],
+                                               plantfate_monthy_dataset$Year[nrow(plantfate_monthy_dataset)],
+                                               length.out = nrow(plantfate_monthy_dataset))
+  plantfate_monthy_dataset <- merge(plantfate_monthy_dataset, 
+                                    gpp[gpp$Year < plantfate_monthy_dataset$Year[nrow(plantfate_monthy_dataset)],c("YM", "GPP")], 
+                                    by = "YM", 
+                                    all.x = T)
   fwrite(plantfate_monthy_dataset[,c("Year", "Month", "Decimal_year", "Temp", "VPD", "PAR", "PAR_max", "SWP")],
          file = file.path(path_test, "ERAS_Monthly.csv"))
   
@@ -143,6 +155,9 @@ reading_nc <- function() {
   plantfate_daily_dataset$co2 <- 380
   plantfate_daily_dataset$SWP <- - 0.001 * rep(soil_water_potential_daily$HYY_META.wpsoil_B, 
                                     length.out = nrow(plantfate_daily_dataset))
+  plantfate_daily_dataset$Decimal_year <- seq(plantfate_daily_dataset$Year[1],
+                                              plantfate_daily_dataset$Year[nrow(plantfate_daily_dataset)],
+                                               length.out = nrow(plantfate_daily_dataset))
   fwrite(plantfate_daily_dataset[,c("Year", "Month", "Decimal_year", "Temp", "VPD", "PAR", "PAR_max", "SWP")],
          file = file.path(path_test, "ERAS_dataset.csv"))
   
@@ -152,5 +167,5 @@ reading_nc <- function() {
   plot_data(plantfate_monthy_dataset, "Monthly", monthly = TRUE)
   plot_data(plantfate_daily_dataset, "Daily", monthly = FALSE)
   
-  return("Your code is done - check the generated code")
+  return("Your code is done - check the generated files")
 }
