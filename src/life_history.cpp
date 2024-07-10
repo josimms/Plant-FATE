@@ -20,7 +20,6 @@ void ErgodicEnvironment::computeEnv(double t, Solver* sol, std::vector<double>::
 	// do nothing
 }
 
-
 LifeHistoryOptimizer::LifeHistoryOptimizer(std::string params_file){
 	//paramsFile = params_file; // = "tests/params/p.ini";
 	I.parse(params_file);
@@ -227,16 +226,20 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 	auto derivs = [this](double t, std::vector<double>& S, std::vector<double>& dSdt){
 		//if (fabs(t - 2050) < 1e-5) 
 		update_climate(ts.to_julian(t));
-		// C.Climate::print(t);
+	  // C.Climate::print(t);
 		set_state(S.begin());
+		// TODO: NA pattern happening here!
 		P.calc_demographic_rates(C, t);
+		std::cout << ":P" << "\n";
 
 		// Override Plant-FATE fecundity calculations 
 		// We need to explicitly include plant mortality here for fitness calcs
 		double fec = P.fecundity_rate(P.bp.dmass_dt_rep, C);
+		std::cout << ":o" << "\n";
 		P.rates.dseeds_dt =  fec * exp(-P.state.mortality);  // Fresh seeds produced = fecundity rate * p{plant is alive}
 		// P.rates.dseeds_dt_germ =   P.state.seed_pool/P.par.ll_seed;   // seeds that leave seed pool proceed for germincation
-
+		std::cout << ":S" << "\n";
+		
 		get_rates(dSdt.begin());
 		};
 
