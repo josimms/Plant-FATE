@@ -2,34 +2,35 @@
 # executable name
 TARGET := libpfate
 
+# Julia setup
+JULIA_PATH := /usr  # Update this to your Julia installation path
+
 # files
 SRCFILES  :=  $(filter-out src/RcppExports.cpp src/r_interface.cpp $(wildcard src/pybind*.cpp), $(wildcard src/*.cpp))
+SRCFILES += src/julia_wrapper.cpp  # Add Julia wrapper
 PYBINDFILES := $(wildcard src/pybind*.cpp)
 HEADERS := $(wildcard src/*.tpp) $(wildcard include/*.h) $(wildcard tests/*.h)
 # ------------------------------------------------------------------------------
 
 # paths
-#CUDA_INSTALL_PATH ?= /usr/local/cuda#-5.0
-
-#ROOT_DIR := /home/jjoshi/codes
-
-# ROOT_DIR := ${shell dirname ${shell pwd}}
 EXTERNAL_DIR := external
-# ^ Do NOT put trailing whitespaces or comments after the above line
 
 # include and lib dirs (esp for cuda)
-INC_PATH :=  -I./inst/include #-I./CppNumericalSolvers-1.0.0
-INC_PATH +=  -I./src # This is to allow inclusion of .tpp files in headers
+INC_PATH :=  -I./inst/include -I./src 
 INC_PATH += -I$(EXTERNAL_DIR)/phydro/inst/include \
             -I$(EXTERNAL_DIR)/libpspm/include \
-			-I$(EXTERNAL_DIR)/flare/include 
-LIB_PATH := -L$(EXTERNAL_DIR)/libpspm/lib -L./lib
+            -I$(EXTERNAL_DIR)/flare/include \
+            -I$(JULIA_PATH)/include/julia
+LIB_PATH := -L$(EXTERNAL_DIR)/libpspm/lib -L./lib -L$(JULIA_PATH)/lib  # Add Julia lib path
 PTH_PATH := $(shell python3 -m pybind11 --includes)
 
 # flags
 PROFILING_FLAGS = -g -pg
-CPPFLAGS = -O3 -std=c++17 -Wall -Wextra -DPHYDRO_ANALYTICAL_ONLY $(PROFILING_FLAGS)
+CPPFLAGS = -O3 -std=c++17 -Wall -Wextra -DPHYDRO_ANALYTICAL_ONLY -DUSE_JULIA $(PROFILING_FLAGS)
 LDFLAGS =  $(PROFILING_FLAGS)
+
+CPPFLAGS += -I/usr/include/uv
+CPPFLAGS += -I$(JULIA_PATH)/src
 
 CPPFLAGS +=    \
 -pedantic-errors  -Wcast-align \
@@ -49,17 +50,7 @@ CPPFLAGS +=    \
 -Wswitch-enum \
 -Wunreachable-code \
 -Wvariadic-macros \
--Wwrite-strings \
-# -Wswitch-default \
-# -Wunused \
-# -Wunused-parameter \
-# -Waggregate-return -Wpadded -Wfloat-equal \
-# -Wlong-long \
-# -Wshadow \
-# -Winline \
-# -Wconversion \
-# -Weffc++ \
-
+-Wwrite-strings
 
 CPPFLAGS += -Wno-sign-compare -Wno-unused-variable \
 -Wno-unused-but-set-variable -Wno-float-conversion \
@@ -67,33 +58,29 @@ CPPFLAGS += -Wno-sign-compare -Wno-unused-variable \
 
 # libs
 AR = ar
-LIBS = 	 -lpspm	# additional libs
-#LIBS = -lcudart 			# cuda libs
+LIBS = -lpspm -ljulia  # Add Julia lib
 
 # files
 OBJECTS = $(patsubst src/%.cpp, build/%.o, $(SRCFILES))
 
-all: dir external_libs $(TARGET) apps
-
-# $(PYBINDFILES): build/%.o : src/%.cpp
-# 	g++ -c $(CPPFLAGS) $(PTH_PATH) $(INC_PATH) $< -o $@
+all: dir external_libs init_julia $(TARGET) apps
 
 external_libs:
 	(cd $(EXTERNAL_DIR)/libpspm && $(MAKE))
 
+.PHONY: init_julia
+init_julia:
+	@echo "Initializing Julia..."
+	@R -e 'library(JuliaCall); julia_setup()'
 
-python: dir $(TARGET) # $(PYBINDFILES)
+python: dir $(TARGET)
 	pip3 install .
 
 dir:
 	mkdir -p lib build tests/build bin
 
-hi:
-	echo $(SRCFILES)
-
 $(TARGET): $(OBJECTS)
 	$(AR) rcs lib/$(TARGET).a $(OBJECTS) $(LIBS)	
-# g++ $(LDFLAGS) -o $(TARGET) $(LIB_PATH) $(OBJECTS) $(LIBS)
 
 $(OBJECTS): build/%.o : src/%.cpp $(HEADERS)
 	g++ -c $(CPPFLAGS) $(INC_PATH) $< -o $@
@@ -106,8 +93,11 @@ extclean:
 
 re: clean all
 
-clean: libclean testclean
+clean: libclean testclean julia_clean
 
+julia_clean:
+	@echo "Cleaning up Julia..."
+	@R -e 'library(JuliaCall); julia_command("exit()")'
 
 ## EXECUTABLES (APPS) ##
 
@@ -170,47 +160,3 @@ api:
 
 clean_api:
 	rm -rf docs/html
-
-#-gencode=arch=compute_10,code=\"sm_10,compute_10\"  -gencode=arch=compute_20,code=\"sm_20,compute_20\"  -gencode=arch=compute_30,code=\"sm_30,compute_30\"
-
-#-W -Wall -Wimplicit -Wswitch -Wformat -Wchar-subscripts -Wparentheses -Wmultichar -Wtrigraphs -Wpointer-arith -Wcast-align -Wreturn-type -Wno-unused-function
-#-m64 -fno-strict-aliasing
-#-I. -I/usr/local/cuda/include -I../../common/inc -I../../../shared//inc
-#-DUNIX -O2
-
-
-#g++ -fPIC   -m64 -o ../../bin/linux/release/swarming_chasing_predator obj/x86_64/release/genmtrand.cpp.o  obj/x86_64/release/simpleGL.cu.o  -L/usr/local/cuda/lib64 -L../../lib -L../../common/lib/linux -L../../../shared//lib -lcudart
-#-lGL -lGLU -lX11 -lXi -lXmu -lGLEW_x86_64 -L/usr/X11R6/lib64 -lGLEW_x86_64 -L/usr/X11R6/lib64 -lglut
-#-L/usr/local/cuda/lib64 -L../../lib -L../../common/lib/linux -L../../../shared//lib -lcudart
-#-L/usr/lib -lgsl -lgslcblas
-#-lcutil_x86_64  -lshrutil_x86_64
-
-
-
-
-#CXXWARN_FLAGS := \
-#	-W -Wall \
-#	-Wimplicit \
-#	-Wswitch \
-#	-Wformat \
-#	-Wchar-subscripts \
-#	-Wparentheses \
-#	-Wmultichar \
-#	-Wtrigraphs \
-#	-Wpointer-arith \
-#	-Wcast-align \
-#	-Wreturn-type \
-#	-Wno-unused-function \
-#	$(SPACE)
-
-#CWARN_FLAGS := $(CXXWARN_FLAGS) \
-#	-Wstrict-prototypes \
-#	-Wmissing-prototypes \
-#	-Wmissing-declarations \
-#	-Wnested-externs \
-#	-Wmain \
-#
-	
-#HEADERS  := $(wildcard *.h)
-	
-
