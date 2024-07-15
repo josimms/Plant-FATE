@@ -1,6 +1,5 @@
-library(CASSIA)
-
 weather_processing <- function(direct = "./tests/data/") {
+  library(CASSIA)
   ###
   # Data printed from the CASSIA processing
   ###
