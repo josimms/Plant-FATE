@@ -17,11 +17,14 @@ read_sim_data <- function(dir_path) {
 }
 
 # Plot function
-plot_gpp_npp <- function(dat, title, color) {
+plot_gpp_npp <- function(dat, title, color, data = TRUE) {
+  ERAS_Monthly <- data.table::fread("tests/data/ERAS_Monthly.csv")
+  
   matplot(y = cbind(dat$GPP, dat$NPP) * 1e-3 * 365,
           x = dat$YEAR,
           type = "l", col = color, lty = c(1, 2),
           main = title, ylab = "GPP, NPP (kgC/m2/yr)", xlab = "Time (years)")
+  plot(as.Date(paste(ERAS_Monthly$Year, ERAS_Monthly$Month, "01", sep = "-")), ERAS_Monthly$GPP, pch = 4)
 }
 
 # Size distribution analysis
@@ -138,30 +141,64 @@ boreal_calibration <- function() {
 # Plotting function - not for Life History
 ###
 
-plot_plant_trajectory = function(dat, df_high_co2, df_medium_co2){
+plot_plant_trajectory = function(dat, df_high_co2, df_medium_co2, start_year, end_year){
+  ####
+  # Reading Data
+  ####
+  boreal <- CASSIA::load_data()
+  ERAS_Monthly <- data.table::fread("tests/data/ERAS_Monthly.csv")
+  ERAS_Monthly$date <- as.Date(paste(ERAS_Monthly$Year, ERAS_Monthly$Month, "01", sep = "-"))
+  
+  ####
+  # Calculating extra traits
+  ####
   dat$leaf_area = dat$crown_area * dat$lai
   dat$heartwood_fraction = 1-dat$sapwood_fraction
   
-  par(mfrow=c(4,2), mar=c(4,4,1,1), oma=c(1,1,1,1))
+  dat$date <- seq(as.Date(paste0(start_year, "-01-01")), as.Date(paste0(end_year, "-01-01")), by = "month")
   
+  
+  ####
+  # Plotting
+  ####
+  par(mfrow=c(4,2), mar=c(4,4,1,1), oma=c(1,1,1,1))
   plot(dat$height~dat$diameter, type="l", ylab="Height", xlab="Diameter")
+  points(boreal$smearII_data$amount[boreal$smearII_data$variable == "pine height BA weighted mean"] ~ 
+           boreal$smearII_data$amount[boreal$smearII_data$variable == "pine diameter BA weighted mean"])
+  points(boreal$smearII_data$amount[boreal$smearII_data$variable == "pine height arithmetic mean"] ~ 
+           boreal$smearII_data$amount[boreal$smearII_data$variable == "pine DBH arithmetic mean"], pch = 2)
+  points(boreal$smearII_data$amount[boreal$smearII_data$variable == "BA weighted mean height pine"] ~ 
+           boreal$smearII_data$amount[boreal$smearII_data$variable == "BA weighted mean DBH pine"], pch = 3)
   lines(df_high_co2$height~df_high_co2$diameter, col = "red")
   lines(df_medium_co2$height~df_medium_co2$diameter, col = "orange")
+  
   plot(dat$crown_area~I(dat$height*dat$diameter), type="l", ylab="Crown area", xlab="DH")
   plot(I(dat$total_rep/dat$total_prod)~dat$height, type="l", ylab="Frac alloc to\nreproduction", xlab="Height")
   plot(I(dat$total_rep/dat$total_prod)~dat$diameter, type="l", ylab="Frac alloc to\nreproduction", xlab="Diameter")
   
   par(mfrow=c(4,4), mar=c(4,8,1,1), oma=c(1,1,1,1), mgp=c(4,1,0), cex.lab=1.2)
+  plot(dat$height~dat$date, ylab="Height", xlab="Year", type="l", lwd=2)
+  points(boreal$smearII_data$date[boreal$smearII_data$variable == "pine height BA weighted mean"],
+         boreal$smearII_data$amount[boreal$smearII_data$variable == "pine height BA weighted mean"])
+  points(boreal$smearII_data$date[boreal$smearII_data$variable == "pine height arithmetic mean"],
+         boreal$smearII_data$amount[boreal$smearII_data$variable == "pine height arithmetic mean"], pch = 2)
+  points(boreal$smearII_data$date[boreal$smearII_data$variable == "BA weighted mean height pine"],
+         boreal$smearII_data$amount[boreal$smearII_data$variable == "BA weighted mean height pine"], pch = 3)
   
-  plot(dat$height~dat$i, ylab="Height", xlab="Year", type="l", lwd=2)
-  plot(dat$diameter~dat$i, ylab="Diameter", xlab="Year", col="brown", type="l", lwd=2)
+  plot(dat$diameter~dat$date, ylab="Diameter", xlab="Year", col="brown", type="l", lwd=2)
+  points(boreal$smearII_data$date[boreal$smearII_data$variable == "pine diameter BA weighted mean"],
+         boreal$smearII_data$amount[boreal$smearII_data$variable == "pine diameter BA weighted mean"])
+  points(boreal$smearII_data$date[boreal$smearII_data$variable == "pine DBH arithmetic mean"],
+         boreal$smearII_data$amount[boreal$smearII_data$variable == "pine DBH arithmetic mean"], pch = 2)
+  points(boreal$smearII_data$date[boreal$smearII_data$variable == "BA weighted mean DBH pine"],
+         boreal$smearII_data$amount[boreal$smearII_data$variable == "BA weighted mean DBH pine"], pch = 3)
   
   matplot(y=cbind(dat$total_mass,
                   dat$total_rep,
                   dat$litter_mass,
                   dat$total_mass+dat$total_rep+dat$litter_mass,
                   dat$total_prod), 
-          x=dat$i, col=c("green4", "purple", "yellow4", "black", "red"), log="", lty=c(1,1,1,1,2), lwd=c(1,1,1,2,1), type="l",
+          x=dat$date, col=c("green4", "purple", "yellow4", "black", "red"), log="", lty=c(1,1,1,1,2), lwd=c(1,1,1,2,1), type="l",
           ylab="Biomass pools", xlab="Year")
   abline(h=0, col="grey")
   
@@ -170,13 +207,13 @@ plot_plant_trajectory = function(dat, df_high_co2, df_medium_co2){
                   dat$root_mass,
                   dat$coarse_root_mass,
                   dat$stem_mass),
-          x=dat$i, col=c("black", "green3", "purple", "purple3", "brown"), log="", lty=c(1,1,1,1,1), lwd=c(1,1,1,1,1), type="l",
+          x=dat$date, col=c("black", "green3", "purple", "purple3", "brown"), log="", lty=c(1,1,1,1,1), lwd=c(1,1,1,1,1), type="l",
           ylab="Biomass pools", xlab="Year")
   abline(h=0, col="grey")
   
   
   matplot(y=cbind(dat$fitness), 
-          x=dat$i, col=c("purple2", "magenta", "pink"), log="", lty=c(1,1,1), lwd=c(1,1,2), type="l",
+          x=dat$date, col=c("purple2", "magenta", "pink"), log="", lty=c(1,1,1), lwd=c(1,1,2), type="l",
           ylab="Fitness", xlab="Year")
   abline(h=0, col="grey")
   
@@ -194,37 +231,42 @@ plot_plant_trajectory = function(dat, df_high_co2, df_medium_co2){
   matplot(y=cbind(dat$assim_gross/dat$crown_area,
                   dat$assim_net/dat$crown_area,
                   dat$assim_net/dat$assim_gross * max(dat$assim_gross/dat$crown_area)), 
-          x=dat$i, col=c("green3", "green4", scales::alpha("yellow3", 0.5)), log="", lty=1, type="l", lwd=c(1,1,3),
+          x=dat$date, col=c("green3", "green4", scales::alpha("yellow3", 0.5)), log="", lty=1, type="l", lwd=c(1,1,3),
           ylab=expression(atop("GPP, NPP", "(kg m"^"-2"*"Yr"^"-1"*")")), xlab="Year")
   abline(h=0, col="grey")
+  lines(ERAS_Monthly$date, ERAS_Monthly$GPP) # TODO: check that the units are the same!
   
   matplot(y=cbind(dat$rr/dat$crown_area,
                   dat$rs/dat$crown_area,
                   dat$rl/dat$crown_area), 
-          x=dat$i, col=c("pink2", "pink3", "pink4"), log="", lty=1, type="l",
+          x=dat$date, col=c("pink2", "pink3", "pink4"), log="", lty=1, type="l",
           ylab="Respiration", xlab="Year")
+  points(boreal$trenching_co2_fluxes$V1,
+         boreal$trenching_co2_fluxes$V2, pch = 3) # TODO: check that the units are right and that the right fluxes are used
   
   matplot(y=cbind(dat$tr/dat$crown_area,
                   dat$tl/dat$crown_area), 
-          x=dat$i, col=c("orange3", "orange4"), log="", lty=1, type="l",
+          x=dat$date, col=c("orange3", "orange4"), log="", lty=1, type="l",
           ylab="Turnover", xlab="Year",
           add=F)
   
-  plot(I(dat$transpiration/dat$crown_area/1000*1000)~dat$i, type="l", col="blue", ylab="Transpitation\n(mm/yr)")
+  plot(I(dat$transpiration/dat$crown_area/1000*1000)~dat$date, type="l", col="blue", ylab="Transpitation\n(mm/yr)")
   
-  plot(dat$dpsi~dat$i, type="l", col="cyan", ylab=expression(atop(Delta*psi, "(MPa)")), xlab="Year")
+  plot(dat$dpsi~dat$date, type="l", col="cyan", ylab=expression(atop(Delta*psi, "(MPa)")), xlab="Year")
   
-  plot(dat$vcmax~dat$i, type="l", col="limegreen", ylab=expression(atop(V[cmax], "("*mu*"mol m"^"-2"*"s"^"-1"*")")), xlab="Year")
+  plot(dat$vcmax~dat$date, type="l", col="limegreen", ylab=expression(atop(V[cmax], "("*mu*"mol m"^"-2"*"s"^"-1"*")")), xlab="Year")
   
-  plot(I(dat$leaf_area/dat$crown_area)~dat$i, ylab="LAI", xlab="Year", type="l")
+  plot(I(dat$leaf_area/dat$crown_area)~dat$date, ylab="LAI", xlab="Year", type="l")
   
-  plot(I(dat$mortality)~dat$i, ylab="Cumulative\nMortality", xlab="Year", type="l")
+  summary(dat$mortality)
+  
+  plot(I(dat$mortality)~dat$date, ylab="Cumulative\nMortality", xlab="Year", type="l")
   
   plot(I(dat$mortality_inst[dat$diameter<0.5])~dat$diameter[dat$diameter<0.5], ylab="Instantaneous\nmortality rate", xlab="Diameter", type="l")
   
   matplot(y=cbind(dat$sapwood_fraction, 
                   dat$heartwood_fraction),
-          x=dat$i, 
+          x=dat$date, 
           ylab="Sap/Heart wood\nfraction", xlab="Year", type="l", col=c("yellowgreen", "brown4"), lty=1, lwd=1)
   
   # plot(I(dat$ppfd)~dat$i, ylab="PPFD", xlab="Year", type="l", col="yellowgreen")
@@ -240,57 +282,61 @@ plot_plant_trajectory = function(dat, df_high_co2, df_medium_co2){
 # Life history
 ###
 
-lho_demo <- function() {
-  params_file = "tests/params/p_test_boreal.ini"
-  lho = new(LifeHistoryOptimizer, params_file)
-  lho$set_i_metFile("tests/data/ERAS_Monthly.csv")
-  lho$set_a_metFile("tests/data/ERAS_Monthly.csv")
-  lho$set_co2File("")
-  lho$init_co2(365) # TODO: strange co2 value
-  print(c(lho$env$clim_inst$co2,
-          lho$env$clim_acclim$co2))
+create_lho <- function(params_file, i_metFile, a_metFile, co2File = "", init_co2 = NULL) {
+  lho <- new(LifeHistoryOptimizer, params_file)
+  lho$set_i_metFile(i_metFile)
+  lho$set_a_metFile(a_metFile)
+  lho$set_co2File(co2File)
+  if (!is.null(init_co2)) lho$init_co2(init_co2)
+  print(c(lho$env$clim_inst$co2, lho$env$clim_acclim$co2))
   lho$init()
-  
-  params_file_high_co2 = "tests/params/p_test_boreal_monthly_co2_high.ini"
-  lho_high_co2 = new(LifeHistoryOptimizer, params_file)
-  lho_high_co2$set_i_metFile("tests/data/PlantFATE_monthly585.csv")
-  lho_high_co2$set_a_metFile("tests/data/PlantFATE_monthly585.csv")
-  lho_high_co2$set_co2File("tests/data/PlantFATE_yearly585.csv")
-  print(c(lho_high_co2$env$clim_inst$co2,
-          lho_high_co2$env$clim_acclim$co2))
-  lho_high_co2$init()
-  
-  params_file_medium_co2 = "tests/params/p_test_boreal_monthly_co2_medium.ini"
-  lho_medium_co2 = new(LifeHistoryOptimizer, params_file)
-  lho_medium_co2$set_i_metFile("tests/data/PlantFATE_monthly245.csv")
-  lho_medium_co2$set_a_metFile("tests/data/PlantFATE_monthly245.csv")
-  lho_medium_co2$set_co2File("tests/data/PlantFATE_yearly245.csv")
-  print(c(lho_medium_co2$env$clim_inst$co2,
-          lho_medium_co2$env$clim_acclim$co2))
-  lho_medium_co2$init()
-  
-  dt = 1/12
-  df = read.csv(text="", col.names = lho$get_header())
-  for (t in seq(1960,1995,dt)){
-    # growth data for each of the timesteps
-    lho$grow_for_dt(t,dt)
-    df[nrow(df)+1,] = lho$get_state(t+dt)
-  }
-  
-  df_high_co2 = read.csv(text="", col.names = lho_high_co2$get_header())
-  for (t in seq(2015,2100,dt)){
-    # growth data for each of the timesteps
-    lho_high_co2$grow_for_dt(t,dt)
-    df_high_co2[nrow(df_high_co2)+1,] = lho_high_co2$get_state(t+dt)
-  }
-  
-  df_medium_co2 = read.csv(text="", col.names = lho_medium_co2$get_header())
-  for (t in seq(2015,2100,dt)){
-    # growth data for each of the timesteps
-    lho_medium_co2$grow_for_dt(t,dt)
-    df_medium_co2[nrow(df_medium_co2)+1,] = lho_medium_co2$get_state(t+dt)
-  }
-  
-  plot_plant_trajectory(df, df_high_co2, df_medium_co2)
+  return(lho)
 }
+
+run_for_dataset <- function(lho, start_year, end_year, dt) {
+  df <- data.frame(matrix(ncol = length(lho$get_header()), nrow = 0))
+  colnames(df) <- lho$get_header()
+  
+  for (t in seq(start_year, end_year, dt)) {
+    lho$grow_for_dt(t, dt)
+    df[nrow(df) + 1, ] <- lho$get_state(t + dt)
+  }
+  df$date <- seq(as.Date(paste0(start_year, "-01-01")), 
+                 as.Date(paste0(end_year, "-01-01")),
+                 by = "month")
+  
+  return(df)
+}
+
+life_history <- function() {
+  ####
+  # Initialisation files
+  ####
+  lho <- create_lho("tests/params/p_test_boreal.ini", 
+                    "tests/data/ERAS_Monthly.csv", 
+                    "tests/data/ERAS_Monthly.csv", 
+                    init_co2 = 365)
+  
+  lho_high_co2 <- create_lho("tests/params/p_test_boreal_monthly_co2_high.ini", 
+                             "tests/data/PlantFATE_monthly585.csv", 
+                             "tests/data/PlantFATE_monthly585.csv", 
+                             "tests/data/PlantFATE_yearly585.csv")
+  
+  lho_medium_co2 <- create_lho("tests/params/p_test_boreal_monthly_co2_medium.ini", 
+                               "tests/data/PlantFATE_monthly245.csv", 
+                               "tests/data/PlantFATE_monthly245.csv", 
+                               "tests/data/PlantFATE_yearly245.csv")
+  
+  ####
+  # Actual run outputs
+  ####
+  dt <- 1/12
+  df <- run_for_dataset(lho, 1960, 1995, dt)
+  df_high_co2 <- run_for_dataset(lho_high_co2, 2015, 2100, dt)
+  df_medium_co2 <- run_for_dataset(lho_medium_co2, 2015, 2100, dt)
+  
+  # Plot results
+  plot_plant_trajectory(df, df_high_co2, df_medium_co2, 1960, 2022)
+}
+
 
