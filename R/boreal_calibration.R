@@ -1,121 +1,152 @@
-boreal_calibration <- function() {
-  ###
-  # AMAZON RUN
-  # Original simulation used to test if I have changed anything!
-  ###
-  sim_v2 = new(Patch, "tests/params/p_test_v2.ini")
-  sim_v2$init(1000, 1050) # This determines the steps
-  sim_v2$simulate()
-  sim_v2$close()
+# Helper function to create and run simulation
+run_simulation <- function(param_file, start_year, end_year, output_prefix) {
+  sim <- new(Patch, param_file)
+  sim$init(start_year, end_year)
+  sim$simulate()
+  sim$close()
   
-  output_dir = "pspm_output_test" # NOTE: changed from "pspm_output2", as matches close()
-  prefix = "test_3spp_100yr"
-  solver = "" # NOTE: changed from "main_ref2", as matches close()
-  dir_v2 = paste0("",output_dir,"/",prefix,"",solver)
+  output_dir <- "pspm_output_test"
+  dir_path <- file.path(output_dir, output_prefix)
   
-  ###
-  # BOREAL CALIBRATION
-  ###
-  sim_boreal_monthly = new(Patch, "tests/params/p_test_boreal.ini")
-  sim_boreal_monthly$init(1960, 2017) # This determines the steps
-  # TODO: this should eventually be longer than 2017 - Why does it stop?
-  sim_boreal_monthly$simulate()
-  sim_boreal_monthly$close()
-  
-  output_dir = "pspm_output_test" # NOTE: changed from "pspm_output2", as matches close()
-  prefix_boreal = "boreal_monthly_calibration"
-  solver = "" # NOTE: changed from "main_ref2", as matches close()
-  dir_boreal_monthly = paste0("",output_dir,"/",prefix_boreal,"",solver)
-  
-  ###
-  # RUNS WITH CO2 SCENARIOS
-  ###
-  
-  ### ssp 585
-  sim_boreal_monthly_CO2_high = new(Patch, "tests/params/p_test_boreal_monthly_co2_high.ini")
-  sim_boreal_monthly_CO2_high$init(2015, 2100) # This determines the steps
-  sim_boreal_monthly_CO2_high$simulate() 
-  sim_boreal_monthly_CO2_high$close()
-  
-  output_dir = "pspm_output_test" # NOTE: changed from "pspm_output2", as matches close()
-  prefix_high_co2 = "boreal_monthly_calibration_high_CO2" # TODO: what should this be?
-  solver = "" # NOTE: changed from "main_ref2", as matches close()
-  dir_boreal_monthly_CO2_high = paste0("",output_dir,"/",prefix_high_co2,"",solver)
-  
-  ### spp 245
+  return(list(sim = sim, dir_path = dir_path))
+}
 
-  sim_boreal_monthly_CO2_medium = new(Patch, "tests/params/p_test_boreal_monthly_co2_medium.ini")
-  sim_boreal_monthly_CO2_medium$init(2015, 2100) # This determines the steps
-  sim_boreal_monthly_CO2_medium$simulate()
-  sim_boreal_monthly_CO2_medium$close()
+# Helper function to read simulation data
+read_sim_data <- function(dir_path) {
+  read.delim(file.path(dir_path, "D_PFATE.csv"), sep = ",")
+}
+
+# Plot function
+plot_gpp_npp <- function(dat, title, color) {
+  matplot(y = cbind(dat$GPP, dat$NPP) * 1e-3 * 365,
+          x = dat$YEAR,
+          type = "l", col = color, lty = c(1, 2),
+          main = title, ylab = "GPP, NPP (kgC/m2/yr)", xlab = "Time (years)")
+}
+
+# Size distribution analysis
+analyze_size_dist <- function(dir_path) {
+  dist <- read.delim(file.path(dir_path, "size_distributions.csv"), header = FALSE, sep = ",")
+  dist <- dist[, -ncol(dist)]
+  names(dist)[1:2] <- c("YEAR", "SPP")
   
-  output_dir = "pspm_output_test" # NOTE: changed from "pspm_output2", as matches close()
-  prefix_medium_co2 = "boreal_monthly_calibration_medium_CO2"
-  solver = "" # NOTE: changed from "main_ref2", as matches close()
-  dir_boreal_monthly_CO2_medium = paste0("",output_dir,"/",prefix_medium_co2,"",solver)
+  dist %>%
+    filter(YEAR == max(YEAR)) %>%
+    pivot_longer(cols = -(YEAR:SPP), names_to = "size_class") %>%
+    group_by(YEAR, size_class) %>%
+    summarize(de = sum(value, na.rm = TRUE)) %>%
+    pivot_wider(names_from = size_class, values_from = de) %>%
+    colMeans(na.rm = TRUE)
+}
+
+make_csv <- function() {
+  col1 = c("A", "B", "C")
+  col2 = 1:3
+  col3 = rep(NA, 3)
+  col4 = rep(NA, 3)
+  col5 = rep(0.7, 3)
+  height = c(25, 32, 25)
+  lma = c(150, 215, 85)
+  p50 = c(-3.6, -3.4, -2.25)
+  col8 = rep(NA, 3)
+  col9 = rep(NA, 3)
+  allx <- data.frame("Family" = col1, 
+                     "Species" = col2, 
+                     "Number of indirviduals" = col3, 
+                     "Total BasalArea_2017(cm2)" = col4, 
+                     "meanWoodDensity (g/cm3)" = col5, 
+                     "Height_Max(m)" = height, 
+                     "Leaf LMA (g/m2)" = lma,
+                     "P50 (Mpa)" = p50,
+                     "P50 source" = col8,
+                     "P50 site" = col9)
+  data.table::fwrite(allx, file = "./tests/data/traits_boreal_canopy_understorey.csv")
+}
+
+# Stomatal conductance plots
+plot_gs <- function(dat, title, color) {
+  matplot(y = cbind(dat$GS), x = dat$YEAR, type = "l", lty = 1, col = color,
+          main = title, ylab = "Stomatal conductance (mol/m2/s)", xlab = "Time (years)")
+}
+
+boreal_calibration <- function() {
+  # Run simulations
+  amazon_sim <- run_simulation("tests/params/p_test_v2.ini", 1000, 1050, "test_3spp_100yr")
+  boreal_sim_weather <- run_simulation("tests/params/p_test_boreal_only_weather_changed.ini", 1960, 1995, "boreal_monthly_calibration_weather")
+  boreal_sim_resp <- run_simulation("tests/params/p_test_boreal_weather_resp.ini", 1960, 1995, "boreal_monthly_calibration_weather")
+  boreal_sim_core_traits <- run_simulation("tests/params/p_test_boreal_weather_core_traits.ini", 1960, 1995, "boreal_monthly_calibration_weather_core_traits")
+  boreal_sim_traits <- run_simulation("tests/params/p_test_boreal_weather_traits.ini", 1960, 1995, "boreal_monthly_calibration_weather_traits")
+  boreal_sim_all <- run_simulation("tests/params/p_test_boreal.ini", 1960, 1995, "boreal_monthly_calibration")
+  co2_high_sim <- run_simulation("tests/params/p_test_boreal_monthly_co2_high.ini", 2015, 2100, "boreal_monthly_calibration_high_CO2")
+  co2_medium_sim <- run_simulation("tests/params/p_test_boreal_monthly_co2_medium.ini", 2015, 2100, "boreal_monthly_calibration_medium_CO2")
   
-  ###
-  # READ IN DATA
-  ###
-  dat_boreal_monthly = read.delim(paste0(dir_boreal_monthly,"/D_PFATE.csv"), sep = ",")
-  dat_boreal_monthly_CO2_medium = read.delim(paste0(dir_boreal_monthly_CO2_medium,"/D_PFATE.csv"), sep = ",")
-  dat_boreal_monthly_CO2_high = read.delim(paste0(dir_boreal_monthly_CO2_medium,"/D_PFATE.csv"), sep = ",")
-  dat_v2 = read.delim(paste0(dir_v2,"/D_PFATE.csv"), sep = ",")
+  boreal_sim_all <- run_simulation("tests/params/p_test_boreal.ini", 1960, 1995, "boreal_monthly_calibration")
+  plot_gpp_npp(read_sim_data(boreal_sim_all$dir_path), "Boreal", "cyan3")
   
+  # Read simulation data
+  dat_list <- list(
+    amazon = read_sim_data(amazon_sim$dir_path),
+    boreal = read_sim_data(boreal_sim_all$dir_path),
+    boreal_weather = read_sim_data(boreal_sim_weather$dir_path),
+    boreal_resp = read_sim_data(boreal_sim_resp$dir_path),
+    boreal_core_traits = read_sim_data(boreal_sim_core_traits$dir_path),
+    boreal_traits = read_sim_data(boreal_sim_traits$dir_path),
+    co2_high = read_sim_data(co2_high_sim$dir_path),
+    co2_medium = read_sim_data(co2_medium_sim$dir_path)
+  )
+  
+  # Read ERAS data
   ERAS_Monthly <- data.table::fread("tests/data/ERAS_Monthly.csv")
-  ERAS_Year <- ERAS_Monthly[, lapply(.SD, mean, na.rm = T), by = Year]
-  # µmol m⁻² s⁻¹ to  kgC/m2/yr
+  ERAS_Year <- ERAS_Monthly[, lapply(.SD, mean, na.rm = TRUE), by = Year]
   
-  ###
-  # Plots for the differences betweeen the Boreal and Original!
-  ###
-  par(mfrow=c(2,2))
-  matplot(y=cbind(dat_boreal_monthly$GPP*1e-3*365, dat_boreal_monthly$NPP*1e-3*365, ERAS_Year$GPP[1:58]*0.3789), x=dat_boreal_monthly$YEAR, 
-          col=c("cyan3", "cyan3", "cyan3"), lty = c(1, 2, 0), type=c("l", "l", "p"), pch = c(0, 0, "x"), 
-          main = "Boreal", ylab="GPP, NPP (kgC/m2/yr)", xlab="Time (years)")
-  matplot(y=cbind(dat_boreal_monthly_CO2_medium$GPP, dat_boreal_monthly_CO2_medium$NPP)*1e-3*365, x=dat_boreal_monthly_CO2_medium$YEAR, 
-          col=c("orange", "orange"), type=c("l", "l"), lty = c(1, 2), 
-          main = "Boreal, Medium CO2", ylab="GPP, NPP (kgC/m2/yr)", xlab="Time (years)")
-  matplot(y=cbind(dat_boreal_monthly_CO2_high$GPP, dat_boreal_monthly_CO2_high$NPP)*1e-3*365, x=dat_boreal_monthly_CO2_high$YEAR, 
-          type="l", col=c("red", "red"), lty = c(1, 2), 
-          main = "Boreal, High CO2", ylab="GPP, NPP (kgC/m2/yr)", xlab="Time (years)")
-  matplot(y=cbind(dat_v2$GPP, dat_v2$NPP)*1e-3*365, x=dat_v2$YEAR, 
-          type="l", col=c("green4", "green3"), lty = c(1, 2), 
-          main = "Original, Amazon", ylab="GPP, NPP (kgC/m2/yr)", xlab="Time (years)")
+  # Calibration
+  par(mfrow = c(3, 2))
+  plot_gpp_npp(dat_list$amazon, "Amazon:\nOriginal", c("green4", "green3"))
+  plot_gpp_npp(dat_list$boreal_weather, "Boreal:\nOnly Weather", "cyan3")
+  plot_gpp_npp(dat_list$boreal_resp, "Boreal:\nRespiration Parameters", "cyan3")
+  plot_gpp_npp(dat_list$boreal_core_traits, "Boreal:\nCore Traits Parameters", "cyan3")
+  plot_gpp_npp(dat_list$boreal_traits, "Boreal:\nTraits File Parameters", "cyan3")
+  plot_gpp_npp(dat_list$boreal, "Boreal", "cyan3")
   
-  matplot(y=cbind(dat_boreal_monthly$GS), x=dat_boreal_monthly$YEAR, type="l", lty=1, col=c("cyan3"), main = "Boreal", ylab="Stomatal conductance (mol/m2/s)", xlab="Time (years)")
-  matplot(y=cbind(dat_boreal_monthly_CO2_medium$GS), x=dat_boreal_monthly_CO2_medium$YEAR, type="l", lty=1, col=c("orange"), main = "Boreal", ylab="Stomatal conductance (mol/m2/s)", xlab="Time (years)")
-  matplot(y=cbind(dat_boreal_monthly_CO2_high$GS), x=dat_boreal_monthly_CO2_high$YEAR, type="l", lty=1, col=c("red"), main = "Boreal", ylab="Stomatal conductance (mol/m2/s)", xlab="Time (years)")
-  matplot(y=cbind(dat_v2$GS), x=dat_v2$YEAR, type="l", lty=1, col=c("cyan3"), main = "Original", ylab="Stomatal conductance (mol/m2/s)", xlab="Time (years)")
+  # Scenarios
+  par(mfrow = c(2, 2))
+  plot_gpp_npp(dat_list$co2_medium, "Boreal, Medium CO2", "orange")
+  plot_gpp_npp(dat_list$co2_high, "Boreal, High CO2", "red")
+  plot_gpp_npp(dat_list$boreal, "Boreal", "cyan3")
   
-  ###
+  # Nitrogen
+  par(mfrow = c(2, 2))
   
-  dist_v2 = read.delim(paste0(dir_v2,"/size_distributions.csv"), header=F, sep = ",")
-  dist_v2 = dist_v2[,-ncol(dist_v2)]
-  x = exp(seq(log(0.01), log(10), length.out=100))
-  names(dist_v2)[1:2] = c("YEAR", "SPP")
-  dist_amb_v2 = dist_v2 %>% filter(YEAR == max(YEAR)) %>% pivot_longer(cols=-(YEAR:SPP), names_to="size_class") %>% group_by(YEAR,size_class) %>% summarize(de = sum(value, na.rm=T)) %>% pivot_wider(names_from = size_class, values_from = de) %>% colMeans(na.rm=T)
+  par(mfrow = c(2, 2))
+  mapply(plot_gs, dat_list, 
+         names(dat_list), 
+         c("green4", "cyan3", "cyan3", "red", "orange"))
   
-  dist_boreal = read.delim(paste0(dir_boreal_monthly,"/size_distributions.csv"), header=F, sep = ",")
-  dist_boreal = dist_boreal[,-ncol(dist_boreal)]
-  x = exp(seq(log(0.01), log(10), length.out=100))
-  names(dist_boreal)[1:2] = c("YEAR", "SPP")
-  dist_amb_boreal = dist_boreal %>% filter(YEAR == max(YEAR)) %>% pivot_longer(cols=-(YEAR:SPP), names_to="size_class") %>% group_by(YEAR,size_class) %>% summarize(de = sum(value, na.rm=T)) %>% pivot_wider(names_from = size_class, values_from = de) %>% colMeans(na.rm=T)
+  #dist_amb_v2 <- analyze_size_dist(amazon_sim$dir_path)
+  #dist_amb_boreal <- analyze_size_dist(boreal_sim$dir_path)
+  
+  # Return results if needed
+  #list(
+  #  simulations = list(amazon = amazon_sim, boreal = boreal_sim, 
+  #                     co2_high = co2_high_sim, co2_medium = co2_medium_sim),
+  #  data = dat_list,
+  #  size_distributions = list(amazon = dist_amb_v2, boreal = dist_amb_boreal)
+  #)
 }
 
 ###
 # Plotting function - not for Life History
 ###
 
-plot_plant_trajectory = function(dat){
-  dat <- dat_boreal_monthly
-  
+plot_plant_trajectory = function(dat, df_high_co2, df_medium_co2){
   dat$leaf_area = dat$crown_area * dat$lai
   dat$heartwood_fraction = 1-dat$sapwood_fraction
   
   par(mfrow=c(4,2), mar=c(4,4,1,1), oma=c(1,1,1,1))
   
   plot(dat$height~dat$diameter, type="l", ylab="Height", xlab="Diameter")
+  lines(df_high_co2$height~df_high_co2$diameter, col = "red")
+  lines(df_medium_co2$height~df_medium_co2$diameter, col = "orange")
   plot(dat$crown_area~I(dat$height*dat$diameter), type="l", ylab="Crown area", xlab="DH")
   plot(I(dat$total_rep/dat$total_prod)~dat$height, type="l", ylab="Frac alloc to\nreproduction", xlab="Height")
   plot(I(dat$total_rep/dat$total_prod)~dat$diameter, type="l", ylab="Frac alloc to\nreproduction", xlab="Diameter")
@@ -215,7 +246,7 @@ lho_demo <- function() {
   lho$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_co2File("")
-  lho$init_co2(414) # TODO: strange co2 value
+  lho$init_co2(365) # TODO: strange co2 value
   print(c(lho$env$clim_inst$co2,
           lho$env$clim_acclim$co2))
   lho$init()
@@ -224,8 +255,7 @@ lho_demo <- function() {
   lho_high_co2 = new(LifeHistoryOptimizer, params_file)
   lho_high_co2$set_i_metFile("tests/data/PlantFATE_monthly585.csv")
   lho_high_co2$set_a_metFile("tests/data/PlantFATE_monthly585.csv")
-  lho_high_co2$set_co2File("")
-  lho_high_co2$init_co2(414) # TODO: strange co2 value
+  lho_high_co2$set_co2File("tests/data/PlantFATE_yearly585.csv")
   print(c(lho_high_co2$env$clim_inst$co2,
           lho_high_co2$env$clim_acclim$co2))
   lho_high_co2$init()
@@ -234,15 +264,14 @@ lho_demo <- function() {
   lho_medium_co2 = new(LifeHistoryOptimizer, params_file)
   lho_medium_co2$set_i_metFile("tests/data/PlantFATE_monthly245.csv")
   lho_medium_co2$set_a_metFile("tests/data/PlantFATE_monthly245.csv")
-  lho_medium_co2$set_co2File("")
-  lho_medium_co2$init_co2(414) # TODO: strange co2 value
+  lho_medium_co2$set_co2File("tests/data/PlantFATE_yearly245.csv")
   print(c(lho_medium_co2$env$clim_inst$co2,
           lho_medium_co2$env$clim_acclim$co2))
   lho_medium_co2$init()
   
   dt = 1/12
   df = read.csv(text="", col.names = lho$get_header())
-  for (t in seq(1960,2017,dt)){
+  for (t in seq(1960,1995,dt)){
     # growth data for each of the timesteps
     lho$grow_for_dt(t,dt)
     df[nrow(df)+1,] = lho$get_state(t+dt)
@@ -262,9 +291,6 @@ lho_demo <- function() {
     df_medium_co2[nrow(df_medium_co2)+1,] = lho_medium_co2$get_state(t+dt)
   }
   
-  plot_plant_trajectory(df)
-  plot_plant_trajectory(df_high_co2)
-  plot_plant_trajectory(df_medium_co2)
-  
+  plot_plant_trajectory(df, df_high_co2, df_medium_co2)
 }
 
