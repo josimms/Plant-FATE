@@ -13,7 +13,10 @@ run_simulation <- function(param_file, start_year, end_year, output_prefix) {
 
 # Helper function to read simulation data
 read_sim_data <- function(dir_path) {
-  read.delim(file.path(dir_path, "D_PFATE.csv"), sep = ",")
+  a <- read.delim(file.path(dir_path, "D_PFATE.csv"), sep = ",")
+  b <- read.delim(file.path(dir_path, "Y_PFATE.csv"), sep = ",")
+  return(list("" = a,
+              "" = b))
 }
 
 # Plot function
@@ -89,7 +92,7 @@ boreal_calibration <- function() {
   # Read simulation data
   dat_list <- list(
     amazon = read_sim_data(amazon_sim$dir_path),
-    boreal = read_sim_data(boreal_sim_all$dir_path),
+    boreal = read_sim_data(boreal_sim_all$dir_path), #TODO: plot means
     boreal_weather = read_sim_data(boreal_sim_weather$dir_path),
     boreal_resp = read_sim_data(boreal_sim_resp$dir_path),
     boreal_core_traits = read_sim_data(boreal_sim_core_traits$dir_path),
@@ -146,6 +149,7 @@ plot_plant_trajectory = function(dat, df_high_co2, df_medium_co2, start_year, en
   # Reading Data
   ####
   boreal <- CASSIA::load_data()
+  boreal$smearII_data$date <- as.Date(paste0(boreal$smearII_data$date, "-01-01"))
   ERAS_Monthly <- data.table::fread("tests/data/ERAS_Monthly.csv")
   ERAS_Monthly$date <- as.Date(paste(ERAS_Monthly$Year, ERAS_Monthly$Month, "01", sep = "-"))
   
@@ -163,12 +167,12 @@ plot_plant_trajectory = function(dat, df_high_co2, df_medium_co2, start_year, en
   ####
   par(mfrow=c(4,2), mar=c(4,4,1,1), oma=c(1,1,1,1))
   plot(dat$height~dat$diameter, type="l", ylab="Height", xlab="Diameter")
-  points(boreal$smearII_data$amount[boreal$smearII_data$variable == "pine height BA weighted mean"] ~ 
-           boreal$smearII_data$amount[boreal$smearII_data$variable == "pine diameter BA weighted mean"])
-  points(boreal$smearII_data$amount[boreal$smearII_data$variable == "pine height arithmetic mean"] ~ 
-           boreal$smearII_data$amount[boreal$smearII_data$variable == "pine DBH arithmetic mean"], pch = 2)
-  points(boreal$smearII_data$amount[boreal$smearII_data$variable == "BA weighted mean height pine"] ~ 
-           boreal$smearII_data$amount[boreal$smearII_data$variable == "BA weighted mean DBH pine"], pch = 3)
+  points(0.01*boreal$smearII_data$amount[boreal$smearII_data$variable == "pine diameter BA weighted mean"],
+         boreal$smearII_data$amount[boreal$smearII_data$variable == "pine height BA weighted mean"])
+  points(0.01*boreal$smearII_data$amount[boreal$smearII_data$variable == "pine DBH arithmetic mean"],
+         boreal$smearII_data$amount[boreal$smearII_data$variable == "pine height arithmetic mean"], pch = 2)
+  points(0.01*boreal$smearII_data$amount[boreal$smearII_data$variable == "BA weighted mean DBH pine"],
+         boreal$smearII_data$amount[boreal$smearII_data$variable == "BA weighted mean height pine"], pch = 3)
   lines(df_high_co2$height~df_high_co2$diameter, col = "red")
   lines(df_medium_co2$height~df_medium_co2$diameter, col = "orange")
   
@@ -187,11 +191,11 @@ plot_plant_trajectory = function(dat, df_high_co2, df_medium_co2, start_year, en
   
   plot(dat$diameter~dat$date, ylab="Diameter", xlab="Year", col="brown", type="l", lwd=2)
   points(boreal$smearII_data$date[boreal$smearII_data$variable == "pine diameter BA weighted mean"],
-         boreal$smearII_data$amount[boreal$smearII_data$variable == "pine diameter BA weighted mean"])
+         0.01 * boreal$smearII_data$amount[boreal$smearII_data$variable == "pine diameter BA weighted mean"])
   points(boreal$smearII_data$date[boreal$smearII_data$variable == "pine DBH arithmetic mean"],
-         boreal$smearII_data$amount[boreal$smearII_data$variable == "pine DBH arithmetic mean"], pch = 2)
+         0.01 * boreal$smearII_data$amount[boreal$smearII_data$variable == "pine DBH arithmetic mean"], pch = 2)
   points(boreal$smearII_data$date[boreal$smearII_data$variable == "BA weighted mean DBH pine"],
-         boreal$smearII_data$amount[boreal$smearII_data$variable == "BA weighted mean DBH pine"], pch = 3)
+         0.01 * boreal$smearII_data$amount[boreal$smearII_data$variable == "BA weighted mean DBH pine"], pch = 3)
   
   matplot(y=cbind(dat$total_mass,
                   dat$total_rep,
@@ -201,6 +205,13 @@ plot_plant_trajectory = function(dat, df_high_co2, df_medium_co2, start_year, en
           x=dat$date, col=c("green4", "purple", "yellow4", "black", "red"), log="", lty=c(1,1,1,1,2), lwd=c(1,1,1,2,1), type="l",
           ylab="Biomass pools", xlab="Year")
   abline(h=0, col="grey")
+  points(boreal$smearII_data$date[boreal$smearII_data$variable == "pine diameter BA weighted mean"],
+         0.01 * boreal$smearII_data$amount[boreal$smearII_data$variable == "pine diameter BA weighted mean"])
+  points(boreal$smearII_data$date[boreal$smearII_data$variable == "pine DBH arithmetic mean"],
+         0.01 * boreal$smearII_data$amount[boreal$smearII_data$variable == "pine DBH arithmetic mean"], pch = 2)
+  points(boreal$smearII_data$date[boreal$smearII_data$variable == "BA weighted mean DBH pine"],
+         0.01 * boreal$smearII_data$amount[boreal$smearII_data$variable == "BA weighted mean DBH pine"], pch = 3)
+  
   
   matplot(y=cbind(dat$total_mass,
                   dat$leaf_mass,
@@ -234,7 +245,7 @@ plot_plant_trajectory = function(dat, df_high_co2, df_medium_co2, start_year, en
           x=dat$date, col=c("green3", "green4", scales::alpha("yellow3", 0.5)), log="", lty=1, type="l", lwd=c(1,1,3),
           ylab=expression(atop("GPP, NPP", "(kg m"^"-2"*"Yr"^"-1"*")")), xlab="Year")
   abline(h=0, col="grey")
-  lines(ERAS_Monthly$date, ERAS_Monthly$GPP) # TODO: check that the units are the same!
+  lines(ERAS_Monthly$date, ERAS_Monthly$GPP) # TODO:  µmol m⁻² s⁻¹
   
   matplot(y=cbind(dat$rr/dat$crown_area,
                   dat$rs/dat$crown_area,
@@ -338,5 +349,4 @@ life_history <- function() {
   # Plot results
   plot_plant_trajectory(df, df_high_co2, df_medium_co2, 1960, 2022)
 }
-
 
