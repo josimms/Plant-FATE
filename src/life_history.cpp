@@ -230,15 +230,12 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 		set_state(S.begin());
 		// TODO: NA pattern happening here!
 		P.calc_demographic_rates(C, t);
-		std::cout << ":P" << "\n";
-
+		
 		// Override Plant-FATE fecundity calculations 
 		// We need to explicitly include plant mortality here for fitness calcs
 		double fec = P.fecundity_rate(P.bp.dmass_dt_rep, C);
-		std::cout << ":o" << "\n";
 		P.rates.dseeds_dt =  fec * exp(-P.state.mortality);  // Fresh seeds produced = fecundity rate * p{plant is alive}
 		// P.rates.dseeds_dt_germ =   P.state.seed_pool/P.par.ll_seed;   // seeds that leave seed pool proceed for germincation
-		std::cout << ":S" << "\n";
 		
 		get_rates(dSdt.begin());
 		};
