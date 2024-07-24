@@ -44,8 +44,8 @@ class ParControl{
 	bool                 scale_alpha     = false;
 };
 
-
-inline PHydroResult phydro_analytical(double tc, double tg, double ppfd, double netrad, double vpd, double co2, double pa, double fapar, double kphio, double psi_soil, double rdark, double vwind, ParPlant par_plant, ParCost par_cost = ParCost(0.1,1), ParControl par_control = ParControl()){
+// double N, double alpha
+inline PHydroResult phydro_analytical(double tc, double tg, double ppfd, double netrad, double vpd, double co2, double pa, double fapar, double kphio, double psi_soil, double rdark, double vwind, double N, double alpha, ParPlant par_plant, ParCost par_cost = ParCost(0.1,1), ParControl par_control = ParControl()){
 	
 	// double pa = calc_patm(elv);
 
@@ -59,10 +59,10 @@ inline PHydroResult phydro_analytical(double tc, double tg, double ppfd, double 
 	auto   dpsi_opt = pn::zero(bounds.Iabs_bound*0.001, bounds.Iabs_bound*0.999, [&](double dpsi){return dFdx(dpsi, psi_soil, par_plant, par_env, par_photosynth, par_cost).dPdx;}, 1e-6);
 	double        e = calc_sapflux(dpsi_opt.root, psi_soil, par_plant, par_env);
 	double       gs = calc_gs_from_Q(e, psi_soil, par_plant, par_env);
-    double  gsprime = calc_gsprime(dpsi_opt.root, gs, psi_soil, par_plant, par_env);
-    double        x = calc_x_from_dpsi(dpsi_opt.root,gsprime,par_photosynth, par_cost);
+  double  gsprime = calc_gsprime(dpsi_opt.root, gs, psi_soil, par_plant, par_env);
+  double        x = calc_x_from_dpsi(dpsi_opt.root,gsprime,par_photosynth, par_cost);
 	double        J = calc_J(gs, x, par_photosynth);	
-	double     jmax = calc_jmax_from_J(J, par_photosynth); 
+	double     jmax = calc_jmax_nitrogen_from_J(J, N, alpha, par_photosynth);
 	double    vcmax = (J/4.0)*(x*par_photosynth.ca + par_photosynth.kmm)/(x*par_photosynth.ca + 2*par_photosynth.gammastar);
 	double        a = gs*(par_photosynth.ca/par_photosynth.patm*1e6)*(1-x);
 

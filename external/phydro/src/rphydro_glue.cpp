@@ -135,12 +135,12 @@ inline double r_calc_ftemp_inst_vcmax(double tcleaf, double tcgrowth, double tcr
 // -------------------------------------------------------------
 //  Wrappers for Phydro calls taking R lists instead of parameter objects
 // -------------------------------------------------------------
-inline Rcpp::List rphydro_analytical(double tc, double tg, double ppfd, double netrad, double vpd, double co2, double pa, double fapar, double kphio, double psi_soil, double rdark, double vwind, Rcpp::List par_plant, Rcpp::List par_cost, Rcpp::List options){
+inline Rcpp::List rphydro_analytical(double tc, double tg, double ppfd, double netrad, double vpd, double co2, double pa, double fapar, double kphio, double psi_soil, double rdark, double vwind, double nitrogen, double b, Rcpp::List par_plant, Rcpp::List par_cost, Rcpp::List options){
 	ParControl par_control = listToParControl(options);
 	ParPlant par_plant_cpp = listToParPlant(par_plant);
 	ParCost  par_cost_cpp(par_cost["alpha"], par_cost["gamma"]);
 
-	return PHydroResult_to_List(phydro_analytical(tc, tg, ppfd, netrad, vpd, co2, pa, fapar, kphio, psi_soil, rdark, vwind, par_plant_cpp, par_cost_cpp, par_control));
+	return PHydroResult_to_List(phydro_analytical(tc, tg, ppfd, netrad, vpd, co2, pa, fapar, kphio, psi_soil, rdark, vwind, nitrogen, b, par_plant_cpp, par_cost_cpp, par_control));
 }
 
 inline Rcpp::List rphydro_instantaneous_analytical(double vcmax25, double jmax25, double tc, double tg, double ppfd, double netrad, double vpd, double co2, double pa, double fapar, double kphio, double psi_soil, double rdark, double vwind, Rcpp::List par_plant, Rcpp::List par_cost, Rcpp::List options){

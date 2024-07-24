@@ -24,6 +24,11 @@ inline double calc_jmax_from_J(double J, ParPhotosynth par_photosynth){
 	return p/sqrt(pj*pj-1);
 }
 
+inline double calc_jmax_nitrogen_from_J(double J, double N, double alpha, ParPhotosynth par_photosynth){
+	double p = 4*par_photosynth.phi0 * par_photosynth.Iabs;
+	double pj = alpha*N*p/J;
+	return p/sqrt(pj*pj-1);
+}
 
 inline double calc_djmax_dJ(double J, ParPhotosynth par_photosynth){
   double p = 4*par_photosynth.phi0 * par_photosynth.Iabs;
