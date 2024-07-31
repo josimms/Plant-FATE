@@ -130,4 +130,3 @@ double integrate_trapezium(const ContainerX& x, const ContainerY& y) {
 
 
 #endif
-

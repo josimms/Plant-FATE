@@ -151,4 +151,3 @@ inline ACi calc_assimilation_limiting(double vcmax, double jmax, double gs, ParP
 } // phydro
 
 #endif
-

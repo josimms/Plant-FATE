@@ -34,7 +34,7 @@ dat$g_pred = NA
 dat$c_pred = NA
 
 dpsi_df = read.csv("data/drying_experiments_dpsi_Joshi_et_al_2022.csv")
-  
+
 avec = numeric(0)
 bvec = numeric(0)
 spvec = character(0)
@@ -47,6 +47,7 @@ traits_vec = matrix(nrow = 0, ncol=length(cnames))
 colnames(traits_vec) = cnames
 traits_vec = as.data.frame(traits_vec)
 ```
+
 
 ```{r echo=F}
 plot_all = function(df_w_vol, varname, species, b,a){

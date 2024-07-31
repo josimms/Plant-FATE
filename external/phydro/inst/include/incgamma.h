@@ -392,5 +392,3 @@ inline double gammainc(double a, double x){
 
 
 #endif
-
-

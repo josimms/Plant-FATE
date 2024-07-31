@@ -112,5 +112,3 @@ inline double calc_dE_dgs_pm_num(double gs, double ga, ParEnv par_env){
 
 
 #endif
-
-

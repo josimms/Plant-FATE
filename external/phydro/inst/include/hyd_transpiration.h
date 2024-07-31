@@ -244,5 +244,3 @@ inline double calc_gsprime_from_dpsi(double dpsi, double psi_soil, ParPlant par_
 
 
 #endif
-
-
