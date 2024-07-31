@@ -349,4 +349,3 @@ life_history <- function() {
   # Plot results
   plot_plant_trajectory(df, df_high_co2, df_medium_co2, 1960, 2022)
 }
-
