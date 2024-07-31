@@ -1,0 +1,156 @@
+---
+title: "Nitrogen Updates"
+author: "YSSP"
+date: "2023-05-27"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(rphydro)
+library(tidyverse)
+library(ggplot2)
+library(reshape2)
+```
+
+```{r}
+kphio = 0.087;        # quantum yield efficiency
+ppfd = 300;          # umol/m2/s
+ppfd_max = 1200;
+vpd  = 1000;         # Pa
+co2  = 400;          # ppm
+elv  = 0;            # m.a.s.l.
+fapar = 0.7;         # fraction
+rdark = 0.015;
+tc = 25;
+vwind = 3;
+netrad = ppfd/2
+psi_soil = -0.05
+pa = calc_patm(elv)
+a_jmax = 1 # TODO: real value
+nitrogen = 1 # TODO: real value
+
+par_cost = list(alpha=0.1, gamma=1,carbon_allocation=1);
+par_plant = list(conductivity=3e-17, psi50=-2, b=2);
+options = list(gs_method = "GS_IGF", 
+               et_method = "ET_DIFFUSION",
+               ftemp_vj_method = "FV_kumarathunge19",
+               ftemp_rd_method = "FR_heskel16",
+               ftemp_br_method = "FB_atkin15",
+               scale_alpha = F)
+```
+
+## Acclimating response
+
+```{r}
+dat = tibble(ppfd = seq(0,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_nitrogen(tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, par_cost, options))) %>% unnest_wider(dat)
+```
+
+```{r}
+df.m <- dat %>% melt("ppfd")
+
+ggplot(df.m, aes(y=value, x=ppfd)) + 
+  geom_line(col="aquamarine4") + 
+  theme_classic() +
+  theme(strip.background = element_rect(color = "white", size = 1))+
+  facet_wrap(~variable, scales = "free")
+
+```
+
+## Instantaneous response - TODO: replace with the instantaneous formula
+
+```{r}
+acc = dat %>% filter(ppfd == 1200)
+
+dat_inst = tibble(ppfd = seq(0,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_analytical(acc$vcmax25, acc$jmax25, tc, tc, .x, netrad, vpd, co2, pa, fapar, kphio, psi_soil, rdark, vwind, par_plant, par_cost, options))) %>% unnest_wider(dat)
+
+df.m1 <- dat_inst %>% melt("ppfd")
+
+ggplot(df.m1, aes(y=value, x=ppfd)) + 
+  geom_line(col="aquamarine4") + 
+  geom_vline(xintercept = 0, col="pink") + 
+  theme_classic() +
+  theme(strip.background = element_rect(color = "white", size = 1))+
+  facet_wrap(~variable, scales = "free")
+
+```
+
+### Compare ac, aj, in inst responses - TODO: check formula
+
+```{r}
+dat_inst %>% select(ac, aj, isVcmaxLimited) %>% mutate(isVcmaxLimited = isVcmaxLimited*5) %>%  matplot(x=dat_inst$ppfd, type="l", lty=1, col=c("green4", "yellow3", "black"))
+abline(v=0, col="pink")
+```
+
+### J vs ppfd - TODO: replace the jmax
+
+```{r}
+tibble(ppfd = seq(0,1200, length.out=50)) %>% 
+  mutate(J = kphio*ppfd/sqrt(1+(4*kphio*ppfd/acc$jmax)^2)) %>% # TODO: replace formula!
+  ggplot(aes(x=ppfd, y=J))+
+  geom_line()
+  
+
+```
+
+### Nitrogen response
+
+```{r}
+ppfd = 500
+dat_nitrogen = tibble(nitrogen = seq(0,1,length.out=50)) %>% mutate(dat = purrr::map(.x=nitrogen, .f = ~rphydro_nitrogen(tc, tc, ppfd, netrad, vpd, co2, pa, .x, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, par_cost, options))) %>% unnest_wider(dat)
+```
+
+```{r}
+df_nitrogen.m <- dat_nitrogen %>% melt("nitrogen")
+
+ggplot(df_nitrogen.m, aes(y=value, x=nitrogen)) + 
+  geom_line(col="aquamarine4") + 
+  theme_classic() +
+  theme(strip.background = element_rect(color = "white", size = 1))+
+  facet_wrap(~variable, scales = "free")
+
+```
+
+### Vcmax response - hasn't changed!
+
+```{r}
+df = list(tc = seq(-10, 40, length.out=50), 
+     tg = seq(-10, 40, length.out=50)) %>% cross_df() %>% 
+        mutate(f = purrr::pmap_dbl(.l=., .f = rr_calc_ftemp_inst_vcmax,
+                        tref = 25, 
+                        method = "FV_kumarathunge19"))
+
+df %>% ggplot(aes(x=tc, y=f)) +
+  geom_line(aes(col=tg, group=tg)) + 
+  geom_line(data = df %>% filter(tc == tg), col="red")
+
+df %>% ggplot(aes(x=tc, y=tg, z=f)) +
+  geom_contour_filled()+
+  geom_contour(breaks = 1, col="red")
+```
+
+### Jmax response - hasn't changed!
+
+```{r}
+
+dfj = list(tc = seq(-10, 40, length.out = 50), 
+          tg = seq(-10, 40, length.out = 50),
+          th = seq(-10, 40, length.out = 5)) %>% cross_df() %>% 
+        mutate(f = purrr::pmap_dbl(.l=., .f = rr_calc_ftemp_inst_jmax,
+                          tref = 25, 
+                          method = "FV_kumarathunge19"))
+
+dfj %>% ggplot(aes(x=tc, y=f)) +
+  geom_line(aes(col=tg, group=tg)) + 
+  geom_line(data = dfj %>% filter(tc == tg), col="red") + 
+  facet_wrap("th", ncol=5)+
+  ylim(c(0,2))
+
+```
+
+
