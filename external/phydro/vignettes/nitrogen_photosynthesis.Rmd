@@ -24,6 +24,8 @@ Original jmax = 86.02379
 
 So set a_jmax as 800 to get the equlibrium point around 80 as an original.
 
+Nitrogen leaf content upper limit is limited by the nitrogen store in the leaf!
+
 ```{r}
 kphio = 0.087;        # quantum yield efficiency
 ppfd = 300;          # umol/m2/s
@@ -37,10 +39,10 @@ tc = 25;
 vwind = 3;
 netrad = ppfd/2
 psi_soil = -0.05
-a_jmax = 800         # TODO: real value
-
-nitrogen = 0.012     # TODO: real value
 pa = calc_patm(elv)
+
+### New parameters TODO: justify these!
+a_jmax = 800
 
 par_cost = list(alpha=0.1, gamma=1, carbon_allocation = 1);
 par_plant = list(conductivity=3e-17, psi50=-2, b=2);
@@ -56,19 +58,25 @@ options = list(gs_method = "GS_IGF",
 ## Acclimating (Weekly) Response
 
 ```{r}
-dat = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_nitrogen(tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, par_cost, options))) %>% unnest_wider(dat)
+nitrogen = 0.02 # TODO: is this too high as it is a dry weight value?
+dat_0.02 = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_nitrogen(tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, par_cost, options))) %>% unnest_wider(dat)
+
+nitrogen = 0.01
+dat_0.01 = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_nitrogen(tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, par_cost, options))) %>% unnest_wider(dat)
 
 dat_original = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_numerical(tc, tc, .x, netrad, vpd, co2, pa, fapar, kphio, psi_soil, rdark, vwind, par_plant, par_cost, options))) %>% unnest_wider(dat)
 ```
 
 ```{r}
-df.m <- dat %>% melt("ppfd")
+df_0.02.m <- dat_0.02 %>% melt("ppfd")
+df_0.01.m <- dat_0.01 %>% melt("ppfd")
 df_original.m <- dat_original %>% melt("ppfd")
 
 ggplot() + 
   geom_line(data = df_original.m, aes(y = value, x = ppfd, color = "Numeric")) +
-  geom_line(data = df.m, aes(y = value, x = ppfd, color = "N Included")) +
-  scale_color_manual(values = c("N Included" = "aquamarine4", "Numeric" = "red")) +
+  geom_line(data = df_0.01.m, aes(y = value, x = ppfd, color = "N Included 1%")) +
+  geom_line(data = df_0.02.m, aes(y = value, x = ppfd, color = "N Included 2%")) +
+  scale_color_manual(values = c("N Included 2%" = "blue", "N Included 1%" = "aquamarine4", "Numeric" = "red")) +
   theme_classic() +
   theme(strip.background = element_rect(color = "white", size = 1),
         legend.title = element_blank()) +
@@ -78,6 +86,7 @@ ggplot() +
 ## Instantaneous Response
 
 ```{r}
+nitrogen = 0.02
 acc = dat %>% filter(ppfd == 1200)
 dat_inst = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_nitrogen(acc$vcmax25, acc$jmax25, tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, par_cost, options))) %>% unnest_wider(dat)
 
@@ -101,7 +110,7 @@ ggplot() +
 
 ```{r}
 par(mfrow = c(1, 2))
-dat_inst %>% select(ac, aj, isVcmaxLimited) %>% mutate(isVcmaxLimited = isVcmaxLimited*5) %>%  matplot(x=dat_inst$ppfd, type="l", lty=1, col=c("green4", "yellow3", "black"))
+dat_inst %>% select(ac, aj, isVcmaxLimited) %>% mutate(isVcmaxLimited = isVcmaxLimited*5) %>%  matplot(x=dat_inst$ppfd, type="l", lty=1, col=c("green4", "yellow3", "black"), main = "")
 abline(v=0, col="pink")
 dat_inst_original %>% select(ac, aj, isVcmaxLimited) %>% mutate(isVcmaxLimited = isVcmaxLimited*5) %>%  matplot(x=dat_inst$ppfd, type="l", lty=2, col=c("green4", "yellow3", "black"))
 abline(v=0, col="pink")
