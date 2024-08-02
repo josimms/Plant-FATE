@@ -45,37 +45,49 @@ options = list(gs_method = "GS_IGF",
                scale_alpha = F)
 ```
 
-## Acclimating response
+## Acclimating response of rphydro_nitrogen
+
+No longer works with a ppfd starting from 0, not quite sure why this is...
 
 ```{r}
-dat = tibble(ppfd = seq(0,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_nitrogen(tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, par_cost, options))) %>% unnest_wider(dat)
+dat = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_nitrogen(tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, par_cost, options))) %>% unnest_wider(dat)
+
+dat_original = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_numerical(tc, tc, .x, netrad, vpd, co2, pa, fapar, kphio, psi_soil, rdark, vwind, par_plant, par_cost, options))) %>% unnest_wider(dat)
 ```
 
 ```{r}
 df.m <- dat %>% melt("ppfd")
+df_original.m <- dat_original %>% melt("ppfd")
 
-ggplot(df.m, aes(y=value, x=ppfd)) + 
-  geom_line(col="aquamarine4") + 
+ggplot() + 
+  geom_line(data = df.m, aes(y = value, x = ppfd, color = "N Included")) +
+  geom_line(data = df_original.m, aes(y = value, x = ppfd, color = "Numeric Answer")) +
+  scale_color_manual(values = c("Line 1" = "aquamarine4", "Line 2" = "red")) +
   theme_classic() +
-  theme(strip.background = element_rect(color = "white", size = 1))+
+  theme(strip.background = element_rect(color = "white", size = 1),
+        legend.title = element_blank()) +
   facet_wrap(~variable, scales = "free")
-
 ```
 
-## Instantaneous response - TODO: replace with the instantaneous formula
+## Instantaneous response - rphydro_instantaneous_nitrogen
 
 ```{r}
 acc = dat %>% filter(ppfd == 1200)
 
-dat_inst = tibble(ppfd = seq(0,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_analytical(acc$vcmax25, acc$jmax25, tc, tc, .x, netrad, vpd, co2, pa, fapar, kphio, psi_soil, rdark, vwind, par_plant, par_cost, options))) %>% unnest_wider(dat)
+dat_inst = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_nitrogen(acc$vcmax25, acc$jmax25, tc, tc, .x, netrad, vpd, co2, pa, nitrogen_uptake, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, par_cost, options))) %>% unnest_wider(dat)
 
-df.m1 <- dat_inst %>% melt("ppfd")
+dat_inst_original = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_numerical(acc$vcmax25, acc$jmax25, tc, tc, .x, netrad, vpd, co2, pa, fapar, kphio, psi_soil, rdark, vwind, par_plant, par_cost, options))) %>% unnest_wider(dat)
 
-ggplot(df.m1, aes(y=value, x=ppfd)) + 
-  geom_line(col="aquamarine4") + 
-  geom_vline(xintercept = 0, col="pink") + 
+df.m.inst <- dat_inst %>% melt("ppfd")
+df_original.m.inst <- dat_inst_original %>% melt("ppfd")
+
+ggplot() + 
+  geom_line(data = df.m.inst, aes(y = value, x = ppfd, color = "Line 1")) +
+  geom_line(data = df_original.m.inst, aes(y = value, x = ppfd, color = "Line 2")) +
+  scale_color_manual(values = c("Line 1" = "aquamarine4", "Line 2" = "red")) +
   theme_classic() +
-  theme(strip.background = element_rect(color = "white", size = 1))+
+  theme(strip.background = element_rect(color = "white", size = 1),
+        legend.title = element_blank()) +
   facet_wrap(~variable, scales = "free")
 
 ```
