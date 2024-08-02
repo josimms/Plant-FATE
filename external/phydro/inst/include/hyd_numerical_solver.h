@@ -98,7 +98,6 @@ inline JmaxDpsi optimize_midterm_multi(double psi_soil, ParCost _par_cost, ParPh
 	VectorXd x(n);
 	x << log(100), 1; 
 
-
 	// x will be overwritten to be the best point found
 	double fx;
 	int niter = solver.minimize(profit_fun, x, fx, lb, ub);
@@ -114,7 +113,7 @@ inline JmaxDpsi optimize_midterm_multi(double psi_soil, ParCost _par_cost, ParPh
 
 inline double vcmax_coordinated_numerical(double aj, double ci, ParPhotosynth par_photosynth){
 	double d = par_photosynth.delta;
-	double vcmax_coord = aj*(ci + par_photosynth.kmm)/(ci*(1-d)- (par_photosynth.gammastar+par_photosynth.kmm*d));
+	double vcmax_coord = aj*(ci + par_photosynth.kmm)/(ci*(1-d) - (par_photosynth.gammastar+par_photosynth.kmm*d));
 	return vcmax_coord;
 }
 
