@@ -51,7 +51,7 @@ public:
   double fT_jmax;
   double fT_rd;
   
-  inline ParPhotosynthNitrogen(double _tc, double _patm, double _kphio, double _co2, double _ppfd, double _uptaken_nitrogen, double _fapar, double _rdark25, double _tcgrowth, double _tchome, double _a_jmax,
+  inline ParPhotosynthNitrogen(double _tc, double _patm, double _kphio, double _co2, double _ppfd, double _nitrogen_store, double _fapar, double _rdark25, double _tcgrowth, double _tchome, double _a_jmax,
                                FtempVcmaxJmaxMethod _ftemp_vj_method = FV_kumarathunge19, 
                                FtempRdMethod        _ftemp_rd_method = FR_heskel16, 
                                FtempBrMethod        _ftemp_br_method = FB_atkin15){
@@ -210,7 +210,7 @@ struct jmaxDpsi{
   double dpsi;
 };
 
-inline jmaxDpsi optimize_midterm_multi_nitrogen(double psi_soil, ParCostNitrogen _par_cost, ParPhotosynthNitrogen _par_photosynth, ParPlant _par_plant, ParEnv _par_env){
+inline jmaxDpsi optimize_midterm_multi_nitrogen(double psi_soil, double nitrogen_store, ParCostNitrogen _par_cost, ParPhotosynthNitrogen _par_photosynth, ParPlant _par_plant, ParEnv _par_env){
   
   const int q = 2; // dimensions of the vector for the foptimisation
   // Set up parameters
@@ -225,7 +225,7 @@ inline jmaxDpsi optimize_midterm_multi_nitrogen(double psi_soil, ParCostNitrogen
   // bounds
   VectorXd lb(q), ub(q);
   lb << -10, 0;
-  ub <<  0, 50;
+  ub << log(nitrogen_store), 50;
   
   // Initial guess
   VectorXd x(q);
