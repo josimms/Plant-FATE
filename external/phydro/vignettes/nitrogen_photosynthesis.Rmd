@@ -86,20 +86,26 @@ ggplot() +
 ## Instantaneous Response
 
 ```{r}
+nitrogen = 0.01
+acc_0.01 = dat_0.01 %>% filter(ppfd == 1200)
+dat_inst_0.01 = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_nitrogen(acc_0.01$vcmax25, acc_0.01$jmax25, tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, par_cost, options))) %>% unnest_wider(dat)
+
 nitrogen = 0.02
-acc = dat %>% filter(ppfd == 1200)
-dat_inst = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_nitrogen(acc$vcmax25, acc$jmax25, tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, par_cost, options))) %>% unnest_wider(dat)
+acc_0.02 = dat_0.02 %>% filter(ppfd == 1200)
+dat_inst_0.02 = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_nitrogen(acc_0.02$vcmax25, acc_0.02$jmax25, tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, par_cost, options))) %>% unnest_wider(dat)
 
 acc_original = dat_original %>% filter(ppfd == 1200)
 dat_inst_original = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_numerical(acc$vcmax25, acc$jmax25, tc, tc, .x, netrad, vpd, co2, pa, fapar, kphio, psi_soil, rdark, vwind, par_plant, par_cost, options))) %>% unnest_wider(dat)
 
-df.m.inst <- dat_inst %>% melt("ppfd")
+df_0.01.m.inst <- dat_inst_0.01 %>% melt("ppfd")
+df_0.02.m.inst <- dat_inst_0.02 %>% melt("ppfd")
 df_original.m.inst <- dat_inst_original %>% melt("ppfd")
 
 ggplot() + 
   geom_line(data = df_original.m.inst, aes(y = value, x = ppfd, color = "Numeric")) +
-  geom_line(data = df.m.inst, aes(y = value, x = ppfd, color = "N Included")) +
-  scale_color_manual(values = c("N Included" = "aquamarine4", "Numeric" = "red")) +
+  geom_line(data = df_0.01.m.inst, aes(y = value, x = ppfd, color = "N Included 1%")) +
+  geom_line(data = df_0.02.m.inst, aes(y = value, x = ppfd, color = "N Included 2%")) +
+  scale_color_manual(values = c("N Included 2%" = "blue", "N Included 1%" = "aquamarine4", "Numeric" = "red")) +
   theme_classic() +
   theme(strip.background = element_rect(color = "white", size = 1),
         legend.title = element_blank()) +
@@ -110,26 +116,30 @@ ggplot() +
 
 ```{r}
 par(mfrow = c(1, 2))
-dat_inst %>% select(ac, aj, isVcmaxLimited) %>% mutate(isVcmaxLimited = isVcmaxLimited*5) %>%  matplot(x=dat_inst$ppfd, type="l", lty=1, col=c("green4", "yellow3", "black"), main = "")
+# TODO: legend
+dat_inst_0.02 %>% select(ac, aj, isVcmaxLimited) %>% mutate(isVcmaxLimited = isVcmaxLimited*5) %>%  matplot(x=dat_inst_0.02$ppfd, type="l", lty=1, col=c("green4", "yellow3", "black"), main = "Nitrogen", xlab = "ppfd")
 abline(v=0, col="pink")
-dat_inst_original %>% select(ac, aj, isVcmaxLimited) %>% mutate(isVcmaxLimited = isVcmaxLimited*5) %>%  matplot(x=dat_inst$ppfd, type="l", lty=2, col=c("green4", "yellow3", "black"))
+dat_inst_original %>% select(ac, aj, isVcmaxLimited) %>% mutate(isVcmaxLimited = isVcmaxLimited*5) %>%  matplot(x=dat_inst_original$ppfd, type="l", lty=2, col=c("green4", "yellow3", "black"), main = "Original", xlab = "ppfd")
 abline(v=0, col="pink")
 ```
 
 ### J Behaviour
 
 ```{r}
-a_jmax = 0.1 # TODO: real value
+J_n_0.01 = tibble(ppfd = seq(0,1200, length.out=50)) %>% 
+  mutate(J = kphio*ppfd/sqrt(1+(4*kphio*ppfd/(acc_0.01$n_leaf * a_jmax))^2))
 
-J_n = tibble(ppfd = seq(0,1200, length.out=50)) %>% 
-  mutate(J = kphio*ppfd/sqrt(1+(4*kphio*ppfd/(acc$n_leaf * a_jmax))^2))
+J_n_0.02 = tibble(ppfd = seq(0,1200, length.out=50)) %>% 
+  mutate(J = kphio*ppfd/sqrt(1+(4*kphio*ppfd/(acc_0.02$n_leaf * a_jmax))^2))
 
 J_original = tibble(ppfd = seq(0,1200, length.out=50)) %>% 
   mutate(J = kphio*ppfd/sqrt(1+(4*kphio*ppfd/(acc_original$jmax))^2))
 
 ggplot()+
-  geom_line(data = J_n, aes(x=ppfd, y=J), color = "aquamarine4") +
+  geom_line(data = J_n_0.02, aes(x=ppfd, y=J), color = "blue") +
+  geom_line(data = J_n_0.01, aes(x=ppfd, y=J), color = "aquamarine4") +
   geom_line(data = J_original, aes(x=ppfd, y=J), color = "red") +
+  scale_color_manual(values = c("N Included 2%" = "blue", "N Included 1%" = "aquamarine4", "Numeric" = "red")) +
   labs(x = "PPFD (μmol m^-2 s^-1)", y = "J (μmol m^-2 s^-1)", 
        title = "Electron Transport Rate (J) vs. PPFD")
 
@@ -137,9 +147,11 @@ ggplot()+
 
 ### Nitrogen response
 
+This has a 50% nitrogen content which is waaay too much - need to have better values here!
+
 ```{r}
-ppfd = 500
-dat_nitrogen = tibble(nitrogen = seq(0,1,length.out=50)) %>% mutate(dat = purrr::map(.x=nitrogen, .f = ~rphydro_nitrogen(tc, tc, ppfd, netrad, vpd, co2, pa, .x, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, par_cost, options))) %>% unnest_wider(dat)
+ppfd = 1200
+dat_nitrogen = tibble(nitrogen = seq(0.001,0.02,length.out=50)) %>% mutate(dat = purrr::map(.x = nitrogen, .f = ~rphydro_nitrogen(tc, tc, ppfd, netrad, vpd, co2, pa, .x, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, par_cost, options))) %>% unnest_wider(dat)
 ```
 
 ```{r}
