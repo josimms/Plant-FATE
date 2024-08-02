@@ -259,15 +259,12 @@ inline PHydroResultNitrogen phydro_nitrogen(double tc, double tg, double ppfd, d
   par_env.gs_method = par_control.gs_method;
   par_env.et_method = par_control.et_method;
   
-  // TODO: add the leaf nitrogen output here!
-  auto     opt = optimize_midterm_multi(psi_soil, par_cost, par_photosynth, par_plant, par_env);
-  double     e = calc_sapflux(opt.dpsi, psi_soil, par_plant, par_env);
-  double    gs = calc_gs_from_Q(e, psi_soil, par_plant, par_env);
-  auto      aj = calc_assim_light_limited_nitrogen(gs, opt.jmax, par_photosynth); 	
-  double vcmax = vcmax_coordinated_numerical_nitrogen(aj.a, aj.ci, par_photosynth);
-  
-  // TODO: need to consider the nitrogen possibly uptaken as a weather input as a seperate thing as the leaf n content
-  double n_leaf = 1;
+  auto      opt = optimize_midterm_multi_nitrogen(psi_soil, par_cost, par_photosynth, par_plant, par_env);
+  double      e = calc_sapflux(opt.dpsi, psi_soil, par_plant, par_env);
+  double     gs = calc_gs_from_Q(e, psi_soil, par_plant, par_env);
+  auto       aj = calc_assim_light_limited_nitrogen(gs, opt.jmax, par_photosynth); 
+  double n_leaf = opt.jmax / par_photosynth.a_jmax;
+  double  vcmax = vcmax_coordinated_numerical_nitrogen(aj.a, aj.ci, par_photosynth);
   
   PHydroResultNitrogen res;
   res.a = aj.a;
@@ -297,12 +294,11 @@ inline PHydroResultNitrogen phydro_nitrogen(double tc, double tg, double ppfd, d
   return res;
 }
 
-
-inline PHydroResultNitrogen phydro_instantaneous_nitrogen(double vcmax25, double jmax25, double tc, double tg, double ppfd, double netrad, double vpd, double co2, double pa, double nitrogen_uptaken, double fapar, double kphio, double psi_soil, double rdark, double vwind, ParPlant par_plant, ParCost par_cost = ParCost(0.1,1), ParControl par_control = ParControl()){
+inline PHydroResultNitrogen phydro_instantaneous_nitrogen(double vcmax25, double jmax25, double tc, double tg, double ppfd, double netrad, double vpd, double co2, double pa, double nitrogen_uptaken, double fapar, double kphio, double psi_soil, double rdark, double vwind, double a_jmax, ParPlant par_plant, ParCostNitrogen par_cost = ParCostNitrogen(0.1,1,1), ParControl par_control = ParControl()){
   
   // double pa = calc_patm(elv);
   
-  ParPhotosynthNitrogen par_photosynth(tc, pa, kphio, co2, ppfd, nitrogen_uptaken, fapar, rdark, tg, par_plant.tchome, par_control.ftemp_vj_method, par_control.ftemp_rd_method, par_control.ftemp_br_method);
+  ParPhotosynthNitrogen par_photosynth(tc, pa, kphio, co2, ppfd, nitrogen_uptaken, fapar, rdark, tg, par_plant.tchome, a_jmax, par_control.ftemp_vj_method, par_control.ftemp_rd_method, par_control.ftemp_br_method);
   ParEnv                par_env(tc, pa, vpd, netrad, vwind);
   if (par_control.scale_alpha) par_cost.alpha /= par_photosynth.fT_jmax; // convert alpha from cost of jmax to cost of jmax25
   par_env.gs_method = par_control.gs_method;
@@ -311,18 +307,18 @@ inline PHydroResultNitrogen phydro_instantaneous_nitrogen(double vcmax25, double
   double vcmax = vcmax25 * par_photosynth.fT_vcmax;
   double jmax  =  jmax25 * par_photosynth.fT_jmax;
   
-  double  dpsi = optimize_shortterm_multi(vcmax, jmax, psi_soil, par_cost, par_photosynth, par_plant, par_env);
+  double  dpsi = optimize_shortterm_multi_nitrogen(vcmax, jmax, psi_soil, par_cost, par_photosynth, par_plant, par_env);
   double     e = calc_sapflux(dpsi, psi_soil, par_plant, par_env);
   double    gs = calc_gs_from_Q(e, psi_soil, par_plant, par_env);
-  auto       A = calc_assimilation_limiting(vcmax, jmax, gs, par_photosynth); // TODO: nitrogen
+  auto       A = calc_assimilation_limiting_nitrogen(vcmax, jmax, gs, par_photosynth);
   
-  PHydroResult res;
+  PHydroResultNitrogen res;
   res.a = A.a;
   res.e = e; //1.6*gs*vpd/par_env.patm;
   res.ci = A.ci;
   res.gs = gs;
   res.chi = A.ci/par_photosynth.ca;
-  res.n_leaf = n_leaf; // TODO: how?
+  res.n_leaf = jmax25 / par_photosynth.a_jmax;
   res.vcmax = vcmax;
   res.jmax = jmax;
   res.dpsi = dpsi;
@@ -335,15 +331,15 @@ inline PHydroResultNitrogen phydro_instantaneous_nitrogen(double vcmax25, double
   res.jmax25 = jmax25;
   res.rd = vcmax * par_photosynth.delta;
   res.isVcmaxLimited = A.isVcmaxLimited;
-  res.ac = calc_assim_rubisco_limited(gs, vcmax, par_photosynth).a;
-  res.aj = calc_assim_light_limited(gs, jmax, par_photosynth).a; 	
+  res.ac = calc_assim_rubisco_limited_nitrogen(gs, vcmax, par_photosynth).a;
+  res.aj = calc_assim_light_limited_nitrogen(gs, jmax, par_photosynth).a; 	
   res.le = e * 0.018015 * par_env.lv; // e [mol m-2 s-1] * 0.01815 [kg mol-1] * lv [J kg-1] = J m-2 s-1 = W m-2
   res.le_s_wet = (1-fapar)*netrad*(par_env.epsilon/(1+par_env.epsilon));
   
   return res;
   
 }
-
+ 
 } // phydro
 
 
