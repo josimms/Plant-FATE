@@ -173,7 +173,7 @@ public:
   }
   
   inline double value(const VectorXd &x) {
-    double n_leaf = x[0];
+    double n_leaf = exp(x[0]);
     double dpsi = x[1];
     
     double Q = calc_sapflux(dpsi, psi_soil, par_plant, par_env);
@@ -212,7 +212,7 @@ struct jmaxDpsi{
 
 inline jmaxDpsi optimize_midterm_multi_nitrogen(double psi_soil, ParCostNitrogen _par_cost, ParPhotosynthNitrogen _par_photosynth, ParPlant _par_plant, ParEnv _par_env){
   
-  const int q = 2; // value for the foptimisation
+  const int q = 2; // dimensions of the vector for the foptimisation
   // Set up parameters
   LBFGSpp::LBFGSBParam<double> param;
   param.epsilon = 1e-6;
@@ -225,7 +225,7 @@ inline jmaxDpsi optimize_midterm_multi_nitrogen(double psi_soil, ParCostNitrogen
   // bounds
   VectorXd lb(q), ub(q);
   lb << -10, 0;
-  ub <<  10, 50;
+  ub <<  0, 50;
   
   // Initial guess
   VectorXd x(q);
@@ -236,7 +236,7 @@ inline jmaxDpsi optimize_midterm_multi_nitrogen(double psi_soil, ParCostNitrogen
   int niter = solver.minimize(profit_fun_nitrogen, x, fx, lb, ub);
   
   jmaxDpsi res;
-  res.jmax = _par_photosynth.a_jmax * x[0];
+  res.jmax = _par_photosynth.a_jmax * exp(x[0]);
   res.dpsi = x[1];
   
   return res;
