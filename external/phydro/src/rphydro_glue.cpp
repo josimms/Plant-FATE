@@ -205,6 +205,14 @@ inline Rcpp::List rphydro_nitrogen(double tc, double tg, double ppfd, double net
   return PHydroResult_to_List_Nitrogen(phydro_nitrogen(tc, tg, ppfd, netrad, vpd, co2, pa, nitrogen_uptaken, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant_cpp, par_cost_cpp_nitrogen, par_control));
 }
 
+inline Rcpp::List rphydro_instantaneous_nitrogen(double vcmax25, double jmax25, double tc, double tg, double ppfd, double netrad, double vpd, double co2, double pa, double nitrogen_uptaken, double fapar, double kphio, double psi_soil, double rdark, double vwind, double a_jmax, Rcpp::List par_plant, Rcpp::List par_cost, Rcpp::List options){
+  ParControl par_control = listToParControl(options);
+  ParPlant par_plant_cpp = listToParPlant(par_plant);
+  ParCostNitrogen  par_cost_cpp_nitrogen(par_cost["alpha"], par_cost["gamma"], par_cost["carbon_allocation"]);
+  
+  return PHydroResult_to_List_Nitrogen(phydro_instantaneous_nitrogen(vcmax25, jmax25, tc, tg, ppfd, netrad, vpd, co2, pa, nitrogen_uptaken, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant_cpp, par_cost_cpp_nitrogen, par_control));
+}
+
 #endif
 
 
@@ -282,6 +290,7 @@ RCPP_MODULE(phydro_module) {
 #ifndef PHYDRO_ANALYTICAL_ONLY
 	function("rphydro_numerical", &rphydro_numerical);
 	function("rphydro_instantaneous_numerical", &rphydro_instantaneous_numerical);
+	function("rphydro_instantaneous_nitrogen", &rphydro_instantaneous_nitrogen);
 #endif
 
 }
