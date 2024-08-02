@@ -17,6 +17,12 @@ library(tidyverse)
 library(ggplot2)
 library(reshape2)
 ```
+## Parameters
+
+Carbon allocation was 0 for fertalised, 0.2 for unfertalised (Fransson 2024)
+Original jmax = 86.02379
+
+So set a_jmax as 800 to get the equlibrium point around 80 as an original.
 
 ```{r}
 kphio = 0.087;        # quantum yield efficiency
@@ -31,11 +37,12 @@ tc = 25;
 vwind = 3;
 netrad = ppfd/2
 psi_soil = -0.05
-pa = calc_patm(elv)
-a_jmax = 1 # TODO: real value
-nitrogen = 1 # TODO: real value
+a_jmax = 800         # TODO: real value
 
-par_cost = list(alpha=0.1, gamma=1,carbon_allocation=1);
+nitrogen = 0.012     # TODO: real value
+pa = calc_patm(elv)
+
+par_cost = list(alpha=0.1, gamma=1, carbon_allocation = 1);
 par_plant = list(conductivity=3e-17, psi50=-2, b=2);
 options = list(gs_method = "GS_IGF", 
                et_method = "ET_DIFFUSION",
@@ -45,9 +52,8 @@ options = list(gs_method = "GS_IGF",
                scale_alpha = F)
 ```
 
-## Acclimating response of rphydro_nitrogen
 
-No longer works with a ppfd starting from 0, not quite sure why this is...
+## Acclimating (Weekly) Response
 
 ```{r}
 dat = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_nitrogen(tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, par_cost, options))) %>% unnest_wider(dat)
@@ -60,53 +66,63 @@ df.m <- dat %>% melt("ppfd")
 df_original.m <- dat_original %>% melt("ppfd")
 
 ggplot() + 
+  geom_line(data = df_original.m, aes(y = value, x = ppfd, color = "Numeric")) +
   geom_line(data = df.m, aes(y = value, x = ppfd, color = "N Included")) +
-  geom_line(data = df_original.m, aes(y = value, x = ppfd, color = "Numeric Answer")) +
-  scale_color_manual(values = c("Line 1" = "aquamarine4", "Line 2" = "red")) +
+  scale_color_manual(values = c("N Included" = "aquamarine4", "Numeric" = "red")) +
   theme_classic() +
   theme(strip.background = element_rect(color = "white", size = 1),
         legend.title = element_blank()) +
   facet_wrap(~variable, scales = "free")
 ```
 
-## Instantaneous response - rphydro_instantaneous_nitrogen
+## Instantaneous Response
 
 ```{r}
 acc = dat %>% filter(ppfd == 1200)
+dat_inst = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_nitrogen(acc$vcmax25, acc$jmax25, tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, par_cost, options))) %>% unnest_wider(dat)
 
-dat_inst = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_nitrogen(acc$vcmax25, acc$jmax25, tc, tc, .x, netrad, vpd, co2, pa, nitrogen_uptake, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, par_cost, options))) %>% unnest_wider(dat)
-
+acc_original = dat_original %>% filter(ppfd == 1200)
 dat_inst_original = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_numerical(acc$vcmax25, acc$jmax25, tc, tc, .x, netrad, vpd, co2, pa, fapar, kphio, psi_soil, rdark, vwind, par_plant, par_cost, options))) %>% unnest_wider(dat)
 
 df.m.inst <- dat_inst %>% melt("ppfd")
 df_original.m.inst <- dat_inst_original %>% melt("ppfd")
 
 ggplot() + 
-  geom_line(data = df.m.inst, aes(y = value, x = ppfd, color = "Line 1")) +
-  geom_line(data = df_original.m.inst, aes(y = value, x = ppfd, color = "Line 2")) +
-  scale_color_manual(values = c("Line 1" = "aquamarine4", "Line 2" = "red")) +
+  geom_line(data = df_original.m.inst, aes(y = value, x = ppfd, color = "Numeric")) +
+  geom_line(data = df.m.inst, aes(y = value, x = ppfd, color = "N Included")) +
+  scale_color_manual(values = c("N Included" = "aquamarine4", "Numeric" = "red")) +
   theme_classic() +
   theme(strip.background = element_rect(color = "white", size = 1),
         legend.title = element_blank()) +
   facet_wrap(~variable, scales = "free")
-
 ```
 
 ### Compare ac, aj, in inst responses - TODO: check formula
 
 ```{r}
+par(mfrow = c(1, 2))
 dat_inst %>% select(ac, aj, isVcmaxLimited) %>% mutate(isVcmaxLimited = isVcmaxLimited*5) %>%  matplot(x=dat_inst$ppfd, type="l", lty=1, col=c("green4", "yellow3", "black"))
+abline(v=0, col="pink")
+dat_inst_original %>% select(ac, aj, isVcmaxLimited) %>% mutate(isVcmaxLimited = isVcmaxLimited*5) %>%  matplot(x=dat_inst$ppfd, type="l", lty=2, col=c("green4", "yellow3", "black"))
 abline(v=0, col="pink")
 ```
 
-### J vs ppfd - TODO: replace the jmax
+### J Behaviour
 
 ```{r}
-tibble(ppfd = seq(0,1200, length.out=50)) %>% 
-  mutate(J = kphio*ppfd/sqrt(1+(4*kphio*ppfd/acc$jmax)^2)) %>% # TODO: replace formula!
-  ggplot(aes(x=ppfd, y=J))+
-  geom_line()
-  
+a_jmax = 0.1 # TODO: real value
+
+J_n = tibble(ppfd = seq(0,1200, length.out=50)) %>% 
+  mutate(J = kphio*ppfd/sqrt(1+(4*kphio*ppfd/(acc$n_leaf * a_jmax))^2))
+
+J_original = tibble(ppfd = seq(0,1200, length.out=50)) %>% 
+  mutate(J = kphio*ppfd/sqrt(1+(4*kphio*ppfd/(acc_original$jmax))^2))
+
+ggplot()+
+  geom_line(data = J_n, aes(x=ppfd, y=J), color = "aquamarine4") +
+  geom_line(data = J_original, aes(x=ppfd, y=J), color = "red") +
+  labs(x = "PPFD (μmol m^-2 s^-1)", y = "J (μmol m^-2 s^-1)", 
+       title = "Electron Transport Rate (J) vs. PPFD")
 
 ```
 
