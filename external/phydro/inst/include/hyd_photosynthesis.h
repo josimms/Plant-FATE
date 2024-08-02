@@ -9,8 +9,6 @@
 
 namespace phydro{
 
-
-
 class ParPhotosynth{
 	public:
 	double kmm;
@@ -134,7 +132,6 @@ inline ACi calc_assim_light_limited(double _gs, double jmax, ParPhotosynth par_p
 	res.isVcmaxLimited = false;
 
 	return res;
-
 }
 
 
