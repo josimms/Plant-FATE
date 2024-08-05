@@ -5,6 +5,4 @@ crown <- function(z, H, m, n, r_0) {
                          height = c(z, z))
 }
 
-tree = crown(0:30, 30, 2.0, 1.1, 15)
 
-plot(tree$radius, tree$height, type = "l", col = "darkgreen")
