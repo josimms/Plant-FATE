@@ -42,7 +42,7 @@ psi_soil = -0.05
 pa = calc_patm(elv)
 
 ### New parameters TODO: justify these!
-a_jmax = 800
+a_jmax = 8000
 
 par_cost = list(alpha=0.1, gamma=1, carbon_allocation = 1);
 par_plant = list(conductivity=3e-17, psi50=-2, b=2);
@@ -61,22 +61,22 @@ options = list(gs_method = "GS_IGF",
 nitrogen = 0.02 # TODO: is this too high as it is a dry weight value?
 dat_0.02 = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_nitrogen(tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, par_cost, options))) %>% unnest_wider(dat)
 
-nitrogen = 0.01
-dat_0.01 = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_nitrogen(tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, par_cost, options))) %>% unnest_wider(dat)
+nitrogen = 0.005
+dat_0.005 = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_nitrogen(tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, par_cost, options))) %>% unnest_wider(dat)
 
 dat_original = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_numerical(tc, tc, .x, netrad, vpd, co2, pa, fapar, kphio, psi_soil, rdark, vwind, par_plant, par_cost, options))) %>% unnest_wider(dat)
 ```
 
 ```{r}
 df_0.02.m <- dat_0.02 %>% melt("ppfd")
-df_0.01.m <- dat_0.01 %>% melt("ppfd")
+df_0.005.m <- dat_0.005 %>% melt("ppfd")
 df_original.m <- dat_original %>% melt("ppfd")
 
 ggplot() + 
   geom_line(data = df_original.m, aes(y = value, x = ppfd, color = "Numeric")) +
-  geom_line(data = df_0.01.m, aes(y = value, x = ppfd, color = "N Included 1%")) +
+  geom_line(data = df_0.005.m, aes(y = value, x = ppfd, color = "N Included 0.5%")) +
   geom_line(data = df_0.02.m, aes(y = value, x = ppfd, color = "N Included 2%")) +
-  scale_color_manual(values = c("N Included 2%" = "blue", "N Included 1%" = "aquamarine4", "Numeric" = "red")) +
+  scale_color_manual(values = c("N Included 2%" = "blue", "N Included 0.5%" = "aquamarine4", "Numeric" = "red")) +
   theme_classic() +
   theme(strip.background = element_rect(color = "white", size = 1),
         legend.title = element_blank()) +
@@ -86,9 +86,9 @@ ggplot() +
 ## Instantaneous Response
 
 ```{r}
-nitrogen = 0.01
-acc_0.01 = dat_0.01 %>% filter(ppfd == 1200)
-dat_inst_0.01 = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_nitrogen(acc_0.01$vcmax25, acc_0.01$jmax25, tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, par_cost, options))) %>% unnest_wider(dat)
+nitrogen = 0.005
+acc_0.005 = dat_0.005 %>% filter(ppfd == 1200)
+dat_inst_0.005 = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_nitrogen(acc_0.005$vcmax25, acc_0.005$jmax25, tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, par_cost, options))) %>% unnest_wider(dat)
 
 nitrogen = 0.02
 acc_0.02 = dat_0.02 %>% filter(ppfd == 1200)
@@ -97,15 +97,15 @@ dat_inst_0.02 = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr:
 acc_original = dat_original %>% filter(ppfd == 1200)
 dat_inst_original = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_numerical(acc$vcmax25, acc$jmax25, tc, tc, .x, netrad, vpd, co2, pa, fapar, kphio, psi_soil, rdark, vwind, par_plant, par_cost, options))) %>% unnest_wider(dat)
 
-df_0.01.m.inst <- dat_inst_0.01 %>% melt("ppfd")
+df_0.005.m.inst <- dat_inst_0.005 %>% melt("ppfd")
 df_0.02.m.inst <- dat_inst_0.02 %>% melt("ppfd")
 df_original.m.inst <- dat_inst_original %>% melt("ppfd")
 
 ggplot() + 
   geom_line(data = df_original.m.inst, aes(y = value, x = ppfd, color = "Numeric")) +
-  geom_line(data = df_0.01.m.inst, aes(y = value, x = ppfd, color = "N Included 1%")) +
+  geom_line(data = df_0.005.m.inst, aes(y = value, x = ppfd, color = "N Included 0.5%")) +
   geom_line(data = df_0.02.m.inst, aes(y = value, x = ppfd, color = "N Included 2%")) +
-  scale_color_manual(values = c("N Included 2%" = "blue", "N Included 1%" = "aquamarine4", "Numeric" = "red")) +
+  scale_color_manual(values = c("N Included 2%" = "blue", "N Included 0.5%" = "aquamarine4", "Numeric" = "red")) +
   theme_classic() +
   theme(strip.background = element_rect(color = "white", size = 1),
         legend.title = element_blank()) +
@@ -126,8 +126,8 @@ abline(v=0, col="pink")
 ### J Behaviour
 
 ```{r}
-J_n_0.01 = tibble(ppfd = seq(0,1200, length.out=50)) %>% 
-  mutate(J = kphio*ppfd/sqrt(1+(4*kphio*ppfd/(acc_0.01$n_leaf * a_jmax))^2))
+J_n_0.005 = tibble(ppfd = seq(0,1200, length.out=50)) %>% 
+  mutate(J = kphio*ppfd/sqrt(1+(4*kphio*ppfd/(acc_0.005$n_leaf * a_jmax))^2))
 
 J_n_0.02 = tibble(ppfd = seq(0,1200, length.out=50)) %>% 
   mutate(J = kphio*ppfd/sqrt(1+(4*kphio*ppfd/(acc_0.02$n_leaf * a_jmax))^2))
@@ -137,9 +137,9 @@ J_original = tibble(ppfd = seq(0,1200, length.out=50)) %>%
 
 ggplot()+
   geom_line(data = J_n_0.02, aes(x=ppfd, y=J), color = "blue") +
-  geom_line(data = J_n_0.01, aes(x=ppfd, y=J), color = "aquamarine4") +
+  geom_line(data = J_n_0.005, aes(x=ppfd, y=J), color = "aquamarine4") +
   geom_line(data = J_original, aes(x=ppfd, y=J), color = "red") +
-  scale_color_manual(values = c("N Included 2%" = "blue", "N Included 1%" = "aquamarine4", "Numeric" = "red")) +
+  scale_color_manual(values = c("N Included 2%" = "blue", "N Included 0.5%" = "aquamarine4", "Numeric" = "red")) +
   labs(x = "PPFD (μmol m^-2 s^-1)", y = "J (μmol m^-2 s^-1)", 
        title = "Electron Transport Rate (J) vs. PPFD")
 
@@ -162,56 +162,43 @@ ggplot(df_nitrogen.m, aes(y=value, x=nitrogen)) +
   theme_classic() +
   theme(strip.background = element_rect(color = "white", size = 1))+
   facet_wrap(~variable, scales = "free")
-
 ```
 
-###
+### Testing parameters
 
 ```{r}
 nitrogen = 0.02
 
-dat_a_jmax = tibble(a_jmax = seq(0,1,length.out=50)) %>% mutate(dat = purrr::map(.x = a_jmax, .f = ~rphydro_nitrogen(tc, tc, ppfd, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, .x, par_plant, par_cost, options))) %>% unnest_wider(dat)
+dat_a_jmax = tibble(a_jmax = seq(60,800,length.out=50)) %>% mutate(dat = purrr::map(.x = a_jmax, .f = ~rphydro_nitrogen(tc, tc, ppfd, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, .x, par_plant, par_cost, options))) %>% unnest_wider(dat)
 
-dat_carb_allocation = tibble(carb_allocation = seq(0,1,length.out=50)) %>% mutate(dat = purrr::map(.x = carb_allocation, .f = ~rphydro_nitrogen(tc, tc, ppfd, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, list(alpha=0.1, gamma=1, carbon_allocation = .x), options))) %>% unnest_wider(dat)
+dat_carb_allocation = tibble(carb_allocation = seq(0.01,1,length.out=50)) %>% mutate(dat = purrr::map(.x = carb_allocation, .f = ~rphydro_nitrogen(tc, tc, ppfd, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, list(alpha=0.1, gamma=1, carbon_allocation = .x), options))) %>% unnest_wider(dat)
 
-dat_alpha = tibble(alpha = seq(0.01,1,length.out=50)) %>% mutate(dat = purrr::map(.x = alpha, .f = ~rphydro_nitrogen(tc, tc, ppfd, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, nitrogen, par_plant, list(alpha=.x, gamma=1, carbon_allocation = 1), options))) %>% unnest_wider(dat)
+dat_alpha = tibble(alpha = seq(0.01,0.2,length.out=50)) %>% mutate(dat = purrr::map(.x = alpha, .f = ~rphydro_nitrogen(tc, tc, ppfd, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, nitrogen, par_plant, list(alpha=.x, gamma=1, carbon_allocation = 1), options))) %>% unnest_wider(dat)
 ```
-
-### Vcmax response - hasn't changed!
 
 ```{r}
-df = list(tc = seq(-10, 40, length.out=50), 
-     tg = seq(-10, 40, length.out=50)) %>% cross_df() %>% 
-        mutate(f = purrr::pmap_dbl(.l=., .f = rr_calc_ftemp_inst_vcmax,
-                        tref = 25, 
-                        method = "FV_kumarathunge19"))
+df_ajmax <- dat_a_jmax %>% melt("a_jmax")
+df_carb_allocation <- dat_carb_allocation %>% melt("carb_allocation")
+df_alpha <- dat_alpha <- dat_alpha %>% melt("alpha")
 
-df %>% ggplot(aes(x=tc, y=f)) +
-  geom_line(aes(col=tg, group=tg)) + 
-  geom_line(data = df %>% filter(tc == tg), col="red")
-
-df %>% ggplot(aes(x=tc, y=tg, z=f)) +
-  geom_contour_filled()+
-  geom_contour(breaks = 1, col="red")
+ggplot(df_ajmax, aes(y=value, x=a_jmax)) + 
+  geom_line(col="aquamarine4") + 
+  theme_classic() +
+  theme(strip.background = element_rect(color = "white", size = 1))+
+  facet_wrap(~variable, scales = "free")
 ```
-
-### Jmax response - hasn't changed!
+```{r}
+ggplot(df_carb_allocation, aes(y=value, x=carb_allocation)) + 
+  geom_line(col="aquamarine4") + 
+  theme_classic() +
+  theme(strip.background = element_rect(color = "white", size = 1))+
+  facet_wrap(~variable, scales = "free")
+```
 
 ```{r}
-
-dfj = list(tc = seq(-10, 40, length.out = 50), 
-          tg = seq(-10, 40, length.out = 50),
-          th = seq(-10, 40, length.out = 5)) %>% cross_df() %>% 
-        mutate(f = purrr::pmap_dbl(.l=., .f = rr_calc_ftemp_inst_jmax,
-                          tref = 25, 
-                          method = "FV_kumarathunge19"))
-
-dfj %>% ggplot(aes(x=tc, y=f)) +
-  geom_line(aes(col=tg, group=tg)) + 
-  geom_line(data = dfj %>% filter(tc == tg), col="red") + 
-  facet_wrap("th", ncol=5)+
-  ylim(c(0,2))
-
+ggplot(df_alpha, aes(y=value, x=alpha)) + 
+  geom_line(col="aquamarine4") + 
+  theme_classic() +
+  theme(strip.background = element_rect(color = "white", size = 1))+
+  facet_wrap(~variable, scales = "free")
 ```
-
-
