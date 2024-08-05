@@ -272,7 +272,7 @@ inline ACi calc_assimilation_limiting_nitrogen(double vcmax, double jmax, double
   auto Aj = calc_assim_light_limited_nitrogen(gs, jmax, par_photosynth);
   
   if (Ac.ci > Aj.ci ) return Ac; 
-  else				return Aj;
+  else return Aj;
 }
 
 class PHydro_Profit_Inst_Nitrogen{
@@ -382,12 +382,6 @@ inline double optimize_shortterm_multi_nitrogen(double vcmax, double jmax, doubl
  return resul;
  }
  
- inline double calc_dJ_dn(double gs, double n, ParPhotosynthNitrogen par_photosynth){ // TODO: redo this formula
- double x = calculate_ci(N) / par_photosynth.ca;
- return 4*gs*ca * ((d*(2*g*(k + 1) + k*(2*x - 1) + x*x) - ((x-g)*(x-g)+3*g*(1-g)))/(D*D));
- // gs*ca*(3*(g-1)*g/(g-x)^2 - 1)
- }
- 
  inline double calculate_ci(double n, ParPhotosynthNitrogen par_photosynth) {
  double J = cal_J_from_jmax(jmax, par_photosynth); // Make this the N version of the formula
  // TODO: vcmax in terms of n?
@@ -415,17 +409,17 @@ inline double optimize_shortterm_multi_nitrogen(double vcmax, double jmax, doubl
  double x = calculate_ci(n) / par_photosynth.ca;
  return 4*gs*ca*(1-x)*(x+2*g)/(x*(1-d)-(g+d*k));
  }
- 
- inline double calc_J_from_jmax_nitrogen(double n_leaf, ParPhotosynthNitrogen par_photosynth){
- double p = 4 * par_photosynth.phi0 * par_photosynth.Iabs;
- double pj = p/(par_photosynth.a_jmax * n_leaf); // TODO: check the formulas here!
- return par_photosynth.a_jmax*n_leaf*p / sqrt(pj*pj - 1);
- }
- 
- inline double calc_jmax_from_J_nitrogen(double J, ParPhotosynthNitrogen par_photosynth){
- double p = 4 * par_photosynth.phi0 * par_photosynth.Iabs;
- double pj = p/J; // TODO: there's no nitrogen here!
- return p / sqrt(pj*pj + 1);
- }
+
+inline double calc_J_from_jmax_nitrogen(double n_leaf, ParPhotosynthNitrogen par_photosynth){
+  double p = 4 * par_photosynth.phi0 * par_photosynth.Iabs;
+  double pj = p/(par_photosynth.a_jmax * n_leaf); // TODO: check the formulas here!
+  return par_photosynth.a_jmax*n_leaf*p / sqrt(pj*pj - 1);
+}
+
+inline double calc_jmax_from_J_nitrogen(double J, ParPhotosynthNitrogen par_photosynth){
+  double p = 4 * par_photosynth.phi0 * par_photosynth.Iabs;
+  double pj = p/J; // TODO: there's no nitrogen here!
+  return p / sqrt(pj*pj + 1);
+}
  */
 
