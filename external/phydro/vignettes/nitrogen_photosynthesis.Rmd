@@ -95,7 +95,7 @@ acc_0.02 = dat_0.02 %>% filter(ppfd == 1200)
 dat_inst_0.02 = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_nitrogen(acc_0.02$vcmax25, acc_0.02$jmax25, tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, par_cost, options))) %>% unnest_wider(dat)
 
 acc_original = dat_original %>% filter(ppfd == 1200)
-dat_inst_original = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_numerical(acc$vcmax25, acc$jmax25, tc, tc, .x, netrad, vpd, co2, pa, fapar, kphio, psi_soil, rdark, vwind, par_plant, par_cost, options))) %>% unnest_wider(dat)
+dat_inst_original = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_numerical(acc_original$vcmax25, acc_original$jmax25, tc, tc, .x, netrad, vpd, co2, pa, fapar, kphio, psi_soil, rdark, vwind, par_plant, par_cost, options))) %>% unnest_wider(dat)
 
 df_0.005.m.inst <- dat_inst_0.005 %>% melt("ppfd")
 df_0.02.m.inst <- dat_inst_0.02 %>% melt("ppfd")
@@ -147,7 +147,7 @@ ggplot()+
 
 ### Nitrogen response
 
-This has a 50% nitrogen content which is waaay too much - need to have better values here!
+This has a dry weight nitrogen content which is too much - need to have better values here!
 
 ```{r}
 ppfd = 1200
