@@ -62,7 +62,7 @@ public:
     
     // NOTE: this makes the parameters the 25 degree version
     fT_vcmax = calc_ftemp_inst_vcmax(_tc, _tcgrowth, 25.0, ftemp_vj_method);
-    fT_jmax  = calc_ftemp_inst_jmax(_tc, _tcgrowth, _tchome, 25, ftemp_vj_method);
+    fT_jmax  = calc_ftemp_inst_jmax(_tc, _tcgrowth, _tchome, 25.0, ftemp_vj_method);
     fT_rd    = calc_ftemp_inst_rd(_tc, _ftemp_rd_method);
     
     a_jmax = _a_jmax;
@@ -70,7 +70,7 @@ public:
     kmm = calc_kmm(_tc, _patm);
     gammastar = calc_gammastar(_tc, _patm);
     
-    phi0 = _kphio*calc_ftemp_kphio(_tc);
+    phi0 = _kphio * calc_ftemp_kphio(_tc);
     Iabs = _ppfd * _fapar;
     ca = _co2 * _patm * 1e-6;
     patm = _patm;
@@ -132,12 +132,12 @@ inline ACi calc_assim_light_limited_nitrogen(double _gs, double n_leaf, ParPhoto
   
   double phi0iabs = par_photosynth.phi0 * par_photosynth.Iabs;
   double jmax = n_leaf * par_photosynth.a_jmax;
-  double jj = 4*phi0iabs/jmax;
+  double jj = 4 * phi0iabs / jmax;
   double jlim = phi0iabs / sqrt(1 + jj*jj);
   
   double A = -1.0 * gs;
   // TODO: quadratic formula here!
-  double B = gs * ca - gs * 2 * par_photosynth.gammastar - jlim*(1-d);
+  double B = gs * ca - gs * 2 * par_photosynth.gammastar - jlim * (1-d);
   double C = gs * ca * 2 * par_photosynth.gammastar + jlim * (par_photosynth.gammastar + d*par_photosynth.kmm);
   
   ACi res;
@@ -267,9 +267,9 @@ inline ACi calc_assim_rubisco_limited_nitrogen(double _gs, double vcmax, ParPhot
   
 }
 
-inline ACi calc_assimilation_limiting_nitrogen(double vcmax, double jmax, double gs, ParPhotosynthNitrogen par_photosynth){
+inline ACi calc_assimilation_limiting_nitrogen(double vcmax, double n_leaf, double gs, ParPhotosynthNitrogen par_photosynth){
   auto Ac = calc_assim_rubisco_limited_nitrogen(gs, vcmax, par_photosynth);
-  auto Aj = calc_assim_light_limited_nitrogen(gs, jmax, par_photosynth);
+  auto Aj = calc_assim_light_limited_nitrogen(gs, n_leaf, par_photosynth);
   
   if (Ac.ci > Aj.ci ) return Ac; 
   else return Aj;
