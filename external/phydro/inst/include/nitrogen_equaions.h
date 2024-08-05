@@ -268,8 +268,8 @@ inline ACi calc_assim_rubisco_limited_nitrogen(double _gs, double vcmax, ParPhot
 }
 
 inline ACi calc_assimilation_limiting_nitrogen(double vcmax, double n_leaf, double gs, ParPhotosynthNitrogen par_photosynth){
-  auto Ac = calc_assim_rubisco_limited_nitrogen(gs, vcmax, par_photosynth);
   auto Aj = calc_assim_light_limited_nitrogen(gs, n_leaf, par_photosynth);
+  auto Ac = calc_assim_rubisco_limited_nitrogen(gs, vcmax, par_photosynth);
   
   if (Ac.ci > Aj.ci ) return Ac; 
   else return Aj;
