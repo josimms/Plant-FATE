@@ -37,6 +37,8 @@ exec_*
 *.swo
 *.swn
 
+*.RData
+
 tags
 1
 
