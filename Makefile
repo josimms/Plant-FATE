@@ -16,7 +16,7 @@ HEADERS := $(wildcard src/*.tpp) $(wildcard include/*.h) $(wildcard tests/*.h)
 EXTERNAL_DIR := external
 
 # include and lib dirs (esp for cuda)
-INC_PATH :=  -I./inst/include -I./src 
+INC_PATH :=  -I./inst/include -I/usr/include/eigen3 -isystem ./inst/LBFGSpp/include -I./src 
 INC_PATH += -I$(EXTERNAL_DIR)/phydro/inst/include \
             -I$(EXTERNAL_DIR)/libpspm/include \
             -I$(EXTERNAL_DIR)/flare/include \
@@ -28,6 +28,13 @@ PTH_PATH := $(shell python3 -m pybind11 --includes)
 PROFILING_FLAGS = -g -pg
 CPPFLAGS = -O3 -std=c++17 -Wall -Wextra -DPHYDRO_ANALYTICAL_ONLY -DUSE_JULIA $(PROFILING_FLAGS)
 LDFLAGS =  $(PROFILING_FLAGS)
+
+EIGEN_CFLAGS := $(shell pkg-config --cflags eigen3)
+CPPFLAGS += $(EIGEN_CFLAGS)
+CPPFLAGS += -I/usr/include/eigen3 -I/usr/local/include/eigen3 -I/opt/local/include/eigen3
+
+EIGEN_PATH ?= /path/to/eigen
+CPPFLAGS += -I$(EIGEN_PATH)
 
 CPPFLAGS += -I/usr/include/uv
 CPPFLAGS += -I$(JULIA_PATH)/src
