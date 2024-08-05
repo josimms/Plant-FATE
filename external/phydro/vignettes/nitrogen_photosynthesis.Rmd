@@ -165,6 +165,18 @@ ggplot(df_nitrogen.m, aes(y=value, x=nitrogen)) +
 
 ```
 
+###
+
+```{r}
+nitrogen = 0.02
+
+dat_a_jmax = tibble(a_jmax = seq(0,1,length.out=50)) %>% mutate(dat = purrr::map(.x = a_jmax, .f = ~rphydro_nitrogen(tc, tc, ppfd, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, .x, par_plant, par_cost, options))) %>% unnest_wider(dat)
+
+dat_carb_allocation = tibble(carb_allocation = seq(0,1,length.out=50)) %>% mutate(dat = purrr::map(.x = carb_allocation, .f = ~rphydro_nitrogen(tc, tc, ppfd, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, list(alpha=0.1, gamma=1, carbon_allocation = .x), options))) %>% unnest_wider(dat)
+
+dat_alpha = tibble(alpha = seq(0.01,1,length.out=50)) %>% mutate(dat = purrr::map(.x = alpha, .f = ~rphydro_nitrogen(tc, tc, ppfd, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, nitrogen, par_plant, list(alpha=.x, gamma=1, carbon_allocation = 1), options))) %>% unnest_wider(dat)
+```
+
 ### Vcmax response - hasn't changed!
 
 ```{r}
