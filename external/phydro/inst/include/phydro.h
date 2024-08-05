@@ -249,7 +249,7 @@ inline PHydroResult phydro_instantaneous_numerical(double vcmax25, double jmax25
 namespace phydro{
 
 inline PHydroResultNitrogen phydro_nitrogen(double tc, double tg, double ppfd, double netrad, double vpd, double co2, double pa, double nitrogen_store, double fapar, double kphio, double psi_soil, double rdark, double vwind, double a_jmax, 
-                                            ParPlant par_plant, ParCostNitrogen par_cost = ParCostNitrogen(0.1,1,1), ParControl par_control = ParControl()){
+                                            ParPlant par_plant, ParCostNitrogen par_cost = ParCostNitrogen(0.1,1,1), ParControl par_control = ParControl()){ // TODO: what about ParCostNitrogen
   
   // double pa = calc_patm(elv);
   
@@ -262,9 +262,9 @@ inline PHydroResultNitrogen phydro_nitrogen(double tc, double tg, double ppfd, d
   auto      opt = optimize_midterm_multi_nitrogen(psi_soil, nitrogen_store, par_cost, par_photosynth, par_plant, par_env);
   double      e = calc_sapflux(opt.dpsi, psi_soil, par_plant, par_env);
   double     gs = calc_gs_from_Q(e, psi_soil, par_plant, par_env);
-  auto       aj = calc_assim_light_limited_nitrogen(gs, opt.jmax, par_photosynth); 
   double n_leaf = opt.jmax / par_photosynth.a_jmax;
-  double  vcmax = vcmax_coordinated_numerical_nitrogen(aj.a, aj.ci, par_photosynth);
+  auto       aj = calc_assim_light_limited_nitrogen(gs, n_leaf, par_photosynth); 
+  double  vcmax = vcmax_coordinated_numerical_nitrogen(aj.a, aj.ci, par_photosynth); // TODO nitrogen?
   
   PHydroResultNitrogen res;
   res.a = aj.a;
