@@ -15,8 +15,8 @@ run_simulation <- function(param_file, start_year, end_year, output_prefix) {
 read_sim_data <- function(dir_path) {
   a <- read.delim(file.path(dir_path, "D_PFATE.csv"), sep = ",")
   b <- read.delim(file.path(dir_path, "Y_PFATE.csv"), sep = ",")
-  return(list("" = a,
-              "" = b))
+  return(list("D" = a,
+              "Y" = b))
 }
 
 # Plot function
