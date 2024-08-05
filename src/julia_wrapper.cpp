@@ -1,7 +1,7 @@
 // #include <julia.h>
 
-int photosynthesis_julia()
-{
+//int photosynthesis_julia()
+//{
   // Initialize Julia
   //jl_init();
   
@@ -11,5 +11,5 @@ int photosynthesis_julia()
   // Clean up
   //jl_atexit_hook(0);
   
-  return 0;
-}
+  //return 0;
+//}
