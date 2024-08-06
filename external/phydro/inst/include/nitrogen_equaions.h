@@ -225,7 +225,7 @@ inline jmaxDpsi optimize_midterm_multi_nitrogen(double psi_soil, double nitrogen
   // bounds
   VectorXd lb(q), ub(q);
   lb << -10, 0;
-  ub << log(nitrogen_store), 50;
+  ub << log(1), 50;
   
   // Initial guess
   VectorXd x(q);
