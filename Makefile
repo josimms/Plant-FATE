@@ -12,48 +12,50 @@ HEADERS := $(wildcard src/*.tpp) $(wildcard include/*.h) $(wildcard tests/*.h)
 
 #ROOT_DIR := /home/jjoshi/codes
 
-ROOT_DIR := ${shell dirname ${shell pwd}}
+EXTERNAL_DIR := external
 # ^ Do NOT put trailing whitespaces or comments after the above line
 
 # include and lib dirs (esp for cuda)
 INC_PATH :=  -I./inst/include #-I./CppNumericalSolvers-1.0.0
 INC_PATH +=  -I./src # This is to allow inclusion of .tpp files in headers
-INC_PATH += -I$(ROOT_DIR)/phydro/inst/include -I$(ROOT_DIR)/libpspm/include #-isystem $(ROOT_DIR)/phydro/inst/LBFGSpp/include -isystem /usr/include/eigen3
-LIB_PATH := -L$(ROOT_DIR)/libpspm/lib
+INC_PATH += -I$(EXTERNAL_DIR)/phydro/inst/include \
+            -I$(EXTERNAL_DIR)/libpspm/include \
+			-I$(EXTERNAL_DIR)/flare/include 
+LIB_PATH := -L$(EXTERNAL_DIR)/libpspm/lib -L./lib
 
 # flags
-CPPFLAGS = -O3 -g -pg -std=c++17 -Wall -Wextra -DPHYDRO_ANALYTICAL_ONLY
-LDFLAGS =  -g -pg
-
+PROFILING_FLAGS = -g -pg
+CPPFLAGS = -O3 -std=c++17 -Wall -Wextra -DPHYDRO_ANALYTICAL_ONLY $(PROFILING_FLAGS)
+LDFLAGS =  $(PROFILING_FLAGS)
 ## -Weffc++
-#CPPFLAGS +=    \
-#-pedantic-errors  -Wcast-align \
-#-Wcast-qual -Wconversion \
-#-Wdisabled-optimization \
-#-Wformat=2 \
-#-Wformat-nonliteral -Wformat-security  \
-#-Wformat-y2k \
-#-Wimport  -Winit-self   \
-#-Winvalid-pch   \
-#-Wlong-long \
-#-Wmissing-field-initializers -Wmissing-format-attribute   \
-#-Wmissing-include-dirs -Wmissing-noreturn \
-#-Wpacked   -Wpointer-arith \
-#-Wredundant-decls \
-#-Wshadow -Wstack-protector \
-#-Wstrict-aliasing=2 -Wswitch-default \
-#-Wswitch-enum \
-#-Wunreachable-code -Wunused \
-#-Wunused-parameter \
-#-Wvariadic-macros \
-#-Wwrite-strings \
-##-Waggregate-return -Wpadded -Wfloat-equal -Winline
+
+CPPFLAGS +=    \
+-pedantic-errors  -Wcast-align \
+-Wcast-qual \
+-Wdisabled-optimization \
+-Wformat=2 \
+-Wformat-nonliteral -Wformat-security  \
+-Wformat-y2k \
+-Wimport  -Winit-self   \
+-Winvalid-pch   \
+-Wmissing-field-initializers -Wmissing-format-attribute   \
+-Wmissing-include-dirs -Wmissing-noreturn \
+-Wpacked   -Wpointer-arith \
+-Wredundant-decls \
+-Wstack-protector \
+-Wstrict-aliasing=2 \
+-Wswitch-enum \
+-Wunreachable-code \
+-Wvariadic-macros \
+-Wwrite-strings \
+
 
 CPPFLAGS += -Wno-sign-compare -Wno-unused-variable \
 -Wno-unused-but-set-variable -Wno-float-conversion \
 -Wno-unused-parameter
 
 # libs
+AR = ar
 LIBS = 	 -lpspm	# additional libs
 #LIBS = -lcudart 			# cuda libs
 
@@ -61,34 +63,59 @@ LIBS = 	 -lpspm	# additional libs
 OBJECTS = $(patsubst src/%.cpp, build/%.o, $(SRCFILES))
 
 
-all: dir $(TARGET)
+all: dir external_libs $(TARGET) apps
+
+external_libs:
+	(cd $(EXTERNAL_DIR)/libpspm && $(MAKE))
 
 dir:
-	mkdir -p lib build tests/build
+	mkdir -p lib build tests/build bin
+
+hi:
+	echo $(SRCFILES)
 
 $(TARGET): $(OBJECTS)
-	g++ $(LDFLAGS) -o $(TARGET) $(LIB_PATH) $(OBJECTS) $(LIBS)
+	$(AR) rcs lib/$(TARGET).a $(OBJECTS) $(LIBS)	
+# g++ $(LDFLAGS) -o $(TARGET) $(LIB_PATH) $(OBJECTS) $(LIBS)
 
 $(OBJECTS): build/%.o : src/%.cpp $(HEADERS)
 	g++ -c $(CPPFLAGS) $(INC_PATH) $< -o $@
 
 libclean:
-	rm -f $(TARGET) build/*.o log.txt gmon.out 
-	
+	rm -f $(TARGET) build/*.o lib/*.a src/*.o bin/* log.txt gmon.out
+
+extclean:
+	(cd $(EXTERNAL_DIR)/libpspm && $(MAKE) clean)
+
 re: clean all
 
 clean: libclean testclean
 
 
+## EXECUTABLES (APPS) ##
+
+APP_FILES = $(wildcard apps/*.cpp)
+APP_OBJECTS = $(patsubst apps/%.cpp, build/%.o, $(APP_FILES))
+APP_TARGETS = $(patsubst apps/%.cpp, bin/%, $(APP_FILES))
+
+apps: dir $(TARGET) compile_apps
+	@echo $(APP_TARGETS)
+
+compile_apps: $(APP_TARGETS)
+
+$(APP_TARGETS): bin/% : apps/%.cpp $(HEADERS)
+	g++ $(LDFLAGS) $(CPPFLAGS) $(INC_PATH) $(LIB_PATH) -o $@ $(OBJECTS) $< $(LIBS) -lpfate 
+
+
 ## TESTING SUITE ##
 
-TEST_FILES = tests/save_test.cpp #$(wildcard tests/*.cpp)
+TEST_FILES = tests/lho.cpp tests/pf_test.cpp tests/pf_test_evol.cpp #$(wildcard tests/*.cpp)
 TEST_OBJECTS = $(patsubst tests/%.cpp, tests/%.o, $(TEST_FILES))
 TEST_TARGETS = $(patsubst tests/%.cpp, tests/%.test, $(TEST_FILES))
 TEST_RUNS = $(patsubst tests/%.cpp, tests/%.run, $(TEST_FILES))
 ADD_OBJECTS =
 
-check: dir $(OBJECTS) compile_tests clean_log run_tests
+check: dir external_libs $(TARGET) compile_tests clean_log run_tests
 
 compile_tests: $(TEST_TARGETS)
 	
@@ -99,7 +126,7 @@ run_tests: $(TEST_RUNS)
 	
 $(TEST_RUNS): tests/%.run : tests/%.test
 	@echo "~~~~~~~~~~~~~~~ $< ~~~~~~~~~~~~~~~~" >> log.txt
-	@time ./$< #>> log.txt && \
+	@time ./$< && \
 		printf "%b" "\033[0;32m[PASS]\033[m" ": $* \n"  || \
 		printf "%b" "\033[1;31m[FAIL]\033[m" ": $* \n"
 
@@ -107,7 +134,7 @@ $(TEST_OBJECTS): tests/%.o : tests/%.cpp $(HEADERS)
 	g++ -c $(CPPFLAGS) $(INC_PATH) $< -o $@
 
 $(TEST_TARGETS): tests/%.test : tests/%.o $(HEADERS)
-	g++ $(LDFLAGS) -o $@ $(LIB_PATH) $(OBJECTS) $(ADD_OBJECTS) $< $(LIBS)
+	g++ $(LDFLAGS) -o $@ $(LIB_PATH) $(OBJECTS) $(ADD_OBJECTS) $< $(LIBS) -lpfate 
 
 testclean:
 	rm -f tests/*.o tests/*.test
@@ -119,11 +146,13 @@ recheck: testclean check
 
 
 website:
-	R -e "Sys.setenv(RSTUDIO_PANDOC='/usr/lib/rstudio/bin/pandoc'); pkgdown::clean_site(); pkgdown::init_site(); pkgdown::build_home(); pkgdown::build_articles(); pkgdown::build_tutorials(); pkgdown::build_news()"
+	R -e "Sys.setenv(RSTUDIO_PANDOC='/usr/lib/rstudio/resources/app/bin/quarto/bin/tools'); print(Sys.getenv('RSTUDIO_PANDOC')); pkgdown::clean_site(); pkgdown::init_site(); pkgdown::build_home(); pkgdown::build_articles(); pkgdown::build_tutorials(); pkgdown::build_news()"
 
 api:
 	doxygen doxygen/Doxyfile
 
+clean_api:
+	rm -rf docs/html
 
 #-gencode=arch=compute_10,code=\"sm_10,compute_10\"  -gencode=arch=compute_20,code=\"sm_20,compute_20\"  -gencode=arch=compute_30,code=\"sm_30,compute_30\"
 
@@ -167,3 +196,4 @@ api:
 	
 #HEADERS  := $(wildcard *.h)
 	
+

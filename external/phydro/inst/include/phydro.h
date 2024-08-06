@@ -1,10 +1,9 @@
-#include "nitrogen_equaions.h"
-
 #ifndef PHYDRO_PHYDRO_H
 #define PHYDRO_PHYDRO_H
 
 #include "hyd_analytical_solver.h"
 #include "hyd_instantaneous_solver_analytical.h"
+// #include "nitrogen_equaions.h"
 
 namespace phydro{
 
