@@ -1,6 +1,6 @@
 #-------------------------------------------------------------------------------
 # executable name
-TARGET := 1
+TARGET := libpfate
 
 # files
 SRCFILES  :=  $(filter-out src/RcppExports.cpp src/r_interface.cpp, $(wildcard src/*.cpp))
