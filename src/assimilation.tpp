@@ -1,6 +1,6 @@
 namespace plant{
 
-inline void print_phydro(const phydro::PHydroResult& res, std::string s){
+inline void print_phydro(const phydro::PHydroResultNitrogen& res, std::string s){
 	std::cout << "phydro: " << s << '\n';
 	std::cout 
 		<< "   a = " << res.a << '\n'
@@ -16,8 +16,8 @@ inline void print_phydro(const phydro::PHydroResult& res, std::string s){
 // ** Gross and Net Assimilation 
 // **
 template<class _Climate>
-phydro::PHydroResult Assimilator::leaf_assimilation_rate(double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits){
-	phydro::ParCost par_cost(par.alpha, par.gamma);
+phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits){
+	phydro::ParCostNitrogen par_cost(par.alpha, par.gamma, par.infrastructure);
 	phydro::ParPlant par_plant(traits.K_leaf, traits.p50_leaf, traits.b_leaf);
 	phydro::ParControl par_control;
 
@@ -25,12 +25,13 @@ phydro::PHydroResult Assimilator::leaf_assimilation_rate(double fipar, double fa
 	par_control.et_method = phydro::ET_DIFFUSION;
 
 	double f_day_length = 0.5;
+	double a_jmax = 50; // TODO: make this part of one of the parameters
 
 	double Iabs_acclim = fipar * C.clim_acclim.ppfd;
 	double Iabs_day    = fipar * C.clim_inst.ppfd / f_day_length;
 	double Iabs_24hr   = fipar * C.clim_inst.ppfd;
 
-	auto out_phydro_acclim = phydro::phydro_analytical(
+	auto out_phydro_acclim = phydro::phydro_nitrogen(
 		C.clim_acclim.tc,     // current temperature
 		C.clim_acclim.tc,     // growth temperature
 		Iabs_acclim,          // midday incident PAR [umol m-2 s-1]
@@ -38,11 +39,13 @@ phydro::PHydroResult Assimilator::leaf_assimilation_rate(double fipar, double fa
 		C.clim_acclim.vpd,    // vpd [kPa]
 		C.clim_acclim.co2,	  // co2 [ppm]
 		C.clim_acclim.pa,     // surface pressure [Pa]
+		1, // TODO: this should be the nitrogen_store when there is one
 		fapar,                // fraction of absorbed PAR
 		par.kphio,            // phi0 - quantum yield
 		C.clim_acclim.swp,    // soil water potential [MPa]
 		par.rd,               // ratio or dark respiration to vcmax
 		C.clim_acclim.vwind,  // wind speed [m s-1], only used by PML, which we dont use, so set to global average of 3 m/s
+		a_jmax, // TODO: a_jmax parameter
 		par_plant,            // plant hydraulic traits
 		par_cost,             // cost params
 		par_control           // configuration params for phydro
@@ -62,7 +65,7 @@ phydro::PHydroResult Assimilator::leaf_assimilation_rate(double fipar, double fa
 	// // ~~~~~
 	// print_phydro(photo_leaf1, "inst shortcut");
 
-	auto photo_leaf = phydro::phydro_instantaneous_analytical(
+	auto photo_leaf = phydro::phydro_instantaneous_nitrogen(
 		out_phydro_acclim.vcmax25, // acclimated vcmax25
 		out_phydro_acclim.jmax25,  // acclimated jmax25
 		C.clim_inst.tc,            // current temperature
@@ -72,15 +75,37 @@ phydro::PHydroResult Assimilator::leaf_assimilation_rate(double fipar, double fa
 		C.clim_inst.vpd,           // vpd [kPa]
 		C.clim_inst.co2,	       // co2 [ppm]
 		C.clim_inst.pa,            // surface pressure [Pa]
+		1, // TODO: this should be the nitrogen_store when there is one
 		fapar,                     // fraction of absorbed PAR
 		par.kphio,                 // phi0 - quantum yield
 		C.clim_inst.swp,           // soil water potential [MPa]
 		par.rd,                    // ratio or dark respiration to vcmax
 		C.clim_inst.vwind,         // wind speed [m s-1], only used by PML, which we dont use, so set to global average of 3 m/s
+		a_jmax, // TODO: a_jmax parameter
 		par_plant,                 // plant hydraulic traits
 		par_cost,                  // cost params
 		par_control                // configuration params for phydro
 	);
+	
+	// auto photo_leaf = phydro::phydro_instantaneous_analytical(
+	// 	out_phydro_acclim.vcmax25, // acclimated vcmax25
+	// 	out_phydro_acclim.jmax25,  // acclimated jmax25
+	// 	C.clim_inst.tc,            // current temperature
+	// 	C.clim_acclim.tc,          // growth temperature
+	// 	Iabs_day,                  // daytime mean incident PAR [umol m-2 s-1]
+	// 	C.clim_inst.rn,            // mean net radiation [W m-2] (only used for LE calculations which we dont use)
+	// 	C.clim_inst.vpd,           // vpd [kPa]
+	// 	C.clim_inst.co2,	       // co2 [ppm]
+	// 	C.clim_inst.pa,            // surface pressure [Pa]
+	// 	fapar,                     // fraction of absorbed PAR
+	// 	par.kphio,                 // phi0 - quantum yield
+	// 	C.clim_inst.swp,           // soil water potential [MPa]
+	// 	par.rd,                    // ratio or dark respiration to vcmax
+	// 	C.clim_inst.vwind,         // wind speed [m s-1], only used by PML, which we dont use, so set to global average of 3 m/s
+	// 	par_plant,                 // plant hydraulic traits
+	// 	par_cost,                  // cost params
+	// 	par_control                // configuration params for phydro
+	// );
 
 	photo_leaf.a        *= f_day_length;
 	photo_leaf.e        *= f_day_length;

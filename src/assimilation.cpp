@@ -17,7 +17,7 @@ void Assimilator::les_update_lifespans(double lai, PlantParameters& par, PlantTr
 }
 
 
-double Assimilator::les_assim_reduction_factor(phydro::PHydroResult& res, PlantParameters& par){
+double Assimilator::les_assim_reduction_factor(phydro::PHydroResultNitrogen& res, PlantParameters& par){
 	double hT = res.vcmax / res.vcmax25;
 	double f = 1;
 	return 1; // Not applying age-related reduction factor because Phydro is already calibrated for average leaves (not yound leaves)
