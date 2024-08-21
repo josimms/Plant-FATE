@@ -58,6 +58,19 @@ class ParCost{
 	}
 };
 
+class ParCostNitrogen {
+public:
+  double alpha;
+  double gamma;
+  double carbon_allocation;
+  
+  inline ParCostNitrogen(double _a, double _g, double _c){
+    alpha = _a;
+    gamma = _g;
+    carbon_allocation = _c;
+  }
+};
+
 
 } // phydro
 

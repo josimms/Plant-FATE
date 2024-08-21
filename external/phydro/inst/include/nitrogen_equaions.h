@@ -18,19 +18,6 @@ using Eigen::VectorXd;
 
 namespace phydro{
 
-class ParCostNitrogen {
-public:
-  double alpha;
-  double gamma;
-  double carbon_allocation;
-  
-  inline ParCostNitrogen(double _a, double _g, double _c){
-    alpha = _a;
-    gamma = _g;
-    carbon_allocation = _c;
-  }
-};
-
 class ParPhotosynthNitrogen{
 public:
   double kmm;
@@ -149,6 +136,30 @@ inline ACi calc_assim_light_limited_nitrogen(double _gs, double n_leaf, ParPhoto
   
 }
 
+inline ACi calc_assim_light_limited_nitrogen_jmax(double _gs, double jmax, ParPhotosynthNitrogen par_photosynth){
+  double ca = par_photosynth.ca;             // ca is in Pa
+  double gs = _gs * 1e6/par_photosynth.patm;  // convert to umol/m2/s/Pa
+  
+  double d = par_photosynth.delta;
+  
+  double phi0iabs = par_photosynth.phi0 * par_photosynth.Iabs;
+  double jj = 4 * phi0iabs / jmax;
+  double jlim = phi0iabs / sqrt(1 + jj*jj);
+  
+  double A = -1.0 * gs;
+  // TODO: quadratic formula here!
+  double B = gs * ca - gs * 2 * par_photosynth.gammastar - jlim * (1-d);
+  double C = gs * ca * 2 * par_photosynth.gammastar + jlim * (par_photosynth.gammastar + d*par_photosynth.kmm);
+  
+  ACi res;
+  res.ci = QUADM(A,B,C);
+  res.a  = gs*(ca-res.ci);
+  res.isVcmaxLimited = false;
+  
+  return res;
+  
+}
+
 // Here the class is defined where the optmaisation will happen
 class PHydro_Profit_Nitrogen{
 private:
@@ -225,7 +236,7 @@ inline jmaxDpsi optimize_midterm_multi_nitrogen(double psi_soil, double nitrogen
   // bounds
   VectorXd lb(q), ub(q);
   lb << -10, 0;
-  ub << log(1), 50;
+  ub << log(100), 50;
   
   // Initial guess
   VectorXd x(q);
@@ -267,8 +278,9 @@ inline ACi calc_assim_rubisco_limited_nitrogen(double _gs, double vcmax, ParPhot
   
 }
 
-inline ACi calc_assimilation_limiting_nitrogen(double vcmax, double n_leaf, double gs, ParPhotosynthNitrogen par_photosynth){
-  auto Aj = calc_assim_light_limited_nitrogen(gs, n_leaf, par_photosynth);
+inline ACi calc_assimilation_limiting_nitrogen(double vcmax, double jmax, double gs, ParPhotosynthNitrogen par_photosynth){
+  
+  auto Aj = calc_assim_light_limited_nitrogen_jmax(gs, jmax, par_photosynth);
   auto Ac = calc_assim_rubisco_limited_nitrogen(gs, vcmax, par_photosynth);
   
   if (Ac.ci > Aj.ci ) return Ac; 
@@ -304,6 +316,7 @@ public:
     
     double Q = calc_sapflux(dpsi, psi_soil, par_plant, par_env);
     double gs = calc_gs_from_Q(Q, psi_soil, par_plant, par_env);
+    // TODO: is this the final output for the instantaneous function?
     auto   A = calc_assimilation_limiting_nitrogen(vcmax, jmax, gs, par_photosynth);  // min(Ac, Aj) in umol/m2/s
     
     double costs =  par_cost.gamma * dpsi*dpsi;
