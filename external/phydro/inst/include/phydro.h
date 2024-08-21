@@ -3,7 +3,8 @@
 
 #include "hyd_analytical_solver.h"
 #include "hyd_instantaneous_solver_analytical.h"
-// #include "nitrogen_equaions.h"
+#include "nit_numerical_solver.h"
+#include "nit_instantaneous_solver_numerical.h"
 
 namespace phydro{
 
