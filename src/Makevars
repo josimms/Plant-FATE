@@ -6,9 +6,9 @@ FLARE_PATH = $(EXTERNAL_DIR)/flare
 JULIA_PATH = /usr/include/julia
 
 # include and lib dirs (esp for cuda)
-INC_PATH :=  -I../inst/include -I../src -I$(PHYDRO_PATH)/inst/include -I$(LIBPSPM_PATH)/include -I$(FLARE_PATH)/include -I$(JULIA_PATH)/include/julia
+INC_PATH :=  -I../inst/include -I../src -I$(PHYDRO_PATH)/inst/include -I$(LIBPSPM_PATH)/include -I$(FLARE_PATH)/include -I$(JULIA_PATH)/include/julia -I$(PHYDRO_PATH)/inst/LBFGSpp/include -I/usr/include/eigen3
 # flags
-PKG_CXXFLAGS = -O3 -fPIC -std=c++17 -Wall -Wextra -DPHYDRO_ANALYTICAL_ONLY 
+PKG_CXXFLAGS = -O3 -fPIC -std=c++17 -Wall -Wextra 
 PKG_CXXFLAGS += -Wno-sign-compare -Wno-unused-variable \
 -Wno-unused-but-set-variable -Wno-float-conversion \
 -Wno-unused-parameter -Wno-cast-function-type
