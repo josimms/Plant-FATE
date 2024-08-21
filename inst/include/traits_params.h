@@ -67,6 +67,7 @@ class PlantParameters{
 	double kphio;           ///< Quantum use efficiency
 	double alpha;           ///< Cost of maintaining photosynthetic capacity
 	double gamma;           ///< Cost of hydraulic risks
+	double carbon_allocation; ///< Infrasturcture cost
 
 	// Allocation and geometric paramaters  
 	double fg;		        ///< upper canopy gap fraction
