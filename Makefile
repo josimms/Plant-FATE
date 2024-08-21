@@ -12,20 +12,23 @@ HEADERS := $(wildcard src/*.tpp) $(wildcard include/*.h) $(wildcard tests/*.h)
 
 #ROOT_DIR := /home/jjoshi/codes
 
-EXTERNAL_DIR := external
+EXTERNAL_DIR := ./external
 # ^ Do NOT put trailing whitespaces or comments after the above line
 
 # include and lib dirs (esp for cuda)
 INC_PATH :=  -I./inst/include #-I./CppNumericalSolvers-1.0.0
-INC_PATH +=  -I./src # This is to allow inclusion of .tpp files in headers
+INC_PATH +=  -I./src  # This is to allow inclusion of .tpp files in headers
 INC_PATH += -I$(EXTERNAL_DIR)/phydro/inst/include \
-            -I$(EXTERNAL_DIR)/libpspm/include \
-			-I$(EXTERNAL_DIR)/flare/include 
+            -I$(EXTERNAL_DIR)/phydro/inst/LBFGSpp/include \
+			-I$(EXTERNAL_DIR)/libpspm/include \
+			-I$(EXTERNAL_DIR)/flare/include
+INC_PATH += /usr/include/eigen3			
+			
 LIB_PATH := -L$(EXTERNAL_DIR)/libpspm/lib -L./lib
 
 # flags
 PROFILING_FLAGS = -g -pg
-CPPFLAGS = -O3 -std=c++17 -Wall -Wextra -DPHYDRO_ANALYTICAL_ONLY $(PROFILING_FLAGS)
+CPPFLAGS = -O3 -std=c++17 -Wall -Wextra $(PROFILING_FLAGS)
 LDFLAGS =  $(PROFILING_FLAGS)
 ## -Weffc++
 
