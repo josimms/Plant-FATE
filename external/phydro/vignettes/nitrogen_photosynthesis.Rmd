@@ -43,7 +43,7 @@ pa = calc_patm(elv)
 nitrogen = 0.02 # TODO: this isn't doing anything at the moment
 
 ### New parameters TODO: justify these!
-a_jmax = 8000
+a_jmax = 50
 
 par_cost = list(alpha=0.1, gamma=1, carbon_allocation = 1);
 par_plant = list(conductivity=3e-17, psi50=-2, b=2);
@@ -74,6 +74,7 @@ dat_0.75 = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(
 dat_original = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_numerical(tc, tc, .x, netrad, vpd, co2, pa, fapar, kphio, psi_soil, rdark, vwind, par_plant, par_cost, options))) %>% unnest_wider(dat)
 ```
 
+
 ```{r}
 df <- dat %>% melt("ppfd")
 df_2 <- dat_2 %>% melt("ppfd")
@@ -82,11 +83,11 @@ df_0.75 <- dat_0.75 %>% melt("ppfd")
 df_original.m <- dat_original %>% melt("ppfd")
 
 ggplot() + 
-  geom_line(data = df_original.m, aes(y = value, x = ppfd, color = "Numeric")) +
   geom_line(data = df, aes(y = value, x = ppfd, color = "Nitrogen Version, Allocation = 1")) +
   geom_line(data = df_2, aes(y = value, x = ppfd, color = "Nitrogen Version, Allocation = 2")) +
   geom_line(data = df_1.5, aes(y = value, x = ppfd, color = "Nitrogen Version, Allocation = 1.5")) +
   geom_line(data = df_0.75, aes(y = value, x = ppfd, color = "Nitrogen Version, Allocation = 0.75")) +
+  geom_line(data = df_original.m, aes(y = value, x = ppfd, color = "Numeric"), linetype="dotted") +
   scale_color_manual(values = c("Nitrogen Version, Allocation = 0.75" = "red",
                                 "Nitrogen Version, Allocation = 1" = "orange",
                                 "Nitrogen Version, Allocation = 1.5" = "green",
@@ -96,6 +97,47 @@ ggplot() +
   theme(strip.background = element_rect(color = "white", size = 1),
         legend.title = element_blank()) +
   facet_wrap(~variable, scales = "free")
+```
+## Formatted weekly response
+
+```{r}
+cols = c("ppfd", "a") #, "n_leaf", "gs", "jmax")
+df <- dat[,cols] %>% melt("ppfd")
+df_2 <- dat_2[,cols] %>% melt("ppfd")
+df_1.5 <- dat_1.5[,cols] %>% melt("ppfd")
+df_0.75 <- dat_0.75[,cols] %>% melt("ppfd")
+#df_original.m <- dat_original[,cols] %>% melt("ppfd")
+df_original.m <- dat_original[,cols[-3]] %>% melt("ppfd")
+
+new_titles <- c(
+  "ppfd" = "Photosynthetic Photon Flux Density (μmol m⁻² s⁻¹)",
+  "a" = "Assimilation rate\n(A, μmol m⁻² s⁻¹)"
+  #"n_leaf" = "Nitrogen Content\nin Needle (g m-2)",
+  #"gs" = "Stomatal Conductance\n(gs, mol m⁻² s⁻¹)",
+  #"jmax" = "Jmax Parameter\n(Jmax, μmol m⁻² s⁻¹)"
+)
+
+ggplot() + 
+  geom_line(data = df, aes(y = value, x = ppfd, color = "Nitrogen Version,\nInfrastructure = 1")) +
+  geom_line(data = df_2, aes(y = value, x = ppfd, color = "Nitrogen Version,\nInfrastructure = 2")) +
+  geom_line(data = df_1.5, aes(y = value, x = ppfd, color = "Nitrogen Version,\nInfrastructure = 1.5")) +
+  geom_line(data = df_0.75, aes(y = value, x = ppfd, color = "Nitrogen Version,\nInfrastructure = 0.75")) +
+  geom_line(data = df_original.m, aes(y = value, x = ppfd, color = "Numeric"), linetype="dotted") +
+  scale_color_manual(values = c("Nitrogen Version,\nInfrastructure = 0.75" = "red",
+                                "Nitrogen Version,\nInfrastructure = 1" = "orange",
+                                "Nitrogen Version,\nInfrastructure = 1.5" = "green",
+                                "Nitrogen Version,\nInfrastructure = 2" = "blue",
+                                "Numeric" = "black")) +
+  theme_classic() +
+  theme(strip.background = element_rect(color = "white", size = 1),
+        legend.title = element_text(face = "bold"),
+        strip.text = element_text(size = 10, face = "bold"),
+        axis.title.y = element_blank(),
+        plot.title = element_text(hjust = 0, face = "bold")) +  # Added this line for the figure label
+  labs(color = "Model Versions and\nInfrastructure Value",
+       x = "Photosynthetic Photon Flux Density, (μmol m⁻² s⁻¹)",
+       title = "Figure 1") +  # Added the figure label here
+  facet_wrap(~variable, scales = "free", labeller = labeller(variable = new_titles))
 ```
 
 ## Instantaneous Response
@@ -118,7 +160,7 @@ acc_2 = dat_2 %>% filter(ppfd == 1200)
 dat_inst_2 = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat_2 = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_nitrogen(acc_2$vcmax25, acc_2$jmax25, tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, list(alpha=0.1, gamma=1, carbon_allocation = allocation), options))) %>% unnest_wider(dat_2)
 
 acc_original = dat_original %>% filter(ppfd == 1200)
-dat_inst_original = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(acc_original = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_nitrogen(acc_original$vcmax25, acc_original$jmax25, tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, list(alpha=0.1, gamma=1, carbon_allocation = allocation), options))) %>% unnest_wider(acc_original)
+dat_inst_original = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(acc_original = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_numerical(acc_original$vcmax25, acc_original$jmax25, tc, tc, .x, netrad, vpd, co2, pa, fapar, kphio, psi_soil, rdark, vwind, par_plant, list(alpha=0.1, gamma=1), options))) %>% unnest_wider(acc_original)
 
 df_inst_0.75 <- dat_inst_0.75 %>% melt("ppfd")
 df_inst <- dat_inst %>% melt("ppfd")
@@ -127,11 +169,11 @@ df_inst_2 <- dat_inst_2 %>% melt("ppfd")
 df_original.m.inst <- dat_inst_original %>% melt("ppfd")
 
 ggplot() + 
-  geom_line(data = df_original.m.inst, aes(y = value, x = ppfd, color = "Numeric")) +
   geom_line(data = df_inst_0.75, aes(y = value, x = ppfd, color = "Nitrogen Version, Allocation = 0.75")) +
   geom_line(data = df_inst, aes(y = value, x = ppfd, color = "Nitrogen Version, Allocation = 1.0")) +
   geom_line(data = df_inst_1.5, aes(y = value, x = ppfd, color = "Nitrogen Version, Allocation = 1.5")) +
   geom_line(data = df_inst_2, aes(y = value, x = ppfd, color = "Nitrogen Version, Allocation = 2.0")) +
+  geom_line(data = df_original.m.inst, aes(y = value, x = ppfd, color = "Numeric"), linetype="dotted") +
   scale_color_manual(values = c("Nitrogen Version, Allocation = 0.75" = "red", 
                                 "Nitrogen Version, Allocation = 1.0" = "orange", 
                                 "Nitrogen Version, Allocation = 1.5" = "green", 
@@ -147,9 +189,9 @@ ggplot() +
 
 ```{r}
 par(mfrow = c(1, 2))
-dat_inst %>% select(ac, aj, isVcmaxLimited) %>% mutate(isVcmaxLimited = isVcmaxLimited*5) %>%  matplot(x=dat_inst$ppfd, type="l", lty=1, col=c("green4", "yellow3", "black"), main = "Nitrogen", xlab = "ppfd")
+dat_inst %>% select(ac, aj, isVcmaxLimited) %>% mutate(isVcmaxLimited = isVcmaxLimited*5) %>%  matplot(x=dat_inst$ppfd, type="l", lty=1, col=c("green4", "yellow3", "black"), main = "Nitrogen Instant", xlab = "ppfd")
 abline(v=0, col="pink")
-dat_inst_original %>% select(ac, aj, isVcmaxLimited) %>% mutate(isVcmaxLimited = isVcmaxLimited*5) %>%  matplot(x=dat_inst_original$ppfd, type="l", lty=2, col=c("green4", "yellow3", "black"), main = "Original", xlab = "ppfd")
+dat_inst_original %>% select(ac, aj, isVcmaxLimited) %>% mutate(isVcmaxLimited = isVcmaxLimited*5) %>%  matplot(x=dat_inst_original$ppfd, type="l", lty=2, col=c("green4", "yellow3", "black"), main = "Original Instant", xlab = "ppfd")
 abline(v=0, col="pink")
 ```
 
@@ -179,7 +221,7 @@ ggplot() +
                                 "Nitrogen Version, Allocation = 1.5" = "green", 
                                 "Nitrogen Version, Allocation = 2.0" = "blue", 
                                 "Numeric" = "black")) +
-  labs(x = "PPFD (μmol m^-2 s^-1)", y = "J (μmol m^-2 s^-1)", 
+  labs(x = "PPFD (mol m^-2 s^-1)", y = "J (mol m^-2 s^-1)", 
        title = "Electron Transport Rate (J) vs. PPFD")
 ```
 
@@ -197,8 +239,36 @@ ggplot(df_carb_allocation, aes(y=value, x=carb_allocation)) +
   facet_wrap(~variable, scales = "free")
 ```
 
+## Formatted weekly response
+
 ```{r}
-dat_a_jmax = tibble(a_jmax = seq(80,8000,length.out=50)) %>% mutate(dat = purrr::map(.x = a_jmax, .f = ~rphydro_nitrogen(tc, tc, ppfd, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, .x, par_plant, par_cost, options))) %>% unnest_wider(dat)
+cols = c("carb_allocation", "a") #, "n_leaf", "gs", "jmax")
+df_carb_allocation <- dat_carb_allocation[,cols] %>% melt("carb_allocation")
+
+new_titles <- c(
+  "carb_allocation" = "Infrastructure",
+  "a" = "Assimilation rate\n(A, μmol m⁻² s⁻¹)"
+  #"n_leaf" = "Nitrogen Content\nin Needle (g m-2)",
+  #"gs" = "Stomatal Conductance\n(gs, mol m⁻² s⁻¹)",
+  #"jmax" = "Jmax Parameter\n(Jmax, μmol m⁻² s⁻¹)"
+)
+
+ggplot(df_carb_allocation, aes(y=value, x=carb_allocation)) + 
+  geom_line(col="aquamarine4") + 
+  theme_classic() +
+  theme(strip.background = element_rect(color = "white", size = 1),
+        legend.title = element_text(face = "bold"),
+        strip.text = element_text(size = 10, face = "bold"),
+        axis.title.y = element_blank(),
+        plot.title = element_text(hjust = 0, face = "bold")) +  # Added this line for the figure label
+  labs(x = expression(paste("Infrastructure Parameter I"[b])),
+       title = "Figure 2") +  # Added the figure label here
+  facet_wrap(~variable, scales = "free", labeller = labeller(variable = new_titles))
+```
+
+
+```{r}
+dat_a_jmax = tibble(a_jmax = seq(80,8000,length.out=300)) %>% mutate(dat = purrr::map(.x = a_jmax, .f = ~rphydro_nitrogen(tc, tc, ppfd, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, .x, par_plant, par_cost, options))) %>% unnest_wider(dat)
 
 df_ajmax <- dat_a_jmax %>% melt("a_jmax")
 
@@ -210,7 +280,7 @@ ggplot(df_ajmax, aes(y=value, x=a_jmax)) +
 ```
 
 ```{r}
-dat_alpha = tibble(alpha = seq(0.01,0.2,length.out=50)) %>% mutate(dat = purrr::map(.x = alpha, .f = ~rphydro_nitrogen(tc, tc, ppfd, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, nitrogen, par_plant, list(alpha=.x, gamma=1, carbon_allocation = 1), options))) %>% unnest_wider(dat)
+dat_alpha = tibble(alpha = seq(0.01,0.2,length.out=50)) %>% mutate(dat = purrr::map(.x = alpha, .f = ~rphydro_nitrogen(tc, tc, ppfd, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, list(alpha=.x, gamma=1, carbon_allocation = 1), options))) %>% unnest_wider(dat)
 
 df_alpha <- dat_alpha %>% melt("alpha")
 
