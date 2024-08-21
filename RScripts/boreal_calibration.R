@@ -1,6 +1,6 @@
 # Helper function to create and run simulation
 run_simulation <- function(param_file, start_year, end_year, output_prefix) {
-  sim <- new(Patch, param_file)
+  sim <- new(pfate::Patch, param_file)
   sim$init(start_year, end_year)
   sim$simulate()
   sim$close()
