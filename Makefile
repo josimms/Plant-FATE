@@ -18,11 +18,12 @@ EXTERNAL_DIR := ./external
 # include and lib dirs (esp for cuda)
 INC_PATH :=  -I./inst/include #-I./CppNumericalSolvers-1.0.0
 INC_PATH +=  -I./src  # This is to allow inclusion of .tpp files in headers
+INC_PATH += -I/usr/include/eigen3		
 INC_PATH += -I$(EXTERNAL_DIR)/phydro/inst/include \
             -I$(EXTERNAL_DIR)/phydro/inst/LBFGSpp/include \
 			-I$(EXTERNAL_DIR)/libpspm/include \
 			-I$(EXTERNAL_DIR)/flare/include
-INC_PATH += /usr/include/eigen3			
+	
 			
 LIB_PATH := -L$(EXTERNAL_DIR)/libpspm/lib -L./lib
 
