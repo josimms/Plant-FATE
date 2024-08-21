@@ -1,5 +1,3 @@
-#include "nitrogen_equaions.h"
-
 #ifndef PHYDRO_PHYDRO_H
 #define PHYDRO_PHYDRO_H
 
@@ -33,6 +31,33 @@ struct PHydroResult{
 	double aj;
 	double le;
 	double le_s_wet;
+};
+
+struct PHydroResultNitrogen{
+  double a;
+  double e;
+  double gs;
+  double ci;
+  double chi;
+  double n_leaf;
+  double vcmax;
+  double jmax;
+  double dpsi;
+  double psi_l;
+  double nfnct;
+  double niter;
+  double mc;
+  double mj;
+  double gammastar;
+  double kmm;
+  double vcmax25;
+  double jmax25;
+  double rd;
+  bool   isVcmaxLimited;
+  double ac;
+  double aj;
+  double le;
+  double le_s_wet;
 };
 
 class ParControl{

@@ -83,34 +83,6 @@ public:
   }
 };
 
-struct PHydroResultNitrogen{
-  double a;
-  double e;
-  double gs;
-  double ci;
-  double chi;
-  double n_leaf;
-  double vcmax;
-  double jmax;
-  double dpsi;
-  double psi_l;
-  double nfnct;
-  double niter;
-  double mc;
-  double mj;
-  double gammastar;
-  double kmm;
-  double vcmax25;
-  double jmax25;
-  double rd;
-  bool   isVcmaxLimited;
-  double ac;
-  double aj;
-  double le;
-  double le_s_wet;
-};
-
-
 inline ACi calc_assim_light_limited_nitrogen(double _gs, double n_leaf, ParPhotosynthNitrogen par_photosynth){
   double ca = par_photosynth.ca;             // ca is in Pa
   double gs = _gs * 1e6/par_photosynth.patm;  // convert to umol/m2/s/Pa
