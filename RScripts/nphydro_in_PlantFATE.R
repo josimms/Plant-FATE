@@ -2,10 +2,18 @@
 # Life History
 ###
 
-# TODO: calibration files with different infrastructure parameter
+lho <- create_lho("tests/params/p_test_boreal.ini", 
+                  "tests/data/ERAS_Monthly.csv", 
+                  "tests/data/ERAS_Monthly.csv", 
+                  init_co2 = 365)
 
-# TODO: plot growth of one plant with different levels of belowground infrastructure
-  # TODO: how should this relate to the root parameters?
+df <- run_for_dataset(lho, 1960, 1995, dt)
+
+plot(df$date, df$height)
+plot(df$date, df$root_mass, type = "l")
+lines(df$date, df$root_mass, col = "blue")
+
+# TODO: vary the infrastructure parameter modifier
 
 ###
 # 
