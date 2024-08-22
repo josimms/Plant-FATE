@@ -98,6 +98,7 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
 		, "dpsi"
 		, "vcmax"
 		, "transpiration"
+    , "nitrogen"
 		, "height"
 		, "diameter"
 		, "crown_area"
