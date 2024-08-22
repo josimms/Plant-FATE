@@ -160,6 +160,7 @@ void PlantParameters::init(io::Initializer& I){
 	kphio              = I.get<double>("kphio");
 	alpha              = I.get<double>("alpha");
 	gamma              = I.get<double>("gamma");
+	infra_translation  = I.get<double>("infra_translation");
 	fg                 = I.get<double>("fg");
 
 	Cc                 = I.get<double>("Cc");

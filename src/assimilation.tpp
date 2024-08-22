@@ -16,8 +16,8 @@ inline void print_phydro(const phydro::PHydroResultNitrogen& res, std::string s)
 // ** Gross and Net Assimilation 
 // **
 template<class _Climate>
-phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits, PlantArchitecture* biomass){
-  double infrastructure = 1; // * (biomass.coarse_root_mass + biomass.root_mass) TODO: are these objects in the class?
+phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G){
+  double infrastructure = par.infra_translation * (G->coarse_root_mass(traits) + G->root_mass(traits)); // TODO: Is this correct?
 	phydro::ParCostNitrogen par_cost(par.alpha, par.gamma, infrastructure);
 	phydro::ParPlant par_plant(traits.K_leaf, traits.p50_leaf, traits.b_leaf);
 	phydro::ParControl par_control;

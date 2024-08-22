@@ -55,7 +55,7 @@ class Assimilator{
 	/// @param traits  plant traits
 	/// @return        leaf assimilatio rate and a bunch of other leaf-level things
 	template<class _Climate>
-	phydro::PHydroResultNitrogen leaf_assimilation_rate(double fipar, double fapar, _Climate& clim, PlantParameters& par, PlantTraits& traits, PlantArchitecture* biomass);
+	phydro::PHydroResultNitrogen leaf_assimilation_rate(double fipar, double fapar, _Climate& clim, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G);
 
 
 	/// @brief  Calculate whole-plant gross assimilation, transpiration, gs, etc. 
