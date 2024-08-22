@@ -145,6 +145,7 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
 		, P.assimilator.plant_assim.dpsi_avg
 		, P.assimilator.plant_assim.vcmax_avg
 		, P.assimilator.plant_assim.trans
+    , P.assimilator.plant_assim.nitrogen_avg
 		, P.geometry.height
 		, P.geometry.diameter
 		, P.geometry.crown_area
