@@ -98,7 +98,7 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
 		, "dpsi"
 		, "vcmax"
 		, "transpiration"
-    , "nitrogen"
+    , "nitrogen" // leaf_canopy_average
 		, "height"
 		, "diameter"
 		, "crown_area"
