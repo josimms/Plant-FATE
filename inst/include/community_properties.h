@@ -15,6 +15,8 @@ class Patch;
 
 /// @brief This class calculates and stores community-level properties of interest
 class CommunityProperties{
+  
+  // TODO: add the new outputs for plantFATE with nitrogen
 	
 	public: 
 	// CO2 and water fluxes
