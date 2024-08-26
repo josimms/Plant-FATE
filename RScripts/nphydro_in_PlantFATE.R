@@ -9,11 +9,13 @@ lho <- create_lho("tests/params/p_test_boreal.ini",
 
 df <- run_for_dataset(lho, 1960, 1995, dt)
 
+# TODO: vary the infrastructure parameter modifier
+
 plot(df$date, df$height)
 plot(df$date, df$root_mass, type = "l")
 lines(df$date, df$root_mass, col = "blue")
 
-# TODO: vary the infrastructure parameter modifier
+
 
 ###
 # 
