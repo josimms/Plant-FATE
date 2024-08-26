@@ -304,6 +304,33 @@ create_lho <- function(params_file, i_metFile, a_metFile, co2File = "", init_co2
   return(lho)
 }
 
+create_lho_params <- function(params_file, i_metFile, a_metFile, co2File = "", init_co2 = NULL, param) {
+  lho <- new(LifeHistoryOptimizer, params_file)
+  lho$set_i_metFile(i_metFile)
+  lho$set_a_metFile(a_metFile)
+  lho$set_co2File(co2File)
+  if (!is.null(init_co2)) lho$init_co2(init_co2)
+  print(c(lho$env$clim_inst$co2, lho$env$clim_acclim$co2))
+  #lho$traits0$inv
+  lho$init()
+  lho$parameter_x <- param
+  #cbind .... with the parameter value
+  return(lho)
+}
+
+lapply()
+
+parallel::mclapply()
+
+###
+# PlantFATE output is a file so look at
+#
+# Look here to change the directory for each param 
+#class Patch{
+#  public:
+#    PlantFateConfig config;
+###
+
 run_for_dataset <- function(lho, start_year, end_year, dt) {
   df <- data.frame(matrix(ncol = length(lho$get_header()), nrow = 0))
   colnames(df) <- lho$get_header()
