@@ -68,6 +68,7 @@ class PlantParameters{
 	double alpha;           ///< Cost of maintaining photosynthetic capacity
 	double gamma;           ///< Cost of hydraulic risks
 	double infra_translation; ///< Translation for biomass to infrastructure
+	double infra_min; ///< Minimal Ib value
 	
 	// Allocation and geometric paramaters  
 	double fg;		        ///< upper canopy gap fraction

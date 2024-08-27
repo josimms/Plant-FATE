@@ -161,6 +161,7 @@ void PlantParameters::init(io::Initializer& I){
 	alpha              = I.get<double>("alpha");
 	gamma              = I.get<double>("gamma");
 	infra_translation  = I.get<double>("infra_translation");
+	infra_min          = I.get<double>("infra_min");
 	fg                 = I.get<double>("fg");
 
 	Cc                 = I.get<double>("Cc");
@@ -227,6 +228,7 @@ void PlantParameters::print(){
 		<< "   alpha = " << alpha << '\n'
 		<< "   gamma = " << gamma << '\n'
     << "   infra_translation = " << infra_translation << '\n'
+    << "   infra_min = " << infra_min << '\n'
 		<< "   fg = " << fg << '\n'
 		<< "   Cc = " << Cc << '\n'
 		<< "   Chyd = " << Chyd << '\n'
@@ -281,6 +283,7 @@ void PlantParameters::save(std::ostream& fout){
 		, alpha
 		, gamma
     , infra_translation
+    , infra_min
 		, fg
 		, Cc
 		, Chyd
@@ -334,6 +337,7 @@ void PlantParameters::restore(std::istream& fin){
 		>> alpha
 		>> gamma
     >> infra_translation
+    >> infra_min
 		>> fg
 		>> Cc
 		>> Chyd
