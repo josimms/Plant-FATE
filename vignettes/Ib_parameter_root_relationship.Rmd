@@ -1,0 +1,34 @@
+## Libraries
+
+```{r}
+library(PlantFATE)
+library(phydro)
+
+create_lho <- function(params_file, i_metFile, a_metFile, co2File = "", init_co2 = NULL) {
+  lho <- new(LifeHistoryOptimizer, params_file)
+  lho$set_i_metFile(i_metFile)
+  lho$set_a_metFile(a_metFile)
+  lho$set_co2File(co2File)
+  if (!is.null(init_co2)) lho$init_co2(init_co2)
+  print(c(lho$env$clim_inst$co2, lho$env$clim_acclim$co2))
+  lho$init()
+  return(lho)
+}
+```
+
+# Running the model
+
+```{r}
+# With no Ib effect
+list.files("~/Documents/Austria/Plant-FATE/tests/params")
+
+create_lho("~/Documents/Austria/Plant-FATE/tests/params/p_test_boreal.ini",
+           "~/Documents/Austria/Plant-FATE/tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
+           "~/Documents/Austria/Plant-FATE/tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
+           init_co2 = 365)
+
+# Phydro
+
+
+
+```
