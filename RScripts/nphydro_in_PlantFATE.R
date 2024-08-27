@@ -1,7 +1,168 @@
+###
+###
+# Libraries
+###
 
-lapply()
+library(ggplot2)
+library(patchwork)
+library(parallel)
 
-parallel::mclapply()
+###
+# Plotting function
+###
+
+# Define the function
+create_combined_plot <- function(df_original, sa_ib_all, color_scale) {
+  
+  # Plot 1: Height
+  p1 <- ggplot() +
+    geom_line(data = df_original, aes(x = date, y = height), color = "black") +
+    geom_point(data = sa_ib_all, aes(x = date, y = height, color = Ib_value), shape = 45, size = 3) +
+    labs(x = "Date", y = "Height") +
+    color_scale +
+    theme_minimal()
+  
+  # Plot 2: Root Mass
+  p2 <- ggplot() +
+    geom_line(data = df_original, aes(x = date, y = root_mass + coarse_root_mass), color = "black") +
+    geom_point(data = sa_ib_all, aes(x = date, y = root_mass + coarse_root_mass, color = Ib_value), shape = 45, size = 3) +
+    labs(x = "Date", y = "Root Mass") +
+    color_scale +
+    theme_minimal()
+  
+  # Plot 3: Ib Value
+  p3 <- ggplot() +
+    geom_point(data = sa_ib_all, aes(x = date, y = 0.55 + Ib_value * (root_mass + coarse_root_mass), color = Ib_value), shape = 45, size = 3) +
+    labs(x = "Date", y = "Ib Value") +
+    color_scale +
+    theme_minimal()
+  
+  # Plot 4: LAI
+  p4 <- ggplot() +
+    geom_line(data = df_original, aes(x = date, y = lai), color = "black") +
+    geom_point(data = sa_ib_all, aes(x = date, y = lai, color = Ib_value), shape = 45, size = 3) +
+    labs(x = "Date", y = "LAI") +
+    color_scale +
+    theme_minimal()
+  
+  # Plot 5: Assim gross
+  p5 <- ggplot() +
+    geom_line(data = df_original, aes(x = date, y = assim_gross), color = "black") +
+    geom_point(data = sa_ib_all, aes(x = date, y = assim_gross, color = Ib_value), shape = 45, size = 3) +
+    labs(x = "Date", y = "Assim gross") +
+    color_scale +
+    theme_minimal()
+  
+  # Combine plots
+  combined_plot <- (p1 + p2) / (p3 + p4) / p5 +
+    plot_layout(guides = "collect") & 
+    theme(legend.position = "bottom")
+  
+  # Return the combined plot
+  return(combined_plot)
+}
+
+# Define the function
+create_combined_plot_Ib_value <- function(df_original, sa_ib_all, color_scale) {
+  
+  # Plot 1: Height
+  p1 <- ggplot() +
+    geom_line(data = df_original, aes(x = date, y = height), color = "black") +
+    geom_point(data = sa_ib_all, aes(x = date, y = height, color = Ib_value), shape = 45, size = 3) +
+    labs(x = "Date", y = "Height") +
+    color_scale +
+    theme_minimal()
+  
+  # Plot 2: Root Mass
+  p2 <- ggplot() +
+    geom_line(data = df_original, aes(x = date, y = root_mass + coarse_root_mass), color = "black") +
+    geom_point(data = sa_ib_all, aes(x = date, y = root_mass + coarse_root_mass, color = Ib_value), shape = 45, size = 3) +
+    labs(x = "Date", y = "Root Mass") +
+    color_scale +
+    theme_minimal()
+  
+  # Plot 3: Ib Value
+  p3 <- ggplot() +
+    geom_point(data = sa_ib_all, aes(x = date, y = Ib_min + Ib_value * (root_mass + coarse_root_mass), color = Ib_value), shape = 45, size = 3) +
+    labs(x = "Date", y = "Ib Value") +
+    color_scale +
+    theme_minimal()
+  
+  # Plot 4: LAI
+  p4 <- ggplot() +
+    geom_line(data = df_original, aes(x = date, y = lai), color = "black") +
+    geom_point(data = sa_ib_all, aes(x = date, y = lai, color = Ib_value), shape = 45, size = 3) +
+    labs(x = "Date", y = "LAI") +
+    color_scale +
+    theme_minimal()
+  
+  # Plot 5: Assim gross
+  p5 <- ggplot() +
+    geom_line(data = df_original, aes(x = date, y = assim_gross), color = "black") +
+    geom_point(data = sa_ib_all, aes(x = date, y = assim_gross, color = Ib_value), shape = 45, size = 3) +
+    labs(x = "Date", y = "Assim gross") +
+    color_scale +
+    theme_minimal()
+  
+  # Combine plots
+  combined_plot <- (p1 + p2) / (p3 + p4) / p5 +
+    plot_layout(guides = "collect") & 
+    theme(legend.position = "bottom")
+  
+  # Return the combined plot
+  return(combined_plot)
+}
+
+# Define the function
+create_combined_plot_Ib_min <- function(df_original, sa_ib_all, color_scale) {
+  
+  # Plot 1: Height
+  p1 <- ggplot() +
+    geom_line(data = df_original, aes(x = date, y = height), color = "black") +
+    geom_point(data = sa_ib_all, aes(x = date, y = height, color = Ib_min), shape = 45, size = 3) +
+    labs(x = "Date", y = "Height") +
+    color_scale +
+    theme_minimal()
+  
+  # Plot 2: Root Mass
+  p2 <- ggplot() +
+    geom_line(data = df_original, aes(x = date, y = root_mass + coarse_root_mass), color = "black") +
+    geom_point(data = sa_ib_all, aes(x = date, y = root_mass + coarse_root_mass, color = Ib_min), shape = 45, size = 3) +
+    labs(x = "Date", y = "Root Mass") +
+    color_scale +
+    theme_minimal()
+  
+  # Plot 3: Ib Min
+  p3 <- ggplot() +
+    geom_point(data = sa_ib_all, aes(x = date, y = Ib_min + Ib_value * (root_mass + coarse_root_mass), color = Ib_min), shape = 45, size = 3) +
+    labs(x = "Date", y = "Ib Min") +
+    color_scale +
+    theme_minimal()
+  
+  # Plot 4: LAI
+  p4 <- ggplot() +
+    geom_line(data = df_original, aes(x = date, y = lai), color = "black") +
+    geom_point(data = sa_ib_all, aes(x = date, y = lai, color = Ib_min), shape = 45, size = 3) +
+    labs(x = "Date", y = "LAI") +
+    color_scale +
+    theme_minimal()
+  
+  # Plot 5: Assim gross
+  p5 <- ggplot() +
+    geom_line(data = df_original, aes(x = date, y = assim_gross), color = "black") +
+    geom_point(data = sa_ib_all, aes(x = date, y = assim_gross, color = Ib_min), shape = 45, size = 3) +
+    labs(x = "Date", y = "Assim gross") +
+    color_scale +
+    theme_minimal()
+  
+  # Combine plots
+  combined_plot <- (p1 + p2) / (p3 + p4) / p5 +
+    plot_layout(guides = "collect") & 
+    theme(legend.position = "bottom")
+  
+  # Return the combined plot
+  return(combined_plot)
+}
 
 ###
 # Testing the Ib response
@@ -70,12 +231,10 @@ plot(df_original$date, df_original$assim_gross, ylab = "Assim gross", xlab = "Da
 lines(df_Ib$date, df_Ib$assim_gross, lty = 2)
 
 ###
-# Fit the Ib parameter
+# Fit the Ib parameter Amazon
 ### 
 
-###
-# Extra Functions
-###
+### Extra Functions
 
 create_lho_params <- function(params_file, i_metFile, a_metFile, co2File = "", init_co2 = NULL, param) {
   lho <- new(LifeHistoryOptimizer, params_file)
@@ -84,53 +243,109 @@ create_lho_params <- function(params_file, i_metFile, a_metFile, co2File = "", i
   lho$set_co2File(co2File)
   if (!is.null(init_co2)) lho$init_co2(init_co2)
   print(c(lho$env$clim_inst$co2, lho$env$clim_acclim$co2))
-  lho$par0$infra_translation <- param # $infra_translation <- param
+  lho$par0$infra_translation <- param
+  lho$par0$infra_min <- 0.55
   lho$init()
   return(lho)
 }
 
-sa_ib <- list()
-potential_parameters = seq(0.1, 2, length.out = 20)
-for (i in potential_parameters) {
-  lho_temp <- create_lho_params("tests/params/p_test_v2.ini", 
-                         "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
-                         "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
-                         co2File = "",
-                         init_co2 = 365,
-                         i)
-  sa_ib[[which(potential_parameters == i)]] <- run_for_dataset(lho_temp, 2000, 2015, dt)
-  sa_ib[[which(potential_parameters == i)]]$Ib_value <- i
-}
+potential_parameters <- seq(2, 4, length.out = 40)
 
+# Use mclapply for parallel processing
+sa_ib <- mclapply(potential_parameters, function(i) {
+  lho_temp <- create_lho_params("tests/params/p_test_v2.ini", 
+                                "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
+                                "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
+                                co2File = "",
+                                init_co2 = 365,
+                                i)
+  result <- run_for_dataset(lho_temp, 2000, 2015, dt)
+  result$Ib_value <- i
+  return(result)
+}, mc.cores = detectCores()-2)
+
+# Combine the results into a single data frame
 sa_ib_all <- do.call(rbind, sa_ib)
 
-par(mfrow = c(2, 2))
-plot(sa_ib_all$date, sa_ib_all$height, ylab = "Height", xlab = "Date", pch = "-", col = sa_ib_all$Ib_value)
-legend("topleft", legend = unique(sa_ib_all$Ib_value), col = unique(sa_ib_all$Ib_value), lty = 1, cex = 0.75, bty = "n", title = "Ib Value")
-plot(sa_ib_all$date, sa_ib_all$root_mass + sa_ib_all$coarse_root_mass, ylab = "Root Mass", xlab = "Date", pch = "-", col = sa_ib_all$Ib_value)
-plot(NULL,
-     xlim = c(sa_ib_all$date[1], sa_ib_all$date[nrow(sa_ib_all)]),
-     ylim = 0.5 + c(0, 0.47),
-     axes = FALSE,
-     xlab = "", ylab = "")
-mtext("Ib", side = 4, line = 3, cex = 0.8)
-legend("topleft", c("Root Mass", "Translation = 2", "Translation = 0.01"), 
-       col = c("black", cols[1], cols[length(translation)]), 
-       lty = 1, bty = "n", cex = 0.75)
-lines(df_Ib$date, df_Ib$root_mass, lty = 2)
-plot(sa_ib_all$date, sa_ib_all$lai, ylab = "LAI", xlab = "Date", type = "l")
-lines(df_Ib$date, df_Ib$lai, lty = 2)
-plot(sa_ib_all$date, sa_ib_all$assim_gross, ylab = "Assim gross", xlab = "Date", type = "l", ylim = c(0, max(sa_ib_all$assim_gross)))
-lines(df_Ib$date, df_Ib$assim_gross, lty = 2)
+# Plot
+color_scale <- scale_color_gradientn(colours = rainbow(5), name = "Ib Value")
+combined_plot <- create_combined_plot(df_original, sa_ib_all, color_scale)
+print(combined_plot)
+
+###
+# Two variables
+###
+
+# Function to create LifeHistoryOptimizer objects
+create_lho_params_two <- function(params_file, i_metFile, a_metFile, co2File = "", init_co2 = NULL, Ib_transfrom, Ib_min) {
+  lho <- new(LifeHistoryOptimizer, params_file)
+  lho$set_i_metFile(i_metFile)
+  lho$set_a_metFile(a_metFile)
+  lho$set_co2File(co2File)
+  if (!is.null(init_co2)) lho$init_co2(init_co2)
+  print(c(lho$env$clim_inst$co2, lho$env$clim_acclim$co2))
+  lho$par0$infra_translation <- Ib_transfrom
+  lho$par0$infra_min <- Ib_min
+  lho$init()
+  return(lho)
+}
+
+# Generate all combinations of potential parameters
+Ib_transform_values <- seq(2, 5, length.out = 40)
+Ib_min_values <- seq(0.5, 1, length.out = 40)
+
+# Create a data frame of all parameter combinations
+param_grid <- expand.grid(Ib_value = Ib_transform_values, Ib_min = Ib_min_values)
+
+# Use mclapply for parallel processing over the parameter grid
+sa_ib_both <- mclapply(1:nrow(param_grid), function(i) {
+  params <- param_grid[i, ]
+  
+  # Initialize result as NULL, to be filled later
+  result <- NULL
+  
+  # Error handling with tryCatch
+  lho_temp <- create_lho_params_two("tests/params/p_test_v2.ini", 
+                                    "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
+                                    "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
+                                    co2File = "",
+                                    init_co2 = 365,
+                                    Ib_transfrom = params$Ib_value,
+                                    Ib_min = params$Ib_min)
+  result <- run_for_dataset(lho_temp, 2000, 2015, dt)
+  result$Ib_value <- params$Ib_value
+  result$Ib_min <- params$Ib_min
+  
+  return(result)
+}, mc.cores = detectCores()-2)
+
+# Combine the results into a single data frame
+sa_ib_all_both <- do.call(rbind, sa_ib_both)
+
+# Plot
+color_scale_Ib_value <- scale_color_gradientn(colours = rainbow(5), name = "Ib Value")
+combined_plot <- create_combined_plot_Ib_value(df_original, sa_ib_all_both[sa_ib_all_both$Ib_min == unique(sa_ib_all_both$Ib_min)[6],], color_scale_Ib_value)
+print(combined_plot)
+
+color_scale_Ib_min <- scale_color_gradientn(colours = rainbow(5), name = "Ib Min")
+combined_plot <- create_combined_plot_Ib_min(df_original, sa_ib_all_both[sa_ib_all_both$Ib_value == 4,], color_scale_Ib_min)
+print(combined_plot)
+
+###
+# Rosendahl / Boreal
+###
+
+
+
 
 ###
 # Plant-FATE aggregation
 ###
 
-amazon_sim <- run_simulation("tests/params/p_test_v2.ini", 1000, 1050, "test_3spp_100yr")
-amazon_sim_data <- read_sim_data(amazon_sim$dir_path)
+# amazon_sim <- run_simulation("tests/params/p_test_v2.ini", 1000, 1050, "test_3spp_100yr")
+# amazon_sim_data <- read_sim_data(amazon_sim$dir_path)
 
-plot(amazon_sim_data$D$YEAR, amazon_sim_data$D$GPP)
+# plot(amazon_sim_data$D$YEAR, amazon_sim_data$D$GPP)
 
 # TODO: calibration files updated with the infrastructure parameter
 
