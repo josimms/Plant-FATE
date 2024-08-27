@@ -226,6 +226,7 @@ void PlantParameters::print(){
 		<< "   kphio = " << kphio << '\n'
 		<< "   alpha = " << alpha << '\n'
 		<< "   gamma = " << gamma << '\n'
+    << "   infra_translation = " << infra_translation << '\n'
 		<< "   fg = " << fg << '\n'
 		<< "   Cc = " << Cc << '\n'
 		<< "   Chyd = " << Chyd << '\n'
@@ -279,6 +280,7 @@ void PlantParameters::save(std::ostream& fout){
 		kphio
 		, alpha
 		, gamma
+    , infra_translation
 		, fg
 		, Cc
 		, Chyd
@@ -331,6 +333,7 @@ void PlantParameters::restore(std::istream& fin){
 	fin >> kphio
 		>> alpha
 		>> gamma
+    >> infra_translation
 		>> fg
 		>> Cc
 		>> Chyd
