@@ -6,8 +6,8 @@ sort_CMIP <- function() {
   TEMP_DIR <- "~/Documents/Austria/cmip6_data/temp"
   ANSWER_DIR <- "~/Documents/Austria/Plant-FATE/tests/data"
   path_test <- "/home/josimms/Documents/Austria/Plant-FATE/tests/data"
-  TARGET_LON <- 17.483333
-  TARGET_LAT <- 60.083333
+  TARGET_LON <- 24.29477
+  TARGET_LAT <- 61.84741
   
   for (ssp_scenario in c(245, 585)) {
     # Process each variable
@@ -51,27 +51,27 @@ sort_CMIP <- function() {
                                                               length.out = length(results$tas)),
                                            Temp = results$tas,
                                            VPD = results$VPD,
-                                           PAR = results$rsds,
-                                           SWP = - 0.001 * rep(daily_dataset$SWP, length.out = length(results$tas)), # TODO: why are these longer?
+                                           PPFD = results$rsds,
+                                           SWP = rep(daily_dataset$SWP, length.out = length(results$tas)), # TODO: why are these longer?
                                            date = date,
                                            co2 = rep(daily_to_average(co2), length.out = length(results$tas))) # TODO: why are these longer?
     dataset_cmip[, YMD := format(date, "%Y-%m-%d")]
     dataset_cmip[, YM := format(date, "%Y-%m")]
     # NOTE: Mean and max the same as the values are from a daily source!
-    dataset_cmip[, PAR_max := dataset_cmip[, .(PAR_max = 3*max(PAR)), by = YMD]$PAR_max] 
+    dataset_cmip[, PPFD_max := dataset_cmip[, .(PPFD_max = 3*max(PPFD)), by = YMD]$PPFD_max] 
     
     # Monthly
-    dataset_cmip_monthly <- dataset_cmip[, lapply(.SD, mean), by = YM, .SDcols = -c("date", "YMD", "PAR_max", "Decimal_year")]
-    dataset_cmip_monthly[, PAR_max := dataset_cmip[, .(PAR_max = max(PAR)), by = YM]$PAR_max]
+    dataset_cmip_monthly <- dataset_cmip[, lapply(.SD, mean), by = YM, .SDcols = -c("date", "YMD", "PPFD_max", "Decimal_year")]
+    dataset_cmip_monthly[, PPFD_max := dataset_cmip[, .(PPFD_max = max(PPFD)), by = YM]$PPFD_max]
     dataset_cmip_monthly$Decimal_year <- seq(1000, 1050, length.out = nrow(dataset_cmip_monthly))
     
     # Yearly CO2
-    dataset_cmip_yearly <- dataset_cmip[, lapply(.SD, mean), by = Year, .SDcols = -c("date", "YMD", "YM", "PAR_max", "Decimal_year")]
+    dataset_cmip_yearly <- dataset_cmip[, lapply(.SD, mean), by = Year, .SDcols = -c("date", "YMD", "YM", "PPFD_max", "Decimal_year")]
     
     # Save results
-    fwrite(dataset_cmip[,c("Year", "Month", "Decimal_year", "Temp", "VPD", "PAR", "PAR_max", "SWP")], 
+    fwrite(dataset_cmip[,c("Year", "Month", "Decimal_year", "Temp", "VPD", "PPFD", "PPFD_max", "SWP")], 
            file = file.path(ANSWER_DIR, paste0("PlantFATE", ssp_scenario, ".csv")))
-    fwrite(dataset_cmip_monthly[,c("Year", "Month", "Decimal_year", "Temp", "VPD", "PAR", "PAR_max", "SWP")], 
+    fwrite(dataset_cmip_monthly[,c("Year", "Month", "Decimal_year", "Temp", "VPD", "PPFD", "PPFD_max", "SWP")], 
            file = file.path(ANSWER_DIR, paste0("PlantFATE_monthly", ssp_scenario, ".csv")))
     fwrite(dataset_cmip_yearly[,c("Year", "co2")], 
            file = file.path(ANSWER_DIR, paste0("PlantFATE_yearly", ssp_scenario, ".csv")))
@@ -115,9 +115,9 @@ process_files_co2 <- function(files, variable) {
               count = c(-1))
   })
   
-  out <- 0.0000000000001 * unlist(spp_temp)
+  out <- unlist(spp_temp) / (1000000 * 1000000)
   return(out)
-} # TODO: although these are now the right scale, make sure that there is a logic here!
+}
 
 transform_variable <- function(variable, spp) {
   switch(variable,
@@ -129,7 +129,7 @@ transform_variable <- function(variable, spp) {
          "tas" = spp - 273.15,  # 'C
          "rsds" = {
            result <- bigleaf::Rg.to.PPFD(spp)  # umol m-2 s-1
-           if (any(result < 0)) warning("PAR contains negative values")
+           if (any(result < 0)) warning("PPFD contains negative values")
            result
          },
          "hurs" = {

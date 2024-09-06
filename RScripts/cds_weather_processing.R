@@ -9,10 +9,9 @@ calculate_VPD <- function(dew_point_temp, air_temp) {
   
   # Calculate relative humidity (in percentage)
   RH <- (e_d / e_s)
-  
+
   # Calculate VPD
-  VPD <- 10 * bigleaf::rH.to.VPD(RH, air_temp) # Units hPa
-  
+  VPD <- 0.1 * bigleaf::rH.to.VPD(RH, air_temp) # Units kPa to hPa
   return(RH)
 }
 
@@ -29,22 +28,22 @@ plot_data <- function(data, title_prefix, monthly) {
   }
   
   # "vpd",
-  plot_vars <- c("Temp", "PAR", "PAR_max", "swvl2", "VPD", "SWP", "co2")
+  plot_vars <- c("Temp", "PPFD", "PPFD_max", "swvl2", "VPD", "SWP", "co2")
   for (var in plot_vars) {
     plot(data$date, data[[var]], main = paste(title_prefix, var), 
          xlab = "Dates", ylab = switch(var,
                                        Temp = "Degrees C",
-                                       PAR = "umol m-2 s-1",
-                                       PAR_max = "umol m-2 s-1",
+                                       PPFD = "umol m-2 s-1",
+                                       PPFD_max = "umol m-2 s-1",
                                        swvl2 = "-kPa",
                                        VPD = "hPa",
                                        SWP = "- Ma",
                                        co2 = "ppm")) # TODO: check units
     title(sub = sprintf("Percentage missing: %.2f%%", 100 * sum(is.na(data[[var]])) / nrow(data)))
   }
-  plot(data$PAR, data$PAR_max, main = "Global: Mean vs Max", xlab = "Mean", ylab = "Max")
-  abline(lm(PAR_max ~ PAR, data = data), col = "red")
-  title(sub = sprintf("Gradient: %.2f", coef(lm(PAR_max ~ PAR, data = data))[2]))
+  plot(data$PPFD, data$PPFD_max, main = "Global: Mean vs Max", xlab = "Mean", ylab = "Max")
+  abline(lm(PPFD_max ~ PPFD, data = data), col = "red", lwd = 2)
+  title(sub = sprintf("Gradient: %.2f", coef(lm(PPFD_max ~ PPFD, data = data))[2]))
 }
 
 ###
@@ -69,8 +68,8 @@ reading_nc <- function() {
   nc_files_td <- list.files(path = path_nc, pattern = "download_td", full.names = TRUE)
   
   # Coordinates
-  lon_target <- 17.483333
-  lat_target <- 60.083333
+  lon_target <- 24.29477
+  lat_target <- 61.84741
   
   dataset_cds_raw <- list()
   for (i in 1:length(nc_files)) {
@@ -100,21 +99,21 @@ reading_nc <- function() {
     
     # Create data.table
     dataset_cds_raw_year <- data.table(
-      Temp = nc_data$t2m  - 273.15,
-      PAR = bigleaf::Rg.to.PPFD(nc_data$ssrd),
-      swvl1 = nc_data$swvl1,
-      swvl2 = nc_data$swvl2,
-      Temp_Dew = nc_data$d2m  - 273.15,
+      Temp = nc_data$t2m  - 273.15, # 'C
+      # TODO: this is just a multiplier to make the values approximately right
+      PPFD = 0.001 * bigleaf::Rg.to.PPFD(nc_data$ssrd), # umol m-2 s-1, PPFD (daily 24-hr mean)
+      swvl1 = nc_data$swvl1, # m m-2
+      swvl2 = nc_data$swvl2, # m m-2
+      Temp_Dew = nc_data$d2m  - 273.15, # 'C
       date = as.POSIXct(dates*3600, origin = "1900-01-01", tz = "GMT")
     )
-    
     dataset_cds_raw[[i]] <- dataset_cds_raw_year
   }
   
   dataset_cds_raw_all <- rbindlist(dataset_cds_raw)
   
   dataset_cds_raw_all[, VPD := calculate_VPD(Temp_Dew, Temp)] # hPa
-  dataset_cds_raw_all$VPD[dataset_cds_raw_all$VPD > 3] <- 3
+  # dataset_cds_raw_all$VPD[dataset_cds_raw_all$VPD > 3]
   dataset_cds_raw_all[, YM := format(date, "%Y-%m")]
   dataset_cds_raw_all[, YMD := format(date, "%Y-%m-%d")]
   dataset_cds_raw_all[, Year := as.numeric(format(date, "%Y"))]
@@ -122,11 +121,11 @@ reading_nc <- function() {
   
   # Monthly aggregation
   monthy_dataset <- dataset_cds_raw_all[, lapply(.SD, mean) , by = YM, .SDcols = -c("YMD", "date")]
-  monthy_dataset[, PAR_max := dataset_cds_raw_all[, .(PAR_max = max(PAR)), by = YM]$PAR_max]
+  monthy_dataset[, PPFD_max := dataset_cds_raw_all[, .(PPFD_max = max(PPFD)), by = YM]$PPFD_max]
   
   # Daily aggregation
   daily_dataset <- dataset_cds_raw_all[, lapply(.SD, mean), by = YMD, .SDcols = -c("YM", "date")]
-  daily_dataset[, PAR_max := dataset_cds_raw_all[, .(PAR_max = max(PAR)), by = YMD]$PAR_max]
+  daily_dataset[, PPFD_max := dataset_cds_raw_all[, .(PPFD_max = max(PPFD)), by = YMD]$PPFD_max]
   
   # Save datasets
   fwrite(monthy_dataset, file = file.path(path_test, "montly_dataset.csv"))
@@ -135,12 +134,13 @@ reading_nc <- function() {
   ####
   # Generate the weather file in the right format
   ####
+  
   raw.directory = "/home/josimms/Documents/CASSIA_Calibration/Raw_Data/hyytiala_weather/"
   soil_water_potential_list <- list()
   count = 1
   for (var in c("wpsoil_A", "wpsoil_B", "GPP")) {
     soil_water_potential_list[[count]] <- data.table::rbindlist(lapply(paste0(raw.directory, list.files(raw.directory, var)), data.table::fread))
-    count = count + 1
+    count = count + 1 
   }
   soil_water_potential <- data.table::rbindlist(soil_water_potential_list, fill = TRUE)
   
@@ -163,9 +163,9 @@ reading_nc <- function() {
   soil_water_potential_daily <- soil_water_potential[, lapply(.SD, mean, na.rm = T), by = MD,  .SDcols = -c("YM")]
   
   plantfate_monthy_dataset <- monthy_dataset
-  plantfate_monthy_dataset$co2 <- 380 # TODO: if time get the values from Hyytiala like in the SWP
-  plantfate_monthy_dataset$SWP <- - 0.001 * rep(soil_water_potential_montly$HYY_META.wpsoil_B, 
-                                     length.out = nrow(plantfate_monthy_dataset))
+  plantfate_monthy_dataset$co2 <- 380 # ppm TODO: if time get the values from Hyytiala like in the SWP
+  plantfate_monthy_dataset$SWP <- - 0.001 * rep(soil_water_potential_montly$HYY_META.wpsoil_B,
+                                                length.out = nrow(plantfate_monthy_dataset)) # Soil water potential kPa to - MPa
   plantfate_monthy_dataset$Decimal_year <- seq(plantfate_monthy_dataset$Year[1],
                                                plantfate_monthy_dataset$Year[nrow(plantfate_monthy_dataset)],
                                                length.out = nrow(plantfate_monthy_dataset))
@@ -173,17 +173,17 @@ reading_nc <- function() {
                                     gpp[gpp$Year < plantfate_monthy_dataset$Year[nrow(plantfate_monthy_dataset)],c("YM", "GPP")], 
                                     by = "YM", 
                                     all.x = T)
-  fwrite(plantfate_monthy_dataset[,c("Year", "Month", "Decimal_year", "Temp", "VPD", "PAR", "PAR_max", "SWP", "GPP")],
+  fwrite(plantfate_monthy_dataset[,c("Year", "Month", "Decimal_year", "Temp", "VPD", "PPFD", "PPFD_max", "SWP", "GPP")],
          file = file.path(path_test, "ERAS_Monthly.csv"))
   
   plantfate_daily_dataset <- daily_dataset
   plantfate_daily_dataset$co2 <- 380
   plantfate_daily_dataset$SWP <- - 0.001 * rep(soil_water_potential_daily$HYY_META.wpsoil_B, 
-                                    length.out = nrow(plantfate_daily_dataset))
+                                               length.out = nrow(plantfate_daily_dataset)) # Soil water potential kPa to - MPa
   plantfate_daily_dataset$Decimal_year <- seq(plantfate_daily_dataset$Year[1],
                                               plantfate_daily_dataset$Year[nrow(plantfate_daily_dataset)],
                                                length.out = nrow(plantfate_daily_dataset))
-  fwrite(plantfate_daily_dataset[,c("Year", "Month", "Decimal_year", "Temp", "VPD", "PAR", "PAR_max", "SWP")],
+  fwrite(plantfate_daily_dataset[,c("Year", "Month", "Decimal_year", "Temp", "VPD", "PPFD", "PPFD_max", "SWP")],
          file = file.path(path_test, "ERAS_dataset.csv"))
   
   ####
@@ -194,3 +194,4 @@ reading_nc <- function() {
   
   return("Your code is done - check the generated files")
 }
+
