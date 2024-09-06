@@ -51,6 +51,7 @@ RCPP_MODULE(plantfate_module){
 	class_ <plant::PlantParameters>("PlantParameters")
 		.field("infra_translation", &plant::PlantParameters::infra_translation)
     .field("infra_min", &plant::PlantParameters::infra_min)
+    .field("rs", &plant::PlantParameters::rs)
 		.field("cD0", &plant::PlantParameters::cD0)
 		.field("eD0", &plant::PlantParameters::eD0)
 		.field("cD1", &plant::PlantParameters::cD1)
