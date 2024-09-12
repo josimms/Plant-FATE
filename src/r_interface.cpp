@@ -43,7 +43,7 @@ RCPP_MODULE(plantfate_module){
 		.field("n", &plant::PlantTraits::n)
 		.field("a", &plant::PlantTraits::a)
 		.field("c", &plant::PlantTraits::c)
-
+	
 		.constructor()
 		.method("print", &plant::PlantTraits::print)
 		;
@@ -52,6 +52,7 @@ RCPP_MODULE(plantfate_module){
 		.field("infra_translation", &plant::PlantParameters::infra_translation)
     .field("infra_min", &plant::PlantParameters::infra_min)
     .field("rs", &plant::PlantParameters::rs)
+    .field("rr", &plant::PlantParameters::rr)
 		.field("cD0", &plant::PlantParameters::cD0)
 		.field("eD0", &plant::PlantParameters::eD0)
 		.field("cD1", &plant::PlantParameters::cD1)
@@ -63,6 +64,10 @@ RCPP_MODULE(plantfate_module){
 		.field("cWD0", &plant::PlantParameters::cWD0)
 		.field("eWD", &plant::PlantParameters::eWD)
 		.field("m_hydraulic", &plant::PlantParameters::m_hydraulic)
+    .field("fg", &plant::PlantParameters::fg)
+    .field("lai0", &plant::PlantParameters::lai0)
+    .field("kphio", &plant::PlantParameters::kphio)
+    .field("gamma", &plant::PlantParameters::gamma)
 
 		.constructor()
 		.method("print", &plant::PlantParameters::print)
