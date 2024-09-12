@@ -16,39 +16,39 @@ create_combined_plot_Ib_value <- function(df_original, sa_ib_all, color_scale) {
   
   # Plot 1: Height
   p1 <- ggplot() +
-    geom_line(data = df_original, aes(x = date, y = height), color = "black") +
     geom_point(data = sa_ib_all, aes(x = date, y = height, color = Ib_value), shape = 45, size = 3) +
+    geom_line(data = df_original, aes(x = date, y = height), color = "black") +
     labs(x = "Date", y = "Height") +
     color_scale +
     theme_minimal()
   
   # Plot 2: Root Mass
   p2 <- ggplot() +
-    geom_line(data = df_original, aes(x = date, y = root_mass + coarse_root_mass), color = "black") +
-    geom_point(data = sa_ib_all, aes(x = date, y = root_mass + coarse_root_mass, color = Ib_value), shape = 45, size = 3) +
+    geom_point(data = sa_ib_all, aes(x = date, y = root_mass, color = Ib_value), shape = 45, size = 3) +
+    geom_line(data = df_original, aes(x = date, y = root_mass), color = "black") +
     labs(x = "Date", y = "Root Mass") +
     color_scale +
     theme_minimal()
   
   # Plot 3: Ib Value
   p3 <- ggplot() +
-    geom_point(data = sa_ib_all, aes(x = date, y = Ib_min + Ib_value * (root_mass + coarse_root_mass), color = Ib_value), shape = 45, size = 3) +
+    geom_point(data = sa_ib_all, aes(x = date, y = Ib_min + Ib_value * (root_mass), color = Ib_value), shape = 45, size = 3) +
     labs(x = "Date", y = "Ib Value") +
     color_scale +
     theme_minimal()
   
   # Plot 4: LAI
   p4 <- ggplot() +
-    geom_line(data = df_original, aes(x = date, y = lai), color = "black") +
     geom_point(data = sa_ib_all, aes(x = date, y = lai, color = Ib_value), shape = 45, size = 3) +
+    geom_line(data = df_original, aes(x = date, y = lai), color = "black") +
     labs(x = "Date", y = "LAI") +
     color_scale +
     theme_minimal()
   
   # Plot 5: Assim gross
   p5 <- ggplot() +
-    geom_line(data = df_original, aes(x = date, y = assim_gross), color = "black") +
     geom_point(data = sa_ib_all, aes(x = date, y = assim_gross, color = Ib_value), shape = 45, size = 3) +
+    geom_line(data = df_original, aes(x = date, y = assim_gross), color = "black") +
     labs(x = "Date", y = "Assim gross") +
     color_scale +
     theme_minimal()
@@ -67,39 +67,39 @@ create_combined_plot_Ib_min <- function(df_original, sa_ib_all, color_scale) {
   
   # Plot 1: Height
   p1 <- ggplot() +
-    geom_line(data = df_original, aes(x = date, y = height), color = "black") +
     geom_point(data = sa_ib_all, aes(x = date, y = height, color = Ib_min), shape = 45, size = 3) +
+    geom_line(data = df_original, aes(x = date, y = height), color = "black") +
     labs(x = "Date", y = "Height") +
     color_scale +
     theme_minimal()
   
   # Plot 2: Root Mass
   p2 <- ggplot() +
-    geom_line(data = df_original, aes(x = date, y = root_mass + coarse_root_mass), color = "black") +
-    geom_point(data = sa_ib_all, aes(x = date, y = root_mass + coarse_root_mass, color = Ib_min), shape = 45, size = 3) +
+    geom_point(data = sa_ib_all, aes(x = date, y = root_mass, color = Ib_min), shape = 45, size = 3) +
+    geom_line(data = df_original, aes(x = date, y = root_mass), color = "black") +
     labs(x = "Date", y = "Root Mass") +
     color_scale +
     theme_minimal()
   
   # Plot 3: Ib Min
   p3 <- ggplot() +
-    geom_point(data = sa_ib_all, aes(x = date, y = Ib_min + Ib_value * (root_mass + coarse_root_mass), color = Ib_min), shape = 45, size = 3) +
+    geom_point(data = sa_ib_all, aes(x = date, y = Ib_min + Ib_value * (root_mass), color = Ib_min), shape = 45, size = 3) +
     labs(x = "Date", y = "Ib Min") +
     color_scale +
     theme_minimal()
   
   # Plot 4: LAI
   p4 <- ggplot() +
-    geom_line(data = df_original, aes(x = date, y = lai), color = "black") +
     geom_point(data = sa_ib_all, aes(x = date, y = lai, color = Ib_min), shape = 45, size = 3) +
+    geom_line(data = df_original, aes(x = date, y = lai), color = "black") +
     labs(x = "Date", y = "LAI") +
     color_scale +
     theme_minimal()
   
   # Plot 5: Assim gross
   p5 <- ggplot() +
-    geom_line(data = df_original, aes(x = date, y = assim_gross), color = "black") +
     geom_point(data = sa_ib_all, aes(x = date, y = assim_gross, color = Ib_min), shape = 45, size = 3) +
+    geom_line(data = df_original, aes(x = date, y = assim_gross), color = "black") +
     labs(x = "Date", y = "Assim gross") +
     color_scale +
     theme_minimal()
@@ -273,7 +273,7 @@ sa_ib_all_both <- do.call(rbind, sa_ib_both)
 
 # Plot
 color_scale_Ib_value <- scale_color_gradientn(colours = rainbow(5), name = "Ib Value")
-combined_plot <- create_combined_plot_Ib_value(df_original, sa_ib_all_both[sa_ib_all_both$Ib_min == unique(sa_ib_all_both$Ib_min)[6],], color_scale_Ib_value)
+combined_plot <- create_combined_plot_Ib_value(df_original, sa_ib_all_both[sa_ib_all_both$Ib_min == unique(sa_ib_all_both$Ib_min)[20],], color_scale_Ib_value)
 print(combined_plot)
 
 color_scale_Ib_min <- scale_color_gradientn(colours = rainbow(5), name = "Ib Min")
