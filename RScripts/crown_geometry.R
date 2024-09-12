@@ -5,4 +5,15 @@ crown <- function(z, H, m, n, r_0) {
                          height = c(z, z))
 }
 
+count = 1
+tree = NULL
+for (z in seq(1, 30, length.out = 20)) {
+  tree[[count]] = crown(z, 30, 2.0, 1.1, 40)
+  count = count + 1
+}
+
+whole_tree <- do.call(rbind, tree)
+
+plot(whole_tree$radius, whole_tree$height)
+
 
