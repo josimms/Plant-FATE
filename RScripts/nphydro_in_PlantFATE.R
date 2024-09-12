@@ -12,57 +12,6 @@ library(parallel)
 ###
 
 # Define the function
-create_combined_plot <- function(df_original, sa_ib_all, color_scale) {
-  
-  # Plot 1: Height
-  p1 <- ggplot() +
-    geom_line(data = df_original, aes(x = date, y = height), color = "black") +
-    geom_point(data = sa_ib_all, aes(x = date, y = height, color = Ib_value), shape = 45, size = 3) +
-    labs(x = "Date", y = "Height") +
-    color_scale +
-    theme_minimal()
-  
-  # Plot 2: Root Mass
-  p2 <- ggplot() +
-    geom_line(data = df_original, aes(x = date, y = root_mass + coarse_root_mass), color = "black") +
-    geom_point(data = sa_ib_all, aes(x = date, y = root_mass + coarse_root_mass, color = Ib_value), shape = 45, size = 3) +
-    labs(x = "Date", y = "Root Mass") +
-    color_scale +
-    theme_minimal()
-  
-  # Plot 3: Ib Value
-  p3 <- ggplot() +
-    geom_point(data = sa_ib_all, aes(x = date, y = 0.55 + Ib_value * (root_mass + coarse_root_mass), color = Ib_value), shape = 45, size = 3) +
-    labs(x = "Date", y = "Ib Value") +
-    color_scale +
-    theme_minimal()
-  
-  # Plot 4: LAI
-  p4 <- ggplot() +
-    geom_line(data = df_original, aes(x = date, y = lai), color = "black") +
-    geom_point(data = sa_ib_all, aes(x = date, y = lai, color = Ib_value), shape = 45, size = 3) +
-    labs(x = "Date", y = "LAI") +
-    color_scale +
-    theme_minimal()
-  
-  # Plot 5: Assim gross
-  p5 <- ggplot() +
-    geom_line(data = df_original, aes(x = date, y = assim_gross), color = "black") +
-    geom_point(data = sa_ib_all, aes(x = date, y = assim_gross, color = Ib_value), shape = 45, size = 3) +
-    labs(x = "Date", y = "Assim gross") +
-    color_scale +
-    theme_minimal()
-  
-  # Combine plots
-  combined_plot <- (p1 + p2) / (p3 + p4) / p5 +
-    plot_layout(guides = "collect") & 
-    theme(legend.position = "bottom")
-  
-  # Return the combined plot
-  return(combined_plot)
-}
-
-# Define the function
 create_combined_plot_Ib_value <- function(df_original, sa_ib_all, color_scale) {
   
   # Plot 1: Height
@@ -260,7 +209,7 @@ sa_ib <- mclapply(potential_parameters, function(i) {
                                 init_co2 = 365,
                                 i)
   result <- run_for_dataset(lho_temp, 2000, 2015, dt)
-  result$Ib_value <- i
+  result$parameter <- i
   return(result)
 }, mc.cores = detectCores()-2)
 
