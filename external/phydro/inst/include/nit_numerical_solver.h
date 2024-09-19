@@ -93,11 +93,11 @@ namespace phydro{
     // bounds
     VectorXd lb(q), ub(q);
     lb << -10, 0;
-    ub << log(100), 50;
+    ub << log(nitrogen_store), 50;
     
     // Initial guess
     VectorXd x(q);
-    x << log(100), 1; 
+    x << log(nitrogen_store), 1; 
     
     // x will be overwritten to be the best point found
     double fx;

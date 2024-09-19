@@ -22,36 +22,78 @@ get_response_description <- function(a, response_variable) {
 }
 
 mesi_import <- function() {
+  ### Libraries
+  library(dbplyr)
+  library(dplyr)
+  library(tidyr)
+  
+  ### MESI Import
   mesi_path = "/home/josimms/Documents/Austria/MESI_data/data"
   
   a <- lapply(list.files(mesi_path, pattern = "mesi", full.names = TRUE), data.table::fread)
   names(a) <- gsub(".csv", "", list.files(mesi_path, pattern = "mesi"))
-
-  # Key!
-  get_response_description(a, "npp")
-  # Posibilities
-  posibilities = unique(a$mesi_response_variable_abbreviations$description)
-
+  
+  a$mesi_main <- a$mesi_main %>%
+    group_by(db, citation, site, study, lat, lon, elevation, ecosystem_type, vegetation_type) %>%
+    mutate(index = cur_group_id()) %>%
+    ungroup()
+  
+  # The units aren't standardised for leaf n mass, so change this first!
+  unique(a$mesi_main$x_units[a$mesi_main$response == "leaf_n_mass"])
+  
+  convert_nitrogen_to_g_g <- function(value, unit) {
+    # Molar mass of nitrogen in g/mol
+    molar_mass_nitrogen <- 14.01
+    
+    # Define a list of conversion factors for nitrogen per leaf mass
+    conversion_factors <- list(
+      "g_100g" = 1 / 100,            # grams per 100 grams to grams per gram
+      "g_kg" = 1 / 1000,             # grams per kilogram to grams per gram
+      "ug_mg" = 1 / 1000,            # micrograms per milligram to grams per gram
+      "mg_g" = 1 / 1000,             # milligrams per gram to grams per gram
+      "mg_kg" = 1 / 1e6,             # milligrams per kilogram to grams per gram
+      "mgn_g" = 1 / 1000,            # milligrams of nitrogen per gram to grams per gram
+      "g_g" = 1,                     # grams per gram (no conversion needed)
+      "mmol_g" = molar_mass_nitrogen / 1000,  # millimoles of nitrogen per gram to grams per gram
+      "umol_g" = molar_mass_nitrogen / 1e6    # micromoles of nitrogen per gram to grams per gram
+    )
+    
+    # Check if the unit is in the list of known conversions
+    if (unit %in% names(conversion_factors)) {
+      factor <- conversion_factors[[unit]]
+      return(value * factor)
+    } else {
+      # There are other units here, so don't need to convert the ones that are not in the list!
+      return(value)
+    }
+  }
+  
+  # Add a new column 'x_corrected' based on the 'x_c' values and corresponding units
+  a$mesi_main$x_corrected <- mapply(function(value, unit) {
+    tryCatch({
+      # Apply the conversion function for nitrogen per leaf mass
+      convert_nitrogen_to_g_g(value, unit)
+    }, error = function(e) {
+      NA  # If there's an error (e.g., unknown unit), set value as NA
+    })
+  }, a$mesi_main$x_c, a$mesi_main$x_units)
+  
   # Transform the data so the response variables are columns
-  df <- a$mesi_main %>%
-    pivot_wider(names_from = response, values_from = x_c, id_cols = id, values_fn = function(x) {mean(x, na.rn = T)})
+  df <- a$mesi_main[a$mesi_main$ecosystem_type == "forest",] %>%
+    pivot_wider(names_from = response, values_from = x_corrected, id_cols = index, values_fn = function(x) {mean(x, na.rm = T)})
   
-  # TODO: none of the variables have any matches, so need to fix this!
-  check_var_combinations(posibilities, df)
+  ### I would like to extract
+  # leaf_nitrogen_concentration_by_mass (leaf_n_mass)
+  # (jmax)
+  # (vcmax)
+
+  plot(df$leaf_n_mass, df$jmax)
+  plot(df$leaf_n_mass, df$vcmax)
+  plot(df$vcmax, df$jmax)
   
-  ###
-  # Boreal
-  ###
-  boreal_main_data = a$mesi_main[a$mesi_main$vegetation_type == "boreal_forest",]
+  plot(df$jmax)
   
-  # TODO: need to transform
-  
-  # Posibilities
-  boreal_posibilities = unique(boreal_main_data$response)
-  check_var1_vs_multiple_var2("jmax", boreal_posibilities, boreal_main_data)
-  
-  
-  return(boreal_main_data)
+  return(df)
 }
 
 try_data <- function() {

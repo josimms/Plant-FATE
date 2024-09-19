@@ -18,9 +18,13 @@ library(ggplot2)
 library(reshape2)
 library(gridExtra)
 library(tibble)
+library(dbplyr)
 library(dplyr)
+library(tidyr)
 library(purrr)
 library(ggtext)
+library(ggplot2)
+library(patchwork)
 ```
 
 ## Simulations
@@ -38,14 +42,16 @@ vwind = 3;
 netrad = ppfd/2
 psi_soil = -0.05
 pa = calc_patm(elv)
-nitrogen = 0.02 # TODO: this isn't doing anything at the moment
+nitrogen = 1 # TODO: this isn't doing anything at the moment
 
 ### New parameters
   # a_jmax is an estimated value
   # From the literature a_jmax is just a linear fitting of data rather than parameter that can be explicitly found
   # 
-  # micro mols m-2 s-2 (g m-2)-1
-a_jmax = 50 # Units
+  # I would like the unit to be weight of nitrogen per dry mass, rather than by area
+  #
+  # micro mols m-2 s-2 (mg g)-1
+a_jmax = 3700
 
 par_cost = list(alpha=0.1, gamma=1, carbon_allocation = 1);
 par_plant = list(conductivity=3e-17, psi50=-2, b=2);
@@ -153,25 +159,26 @@ boreal_pivot_sting <- data_try_boreal %>%
                      id_cols = ObservationID, 
                      values_fn = ~mean(.x, na.rn = T))
 
-scots_pine_pivot_std_all_cols <- data_try %>%
+scots_pine_pivot_std_all_cols <- data_try_scots_pine %>%
   dplyr::mutate(DataName = stringi::stri_trans_general(DataName, "Latin-ASCII")) %>%
   tidyr::pivot_wider(names_from = DataName, 
                      values_from = StdValue, 
                      id_cols = ObservationID, 
                      values_fn = ~mean(.x, na.rm = TRUE))
   
-# TODO: make this not crash!
-scots_pine_pivot_std_all_cols %>%  
-  dplyr::left_join(data_try %>% 
-                     dplyr::select(ObservationID, AccSpeciesName), 
-                   by = "ObservationID")
-
-scots_pine_pivot_string_all_cols <- data_try %>%
+scots_pine_pivot_string_all_cols <- data_try_scots_pine %>%
   dplyr::mutate(DataName = stringi::stri_trans_general(DataName, "Latin-ASCII")) %>%
   tidyr::pivot_wider(names_from = DataName, 
                      values_from = ValuesFromString, 
                      id_cols = ObservationID, 
                      values_fn = ~mean(.x, na.rn = T))
+
+pivot_std_all_cols <- data_try %>%
+  dplyr::mutate(DataName = stringi::stri_trans_general(DataName, "Latin-ASCII")) %>%
+  tidyr::pivot_wider(names_from = DataName, 
+                     values_from = StdValue, 
+                     id_cols = ObservationID, 
+                     values_fn = ~mean(.x, na.rm = TRUE))
 
 check_var_combinations(names(out_data_try_pivot)[-1], out_data_try_pivot)
 
@@ -181,7 +188,6 @@ column_names <- c(
     "Ratio of root nitrogen content per dry mass to foliage nitrogen content per dry mass",
     "Leaf nitrogen content per dry mass (Nmass)",
     "Photosynthetic carboxylation capacity (Vcmax, Vmax) per leaf dry mass at ambient temperature",
-    "Jmax per dry mass at ambient or leaf temperature",
     "Photosynthetic carboxylation capacity (Vcmax, Vmax) per leaf dry mass at 25 C",
     "Photosynthetic electron transport capacity per leaf dry mass at 25C (Jmax25mass)",
     "Leaf N content per dry mass (one year old leaves)",
@@ -191,7 +197,7 @@ column_names <- c(
     "Photosynthetic carboxylation capacity (Vcmax, Vmax) per leaf area at leaf temperature",
     "Photosynthetic carboxylation capacity (Vcmax, Vmax) per leaf area at 25 C",
     "Photosynthetic electron transport capacity per leaf area at 25C (Jmax25area)",
-    "Jmax per leaf area at ambient or leaf temperature",
+    "Jmax per dry mass at ambient or leaf temperature",
     "Potential electron transport rate, on a projected area basis",
     "Leaf nitrogen content per area (Narea)",
     "Soil N; available N per ground area",
@@ -207,8 +213,68 @@ column_names <- c(
 # Selected columns
 ###
 
-scots_pine_colums_std <- scots_pine_pivot_std_all_cols[,column_names]
-scots_pine_colums_string <- scots_pine_pivot_string_all_cols[,column_names]
+scots_pine_colums_std <- pivot_std_all_cols[,column_names]
+# scots_pine_colums_string <- pivot_std_all_cols[,column_names]
+
+colums_std <- pivot_std_all_cols[,column_names]
+
+```
+
+## Mesi data
+
+```{r}
+
+mesi_path = "/home/josimms/Documents/Austria/MESI_data/data"
+  
+a <- lapply(list.files(mesi_path, pattern = "mesi", full.names = TRUE), data.table::fread)
+names(a) <- gsub(".csv", "", list.files(mesi_path, pattern = "mesi"))
+
+a$mesi_main <- a$mesi_main %>%
+  group_by(db, citation, site, study, lat, lon, elevation, ecosystem_type, vegetation_type) %>%
+  mutate(index = cur_group_id()) %>%
+  ungroup()
+
+convert_nitrogen_to_g_g <- function(value, unit) {
+    # Molar mass of nitrogen in g/mol
+    molar_mass_nitrogen <- 14.01
+    
+    # Define a list of conversion factors for nitrogen per leaf mass
+    conversion_factors <- list(
+      "g_100g" = 1 / 100,            # grams per 100 grams to grams per gram
+      "g_kg" = 1 / 1000,             # grams per kilogram to grams per gram
+      "ug_mg" = 1 / 1000,            # micrograms per milligram to grams per gram
+      "mg_g" = 1 / 1000,             # milligrams per gram to grams per gram
+      "mg_kg" = 1 / 1e6,             # milligrams per kilogram to grams per gram
+      "mgn_g" = 1 / 1000,            # milligrams of nitrogen per gram to grams per gram
+      "g_g" = 1,                     # grams per gram (no conversion needed)
+      "mmol_g" = molar_mass_nitrogen / 1000,  # millimoles of nitrogen per gram to grams per gram
+      "umol_g" = molar_mass_nitrogen / 1e6    # micromoles of nitrogen per gram to grams per gram
+    )
+    
+    # Check if the unit is in the list of known conversions
+    if (unit %in% names(conversion_factors)) {
+      factor <- conversion_factors[[unit]]
+      return(value * factor)
+    } else {
+      # There are other units here, so don't need to convert the ones that are not in the list!
+      return(value)
+    }
+  }
+  
+  # Add a new column 'x_corrected' based on the 'x_c' values and corresponding units
+  a$mesi_main$x_corrected <- mapply(function(value, unit) {
+    tryCatch({
+      # Apply the conversion function for nitrogen per leaf mass
+      convert_nitrogen_to_g_g(value, unit)
+    }, error = function(e) {
+      NA  # If there's an error (e.g., unknown unit), set value as NA
+    })
+  }, a$mesi_main$x_c, a$mesi_main$x_units)
+
+# Transform the data so the response variables are columns
+MESI_df <- a$mesi_main[a$mesi_main$ecosystem_type == "forest",] %>%
+  pivot_wider(names_from = response, values_from = x_corrected, id_cols = index, values_fn = function(x) {mean(x, na.rm = T)})
+
 
 ```
 
@@ -217,42 +283,55 @@ scots_pine_colums_string <- scots_pine_pivot_string_all_cols[,column_names]
 ```{r}
 # Create the plot
 
-get_response_description(data_try,
-                         "Photosynthetic electron transport capacity per leaf area at 25C (Jmax25area)")
-get_response_description(data_try,
-                         "Jmax per leaf area at ambient or leaf temperature")
-get_response_description(data_try,
-                         "Photosynthetic carboxylation capacity (Vcmax, Vmax) per leaf area at 25 C")
-get_response_description(data_try,
-                         "Photosynthetic carboxylation capacity (Vcmax, Vmax) per leaf area at 25 C")
+#get_response_description(data_try,
+#                         "Photosynthetic electron transport capacity per leaf dry mass at 25C (Jmax25mass)")
+#get_response_description(data_try,
+#                         "Photosynthetic electron transport capacity per leaf area at 25C (Jmax25area)")
+#get_response_description(data_try,
+#                         "Photosynthetic carboxylation capacity (Vcmax, Vmax) per leaf area at leaf temperature")
+#get_response_description(data_try,
+#                         "Photosynthetic carboxylation capacity (Vcmax, Vmax) per leaf dry mass at 25 C")
+
+#summary(colums_std[,c("Photosynthetic electron transport capacity per leaf dry mass at 25C (Jmax25mass)", 
+#                      "Photosynthetic electron transport capacity per leaf area at 25C (Jmax25area)",
+#                      "Photosynthetic carboxylation capacity (Vcmax, Vmax) per leaf area at 25 C",
+#                      "Photosynthetic carboxylation capacity (Vcmax, Vmax) per leaf dry mass at 25 C")])
 
 ggplot() +
-  #geom_point(data = scots_pine_colums_std, aes(x = `Jmax per leaf area at ambient or leaf temperature`,
-  #                                           y = `Photosynthetic carboxylation capacity (Vcmax, Vmax) per leaf area at leaf temperature`,
-  #                                             shape = "Ambient"), col = "darkgrey") +
-  geom_point(data = scots_pine_colums_std, aes(x = `Photosynthetic electron transport capacity per leaf area at 25C (Jmax25area)`,
-                                               y = `Photosynthetic carboxylation capacity (Vcmax, Vmax) per leaf area at 25 C`,
-                                               shape = "25°C"), col = '') +
+  geom_point(data = results[nrow(results):1,], aes(y = vcmax25, x = jmax25, color = allocation), size = 2) +
+  geom_point(data = colums_std, aes(x = `Photosynthetic electron transport capacity per leaf area at 25C (Jmax25area)`,
+                                    y = `Photosynthetic carboxylation capacity (Vcmax, Vmax) per leaf area at 25 C`,
+                                    shape = "TRY"), 
+             color = "grey", size = 1, alpha = 0.5) +
+  geom_point(data = MESI_df, aes(x = jmax, y = vcmax, shape = "MESI"), 
+             color = "black", size = 1, alpha = 0.5) +
   labs(y = "Vcmax, micro mol m-2 s-1", x = "Jmax, micro mol m-2 s-1") + 
-  geom_point(data = results, aes(y = vcmax25, x = jmax25, color = allocation), size = 2) +
   theme_minimal() +
   theme(strip.background = element_rect(color = "white", size = 1),
         legend.position = "right") +
   scale_color_manual(values = c("1" = "green", "0.75" = "darkgreen", "1.5" = "yellow", "2" = "red")) +
-  scale_shape_manual(values = c("Ambient" = 16, "25°C" = 17)) +
+  scale_shape_manual(values = c("TRY" = 16, "MESI" = 17)) +
   guides(color = guide_legend(title = "Infrastructure Belowground"),
-         shape = guide_legend(title = "Temperature"))
+         shape = guide_legend(title = "Dataset"))
 ```
 
 ## Jmax and leaf N ratio
 
 ```{r}
-get_response_description(data_try,
-                         "Leaf nitrogen content per dry mass (Nmass)")
+#get_response_description(data_try,
+#                         "Leaf nitrogen content per dry mass (Nmass)")
+#get_response_description(data_try,
+#                         "Leaf nitrogen content per area (Narea)")
 
 # Calculate gradients (this should be done outside the ggplot function)
-calc_gradient <- function(data, x_col, y_col) {
-  model <- lm(data[[y_col]] ~ 0 + data[[x_col]])
+calc_gradient <- function(data, x_col, y_col, TRY = FALSE) {
+  if (TRY) {
+    data[[x_col]] = data[[x_col]]/1000
+    model <- lm(data[[y_col]] ~ 0 + data[[x_col]])
+  } else {
+    model <- lm(data[[y_col]] ~ 0 + data[[x_col]])
+  }
+  
   return(round(coef(model)[1], 2))
 }
 
@@ -261,12 +340,14 @@ gradient_1 <- calc_gradient(dat, "n_leaf", "jmax")
 gradient_1.5 <- calc_gradient(dat_1.5, "n_leaf", "jmax")
 gradient_2 <- calc_gradient(dat_2, "n_leaf", "jmax")
 
-gradient_ambient <- calc_gradient(scots_pine_colums_std, 
-                                  "Leaf nitrogen content per area (Narea)", 
-                                  "Jmax per leaf area at ambient or leaf temperature")
 gradient_25C <- calc_gradient(scots_pine_colums_std, 
-                              "Leaf nitrogen content per area (Narea)", 
-                              "Photosynthetic electron transport capacity per leaf area at 25C (Jmax25area)")
+                              "Leaf nitrogen content per dry mass (Nmass)", 
+                              "Photosynthetic electron transport capacity per leaf area at 25C (Jmax25area)",
+                              TRUE)
+gradient_MESI <- calc_gradient(MESI_df, 
+                              "leaf_n_mass", 
+                              "jmax",
+                              FALSE)
 
 # Create colored subtitle
 create_colored_text <- function(label, value, color) {
@@ -274,32 +355,34 @@ create_colored_text <- function(label, value, color) {
 }
 
 subtitle <- paste(
-  create_colored_text("Ambient", gradient_ambient, "darkgrey"),
-  create_colored_text("25°C", gradient_25C, "black"),
-  create_colored_text("Infrastructure, 0.75", gradient_0.75, "darkgreen"),
-  create_colored_text("Infrastructure, 1", gradient_1, "green"),
-  create_colored_text("Infrastructure, 1.5", gradient_1.5, "yellow"),
-  create_colored_text("Infrastructure, 2", gradient_2, "red"),
+  create_colored_text("TRY", gradient_25C, "grey"),
+  create_colored_text("MESI", gradient_MESI, "black"),
+  create_colored_text("Infra, 0.75", gradient_0.75, "darkgreen"),
+  create_colored_text("Infra, 1", gradient_1, "green"),
+  create_colored_text("Infra, 1.5", gradient_1.5, "yellow"),
+  create_colored_text("Infra, 2", gradient_2, "red"),
   sep = " | "
 )
 
 # Now, the ggplot code
+
 p <- ggplot() +
-  geom_point(data = scots_pine_colums_std, aes(x = `Leaf nitrogen content per area (Narea)`,
-                                             y = `Jmax per leaf area at ambient or leaf temperature`,
-                                               color = "Ambient Temperature"), shape = 16) +
-  geom_smooth(data = scots_pine_colums_std, aes(x = `Leaf nitrogen content per area (Narea)`,
-                                             y = `Jmax per leaf area at ambient or leaf temperature`,
-                                             color = "Ambient Temperature"), 
-              method = "lm", formula = y ~ 0 + x, se = FALSE, linetype = "dashed") +
-  geom_point(data = scots_pine_colums_std, aes(x = `Leaf nitrogen content per area (Narea)`,
-                                               y = `Photosynthetic electron transport capacity per leaf area at 25C (Jmax25area)`,
-                                               color = "25°C"), shape = 16) +
-  geom_smooth(data = scots_pine_colums_std, aes(x = `Leaf nitrogen content per area (Narea)`,
-                                               y = `Photosynthetic electron transport capacity per leaf area at 25C (Jmax25area)`,
-                                               color = "25°C"), 
-              method = "lm", formula = y ~ 0 + x, se = FALSE, linetype = "dashed") +
-  labs(x = "N per leaf (g m-2)",
+  geom_point(data = colums_std, aes(x = `Leaf nitrogen content per dry mass (Nmass)`/1000,
+                                    y = `Photosynthetic electron transport capacity per leaf area at 25C (Jmax25area)`,
+                                    shape = "TRY"), color = "grey", size = 1) +
+  geom_smooth(data = colums_std, aes(x = `Leaf nitrogen content per dry mass (Nmass)`/1000,
+                                    y = `Photosynthetic electron transport capacity per leaf area at 25C (Jmax25area)`,
+                                    shape = "TRY"), 
+              method = "lm", formula = y ~ 0 + x, se = FALSE, linetype = "dashed", color = "grey", size = 1) +
+  geom_point(data = MESI_df, aes(x = leaf_n_mass,
+                                 y = jmax,
+                                 shape = "MESI"),
+             color = "black", size = 1) +
+  geom_smooth(data = MESI_df, aes(x = leaf_n_mass,
+                                  y = jmax,
+                                  shape = "MESI"), 
+              method = "lm", formula = y ~ 0 + x, se = FALSE, linetype = "dashed", color = "black", size = 1) +
+  labs(x = "N per leaf (g g-1)",
        y = "Jmax, micro mol m-2 s-1",
        title = "Gradients") +
   geom_line(data = dat_2, aes(y = jmax25, x = n_leaf, color = "Infrastructure = 2"), size = 1.2) +
@@ -307,17 +390,18 @@ p <- ggplot() +
   geom_line(data = dat, aes(y = jmax25, x = n_leaf, color = "Infrastructure = 1"), size = 1.2) +
   geom_line(data = dat_0.75, aes(y = jmax25, x = n_leaf, color = "Infrastructure = 0.75"), size = 1.2) +
   scale_color_manual(name = "Lines", 
-                     values = c("Ambient Temperature" = "darkgrey",
-                                "25°C" = "black",
+                     values = c("TRY" = "grey",
+                                "MESI" = "black",
                                 "Infrastructure = 0.75" = "darkgreen",
                                 "Infrastructure = 1" = "green",
                                 "Infrastructure = 1.5" = "yellow",
                                 "Infrastructure = 2" = "red")) +
+  scale_shape_manual(name = "Data", values = c("TRY" = 16, "MESI" = 17)) +
   theme_minimal() +
   theme(strip.background = element_rect(color = "white", size = 1),
         legend.position = "right",
         plot.title = element_text(hjust = 0.5)) +
-  coord_cartesian(xlim = c(0, 10))  # This line sets the x-axis limits from 0 to 10
+  coord_cartesian(xlim = c(0, 0.075))  # This line sets the x-axis limits from 0 to 10
 
 # Create a text grob for the subtitle
 subtitle_grob <- grid::textGrob(subtitle, gp = grid::gpar(fontsize = 8))
@@ -334,23 +418,21 @@ print(p)
 ## Vcmax and leaf C/N ratio
 
 ```{r}
-
 ggplot() +
-  geom_point(data = scots_pine_colums_std, aes(x = `Leaf nitrogen content per area (Narea)`,
-                                               y = `Photosynthetic carboxylation capacity (Vcmax, Vmax) per leaf area at leaf temperature`,
-                                               shape = "Ambient"), col = "darkgrey") +
-  geom_point(data = scots_pine_colums_std, aes(x = `Leaf nitrogen content per area (Narea)`,
-                                               y = `Photosynthetic carboxylation capacity (Vcmax, Vmax) per leaf area at 25 C`,
-                                               shape = "25°C"), col = "black") +
-  labs(x = "N per leaf (g m-2)",
+  geom_point(data = results[nrow(results):1,], aes(y = vcmax25, x = n_leaf, color = allocation), size = 2, shape = 4) +
+  geom_point(data = colums_std, aes(x = `Leaf nitrogen content per dry mass (Nmass)`/1000,
+                                    y = `Photosynthetic carboxylation capacity (Vcmax, Vmax) per leaf area at 25 C`,
+                                    shape = "TRY"), color = "grey", size = 1, alpha = 0.5) +
+  geom_point(data = MESI_df, aes(x = leaf_n_mass, y = vcmax, shape = "MESI"), 
+             color = "black", size = 1) +
+  labs(x = "N per leaf (g g-1)",
        y = "Vcmax, micro mol m-2 s-1") +
-  geom_point(data = results, aes(y = vcmax25, x = n_leaf, color = allocation), size = 2, shape = 4) +
   theme_minimal() +
   theme(strip.background = element_rect(color = "white", size = 1),
         legend.position = "right") +
-  coord_cartesian(xlim = c(0, 17), ylim = c(0, 400)) +
+  coord_cartesian(xlim = c(0.0, 0.075), ylim = c(0, 150)) +
   scale_color_manual(values = c("1" = "green", "0.75" = "darkgreen", "1.5" = "yellow", "2" = "red")) +
-  scale_shape_manual(values = c("Ambient" = 16, "25°C" = 17)) +
+  scale_shape_manual(values = c("TRY" = 16, "MESI" = 17)) +
   guides(color = guide_legend(title = "Infrastructure Belowground"),
          shape = guide_legend(title = "Temperature"))
 
@@ -359,16 +441,12 @@ ggplot() +
 ## Environmental controls
 
 ```{r}
-
-library(ggplot2)
-library(patchwork)
-
 # First plot
 plot1 <- ggplot(results[results$allocation == 1, ], aes(y = vcmax25, x = n_leaf)) +
   geom_point(aes(color = ppfd, shape = factor(allocation)), size = 2) +
   scale_color_gradient(low = "blue", high = "red", name = "PPFD (umol/m2/s)") +
   scale_shape_manual(values = c(16), name = "Infrastructure", labels = c("1.0")) +
-  labs(x = "N per leaf (g m-2)", y = "Vcmax, micro mol m-2 s-1") +
+  labs(x = "N per dry leaf mass (g g-1)", y = "Vcmax, micro mol m-2 s-1") +
   theme_minimal() +
   theme(strip.background = element_rect(color = "white", size = 1),
         legend.title = element_text(),  # Ensure legend titles are displayed
@@ -379,7 +457,7 @@ plot2 <- ggplot(results[results$allocation == 1, ], aes(y = vcmax25, x = n_leaf)
   geom_point(aes(color = vpd, shape = factor(allocation)), size = 2) +
   scale_color_gradient(low = "blue", high = "red", name = "VPD") +
   scale_shape_manual(values = c(16), name = "Infrastructure", labels = c("1.0")) +
-  labs(x = "N per leaf (g m-2)", y = "Vcmax, micro mol m-2 s-1") +
+  labs(x = "N per dry leaf mass (g g-1)", y = "Vcmax, micro mol m-2 s-1") +
   theme_minimal() +
   theme(strip.background = element_rect(color = "white", size = 1),
         legend.title = element_text(),  # Ensure legend titles are displayed
@@ -389,23 +467,6 @@ plot2 <- ggplot(results[results$allocation == 1, ], aes(y = vcmax25, x = n_leaf)
 combined_plot <- plot1 + plot2
 combined_plot
 
-
-
-```
-
-## Soil N
-
-```{r}
-
-plot(scots_pine_colums_std$`Soil N content per ground area`)
-
-ggplot() +
-  geom_point(data = data_try, aes(x = `Jmax per leaf area at ambient or leaf temperature`,
-                                  y = `Photosynthetic carboxylation capacity (Vcmax, Vmax) per leaf area at leaf temperature`,
-                                               linetype = "Area, Ambient Temperature"), col = "darkgrey")
-  
-
-
 ```
 
 
@@ -413,14 +474,20 @@ ggplot() +
 
 ```{r}
 
-# TODO: Should I add a line here?
+ggplot() +
+  geom_point(data = colums_std, aes(x = 0.001 * `Leaf nitrogen content per dry mass (Nmass)`,
+                                    y = `Leaf nitrogen content per area (Narea)`,
+                                    linetype = "Area, 25'C"), col = "black") +
+  labs(x = "N per leaf area (g m-2)",
+       y = "N per leaf mass (g g-1)")
+
 
 ggplot() +
-  geom_point(data = scots_pine_colums_std, aes(x = `Leaf nitrogen content per area (Narea)`,
-                                               y = `Leaf nitrogen content per dry mass (Nmass)`,
-                                               linetype = "Area, 25'C"), col = "black") +
-  labs(x = "N per leaf area",
-       y = "N per leaf mass")
+  geom_point(data = colums_std, aes(x = 0.001 * `Leaf nitrogen content per dry mass (Nmass)`,
+                                    y = `Photosynthetic electron transport capacity per leaf area at 25C (Jmax25area)`,
+                                    linetype = "Area, 25'C"), col = "black")
+
+length(names(colums_std)) = length(unique(names(colums_std)))
 ```
 
 
