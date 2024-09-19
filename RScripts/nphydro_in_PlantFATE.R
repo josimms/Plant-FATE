@@ -160,24 +160,22 @@ lines(df_original$date, df_Ib$root_mass + df_Ib$coarse_root_mass, lty = 2)
 par(new = T)
 plot(NULL,
      xlim = c(df_original$date[1], df_original$date[nrow(df_original)]),
-     ylim = 0.5 + c(0, 0.47),
+     ylim = 0.9 + c(0, 0.47),
      axes = FALSE,
      xlab = "", ylab = "")
-axis(4)
-mtext("Ib", side = 4, line = 3, cex = 0.8)
-count = 1
-for (i in translation) {
-  lines(df_original$date, 0.5 + i*(df_original$root_mass + df_original$coarse_root_mass), col = cols[count], lty = 2)
-  count = count + 1
-}
-legend("topleft", c("Root Mass", "Translation = 2", "Translation = 0.01"), 
-       col = c("black", cols[1], cols[length(translation)]), 
-       lty = 1, bty = "n", cex = 0.75)
+axis(4, col.axis = 'red', col.ticks = 'red')
+mtext("Ib", side = 4, line = 3, cex = 0.8, col = "red")
+lines(df_original$date, 0.7435897 + 4*(df_original$root_mass), col = "red", lty = 2)
+legend("topleft", c("Original Result", "Nitrogen Result", "Ib parameter"), 
+       col = c("black", "black", "red"), 
+       lty = c(1, 2, 2), bty = "n")
 lines(df_Ib$date, df_Ib$root_mass, lty = 2)
 plot(df_original$date, df_original$lai, ylab = "LAI", xlab = "Date", type = "l")
 lines(df_Ib$date, df_Ib$lai, lty = 2)
-plot(df_original$date, df_original$assim_gross, ylab = "Assim gross", xlab = "Date", type = "l", ylim = c(0, max(df_original$assim_gross)))
+plot(df_original$date, df_original$assim_gross, ylab = "Assim gross", xlab = "Date", type = "l", ylim = c(0.02, max(df_Ib$assim_gross)))
 lines(df_Ib$date, df_Ib$assim_gross, lty = 2)
+
+plot(df_Ib$date, df_Ib$crown_area)
 
 ###
 # Fit the Ib parameter Amazon
@@ -283,8 +281,6 @@ print(combined_plot)
 ###
 # Rosendahl / Boreal
 ###
-
-
 
 
 ###
