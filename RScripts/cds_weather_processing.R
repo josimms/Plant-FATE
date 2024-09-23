@@ -54,6 +54,8 @@ reading_nc <- function() {
   library(ncdf4)
   library(bigleaf)
   library(data.table)
+  library(dplyr)
+  library(lubridate)
   
   path_nc <- "/home/josimms/Documents/Austria/eras_data"
   path_test <- "/home/josimms/Documents/Austria/Plant-FATE/tests/data"
@@ -84,15 +86,16 @@ reading_nc <- function() {
     dates <- ncvar_get(nc, nc$dim$time)
     
     for (var in variables) {
-      nc_data[[var]] <- c(nc_data[[var]], 
-                          ncvar_get(nc, varid = var, 
+      nc_data[[var]] <- ncvar_get(nc, varid = var, 
                                     start = c(lon_index, lat_index, 1),
-                                    count = c(1, 1, -1)))
+                                    count = c(1, 1, -1))
+      print(length(nc_data[[var]]))
+      
     }
-    nc_data[["d2m"]] <- c(nc_data[["d2m"]], 
-                          ncvar_get(nc_td, varid = "d2m", 
+    nc_data[["d2m"]] <- ncvar_get(nc_td, varid = "d2m", 
                               start = c(lon_index, lat_index, 1),
-                              count = c(1, 1, -1)))
+                              count = c(1, 1, -1))
+    print(length(nc_data[["d2m"]]))
     
     nc_close(nc)
     nc_close(nc_td)
@@ -100,14 +103,16 @@ reading_nc <- function() {
     # Create data.table
     dataset_cds_raw_year <- data.table(
       Temp = nc_data$t2m  - 273.15, # 'C
-      # TODO: this is just a multiplier to make the values approximately right
-      PPFD = 0.001 * bigleaf::Rg.to.PPFD(nc_data$ssrd), # umol m-2 s-1, PPFD (daily 24-hr mean)
+      PPFD = bigleaf::Rg.to.PPFD(nc_data$ssrd/(60*60)), # W m-2 to umol m-2 s-1, PPFD (daily 24-hr mean)
       swvl1 = nc_data$swvl1, # m m-2
       swvl2 = nc_data$swvl2, # m m-2
       Temp_Dew = nc_data$d2m  - 273.15, # 'C
       date = as.POSIXct(dates*3600, origin = "1900-01-01", tz = "GMT")
+      
+      # TODO: there are too many rows!
     )
     dataset_cds_raw[[i]] <- dataset_cds_raw_year
+    print(nrow(dataset_cds_raw_year))
   }
   
   dataset_cds_raw_all <- rbindlist(dataset_cds_raw)
@@ -120,7 +125,7 @@ reading_nc <- function() {
   dataset_cds_raw_all[, Month := as.numeric(format(date, "%m"))]
   
   # Monthly aggregation
-  monthy_dataset <- dataset_cds_raw_all[, lapply(.SD, mean) , by = YM, .SDcols = -c("YMD", "date")]
+  monthy_dataset <- dataset_cds_raw_all[, lapply(.SD, mean), by = YM, .SDcols = -c("YMD", "date")]
   monthy_dataset[, PPFD_max := dataset_cds_raw_all[, .(PPFD_max = max(PPFD)), by = YM]$PPFD_max]
   
   # Daily aggregation
@@ -162,6 +167,23 @@ reading_nc <- function() {
   # Daily aggregation
   soil_water_potential_daily <- soil_water_potential[, lapply(.SD, mean, na.rm = T), by = MD,  .SDcols = -c("YM")]
   
+  # Load the data
+  Hyytiala <- fread("/home/josimms/Documents/Austria/Plant-FATE/tests/data/daily_dataframe.csv")
+  
+  # Extract year and month, and calculate the monthly max Glob for each year
+  Hyytiala_monthly <- Hyytiala %>%
+    group_by(Year, Month) %>%
+    summarise(Mean_Temp = mean(T336_mean, na.rm = T),
+              Mean_VPD = mean(VPD, na.rm = T),
+              Mean_PPFD = mean(PAR_mean, na.rm = T),
+              Mean_PPFD_max = mean(PAR_max, na.rm = T)) %>%
+    mutate_all(~replace(., is.infinite(.), NA)) %>%
+    group_by(Month) %>%
+    summarise(Mean_Temp = mean(Mean_Temp, na.rm = TRUE),
+              Mean_VPD = mean(Mean_VPD, na.rm = TRUE),
+              Mean_PPFD = mean(Mean_PPFD, na.rm = TRUE),
+              Mean_PPFD_max = mean(Mean_PPFD_max, na.rm = TRUE))
+  
   plantfate_monthy_dataset <- monthy_dataset
   plantfate_monthy_dataset$co2 <- 380 # ppm TODO: if time get the values from Hyytiala like in the SWP
   plantfate_monthy_dataset$SWP <- - 0.001 * rep(soil_water_potential_montly$HYY_META.wpsoil_B,
@@ -173,6 +195,24 @@ reading_nc <- function() {
                                     gpp[gpp$Year < plantfate_monthy_dataset$Year[nrow(plantfate_monthy_dataset)],c("YM", "GPP")], 
                                     by = "YM", 
                                     all.x = T)
+  
+  monthly_means <- plantfate_monthy_dataset %>%
+    group_by(Month) %>%
+    summarise(Mean_Temp = mean(Temp, na.rm = TRUE),
+              Mean_VPD = mean(VPD, na.rm = TRUE),
+              Mean_PPFD = mean(PPFD, na.rm = TRUE),
+              Mean_PPFD_max = mean(PPFD_max, na.rm = TRUE))
+  
+  cols = c("Mean_Temp", "Mean_VPD", "Mean_PPFD", "Mean_PPFD_max")
+  error = Hyytiala_monthly[,cols] - monthly_means[,cols]
+  
+  ### Bias correct
+  plantfate_monthy_dataset$Temp = plantfate_monthy_dataset$Temp + rep(error$Mean_Temp, length.out = nrow(plantfate_monthy_dataset))
+  plantfate_monthy_dataset$VPD = plantfate_monthy_dataset$VPD + rep(error$Mean_VPD, length.out = nrow(plantfate_monthy_dataset))
+  plantfate_monthy_dataset$PPFD = plantfate_monthy_dataset$PPFD + rep(error$Mean_PPFD, length.out = nrow(plantfate_monthy_dataset))
+  # TODO: can you remove -Inf?
+  plantfate_monthy_dataset$PPFD_max = plantfate_monthy_dataset$PPFD_max + rep(error$Mean_PPFD_max, length.out = nrow(plantfate_monthy_dataset))
+  
   fwrite(plantfate_monthy_dataset[,c("Year", "Month", "Decimal_year", "Temp", "VPD", "PPFD", "PPFD_max", "SWP", "GPP")],
          file = file.path(path_test, "ERAS_Monthly.csv"))
   
@@ -183,8 +223,18 @@ reading_nc <- function() {
   plantfate_daily_dataset$Decimal_year <- seq(plantfate_daily_dataset$Year[1],
                                               plantfate_daily_dataset$Year[nrow(plantfate_daily_dataset)],
                                                length.out = nrow(plantfate_daily_dataset))
+  
+  # TODO: Bias correct!
+  plantfate_daily_dataset$Temp = plantfate_daily_dataset$Temp
+  plantfate_daily_dataset$VPD = plantfate_daily_dataset$VPD
+  plantfate_daily_dataset$PPFD = plantfate_daily_dataset$PPFD
+  # TODO: Hyytiala$Glob67_max why is this -Inf?
+  plantfate_daily_dataset$PPFD_max = plantfate_daily_dataset$PPFD_max
+  
   fwrite(plantfate_daily_dataset[,c("Year", "Month", "Decimal_year", "Temp", "VPD", "PPFD", "PPFD_max", "SWP")],
          file = file.path(path_test, "ERAS_dataset.csv"))
+
+  # TODO: daily
   
   ####
   # Plot monthly and daily data
