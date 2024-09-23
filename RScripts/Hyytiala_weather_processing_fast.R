@@ -2,6 +2,31 @@
 # Fast weather processing
 ###
 
+rbinddatatable <- function(table_list) {
+  # Define the common columns
+  common_columns <- c("Year", "Month", "Day", "Hour", "Minute", "Second", "Date", "Monthly")
+  
+  # Process each table in the input list
+  processed_tables <- lapply(table_list, function(table) {
+    # Ensure the table is a data.table
+    if (!is.data.table(table)) {
+      table <- as.data.table(table)
+    }
+    
+    # Reorder columns to put common columns first
+    cols <- c(intersect(common_columns, names(table)),
+              setdiff(names(table), common_columns))
+    setcolorder(table, cols)
+    
+    return(table)
+  })
+  
+  # Combine all processed tables
+  result <- rbindlist(processed_tables, fill = TRUE)
+  
+  return(result)
+}
+
 downloading_data <- function(raw.directory = "/home/josimms/Documents/CASSIA_Calibration/Raw_Data/hyytiala_weather/",
                              year_start = 1995,
                              year_end = 2023) {
@@ -117,11 +142,12 @@ daily_list <- function(environmental.variable.list) {
 }
 
 ###
-#
+# Final process!
 ###
 
 whole_weather_process <- function(raw.directory = "/home/josimms/Documents/CASSIA_Calibration/Raw_Data/hyytiala_weather/") {
   library(data.table)
+  library(dplyr)
   
   ###
   # HYYTIÄLÄ
