@@ -1,5 +1,3 @@
-#include "nitrogen_equaions.h"
-
 #ifndef PHYDRO_PHYDRO_H
 #define PHYDRO_PHYDRO_H
 
@@ -32,6 +30,33 @@ struct PHydroResult{
 	double aj;
 	double le;
 	double le_s_wet;
+};
+
+struct PHydroResultNitrogen{
+  double a;
+  double e;
+  double gs;
+  double ci;
+  double chi;
+  double n_leaf;
+  double vcmax;
+  double jmax;
+  double dpsi;
+  double psi_l;
+  double nfnct;
+  double niter;
+  double mc;
+  double mj;
+  double gammastar;
+  double kmm;
+  double vcmax25;
+  double jmax25;
+  double rd;
+  bool   isVcmaxLimited;
+  double ac;
+  double aj;
+  double le;
+  double le_s_wet;
 };
 
 class ParControl{
@@ -246,6 +271,9 @@ inline PHydroResult phydro_instantaneous_numerical(double vcmax25, double jmax25
 
 } // phydro
 
+#include "nit_numerical_solver.h"
+#include "nit_instantaneous_solver_numerical.h"
+
 namespace phydro{
 
 inline PHydroResultNitrogen phydro_nitrogen(double tc, double tg, double ppfd, double netrad, double vpd, double co2, double pa, double nitrogen_store, double fapar, double kphio, double psi_soil, double rdark, double vwind, double a_jmax, 
@@ -294,7 +322,8 @@ inline PHydroResultNitrogen phydro_nitrogen(double tc, double tg, double ppfd, d
   return res;
 }
 
-inline PHydroResultNitrogen phydro_instantaneous_nitrogen(double vcmax25, double jmax25, double tc, double tg, double ppfd, double netrad, double vpd, double co2, double pa, double nitrogen_store, double fapar, double kphio, double psi_soil, double rdark, double vwind, double a_jmax, ParPlant par_plant, ParCostNitrogen par_cost = ParCostNitrogen(0.1,1,1), ParControl par_control = ParControl()){
+inline PHydroResultNitrogen phydro_instantaneous_nitrogen(double vcmax25, double jmax25, double tc, double tg, double ppfd, double netrad, double vpd, double co2, double pa, double nitrogen_store, double fapar, 
+                                                          double kphio, double psi_soil, double rdark, double vwind, double a_jmax, ParPlant par_plant, ParCostNitrogen par_cost, ParControl par_control = ParControl()){
   
   // double pa = calc_patm(elv);
   
@@ -311,6 +340,8 @@ inline PHydroResultNitrogen phydro_instantaneous_nitrogen(double vcmax25, double
   double     e = calc_sapflux(dpsi, psi_soil, par_plant, par_env);
   double    gs = calc_gs_from_Q(e, psi_soil, par_plant, par_env);
   auto       A = calc_assimilation_limiting_nitrogen(vcmax, jmax, gs, par_photosynth);
+  
+  // TODO: reason for strangeness is jmax rather than n leaf value being given here!
   
   PHydroResultNitrogen res;
   res.a = A.a;
@@ -339,8 +370,9 @@ inline PHydroResultNitrogen phydro_instantaneous_nitrogen(double vcmax25, double
   return res;
   
 }
- 
-} // phydro
+
+} // phydro namespace close
+
 
 
 #endif   // PHYDRO_ANALYTICAL_ONLY
