@@ -68,6 +68,42 @@ sort_CMIP <- function() {
     # Yearly CO2
     dataset_cmip_yearly <- dataset_cmip[, lapply(.SD, mean), by = Year, .SDcols = -c("date", "YMD", "YM", "PPFD_max", "Decimal_year")]
     
+    ### Bias correction!
+    # Load the data
+    Hyytiala <- fread("/home/josimms/Documents/Austria/Plant-FATE/tests/data/daily_dataframe.csv")
+    
+    # Extract year and month, and calculate the monthly max Glob for each year
+    Hyytiala_monthly <- Hyytiala %>%
+      group_by(Year, Month) %>%
+      summarise(Mean_Temp = mean(T336_mean, na.rm = T),
+                Mean_VPD = mean(VPD, na.rm = T),
+                Mean_PPFD = mean(PAR_mean, na.rm = T),
+                Mean_PPFD_max = mean(PAR_max, na.rm = T)) %>%
+      mutate_all(~replace(., is.infinite(.), NA)) %>%
+      group_by(Month) %>%
+      summarise(Mean_Temp = mean(Mean_Temp, na.rm = TRUE),
+                Mean_VPD = mean(Mean_VPD, na.rm = TRUE),
+                Mean_PPFD = mean(Mean_PPFD, na.rm = TRUE),
+                Mean_PPFD_max = mean(Mean_PPFD_max, na.rm = TRUE))
+    
+    monthly_means <- dataset_cmip_monthly %>%
+      group_by(Month) %>%
+      summarise(Mean_Temp = mean(Temp, na.rm = TRUE),
+                Mean_VPD = mean(VPD, na.rm = TRUE),
+                Mean_PPFD = mean(PPFD, na.rm = TRUE),
+                Mean_PPFD_max = mean(PPFD_max, na.rm = TRUE))
+    
+    
+    # Create errors
+    cols = c("Mean_Temp", "Mean_VPD", "Mean_PPFD", "Mean_PPFD_max")
+    error = Hyytiala_monthly[,cols] - monthly_means[,cols]
+    
+    # Make the changes
+    dataset_cmip_monthly$Temp = dataset_cmip_monthly$Temp + rep(error$Mean_Temp, length.out = nrow(dataset_cmip_monthly))
+    dataset_cmip_monthly$VPD = dataset_cmip_monthly$VPD + rep(error$Mean_VPD, length.out = nrow(dataset_cmip_monthly))
+    dataset_cmip_monthly$PPFD = dataset_cmip_monthly$PPFD + rep(error$Mean_PPFD, length.out = nrow(dataset_cmip_monthly))
+    dataset_cmip_monthly$PPFD_max = dataset_cmip_monthly$PPFD_max + rep(error$Mean_PPFD_max, length.out = nrow(dataset_cmip_monthly))
+    
     # Save results
     fwrite(dataset_cmip[,c("Year", "Month", "Decimal_year", "Temp", "VPD", "PPFD", "PPFD_max", "SWP")], 
            file = file.path(ANSWER_DIR, paste0("PlantFATE", ssp_scenario, ".csv")))
