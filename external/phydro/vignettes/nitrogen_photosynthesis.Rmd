@@ -101,7 +101,7 @@ ggplot() +
 ## Formatted weekly response
 
 ```{r}
-cols = c("ppfd", "a") #, "n_leaf", "gs", "jmax")
+cols = c("ppfd", "a", "n_leaf", "gs", "jmax")
 df <- dat[,cols] %>% melt("ppfd")
 df_2 <- dat_2[,cols] %>% melt("ppfd")
 df_1.5 <- dat_1.5[,cols] %>% melt("ppfd")
@@ -111,10 +111,10 @@ df_original.m <- dat_original[,cols[-3]] %>% melt("ppfd")
 
 new_titles <- c(
   "ppfd" = "Photosynthetic Photon Flux Density (μmol m⁻² s⁻¹)",
-  "a" = "Assimilation rate\n(A, μmol m⁻² s⁻¹)"
-  #"n_leaf" = "Nitrogen Content\nin Needle (g m-2)",
-  #"gs" = "Stomatal Conductance\n(gs, mol m⁻² s⁻¹)",
-  #"jmax" = "Jmax Parameter\n(Jmax, μmol m⁻² s⁻¹)"
+  "a" = "Assimilation rate\n(A, μmol m⁻² s⁻¹)",
+  "n_leaf" = "Nitrogen Content\nin Needle (g g-2)",
+  "gs" = "Stomatal Conductance\n(gs, mol m⁻² s⁻¹)",
+  "jmax" = "Jmax Parameter\n(Jmax, μmol m⁻² s⁻¹)"
 )
 
 ggplot() + 
@@ -135,8 +135,7 @@ ggplot() +
         axis.title.y = element_blank(),
         plot.title = element_text(hjust = 0, face = "bold")) +  # Added this line for the figure label
   labs(color = "Model Versions and\nInfrastructure Value",
-       x = "Photosynthetic Photon Flux Density, (μmol m⁻² s⁻¹)",
-       title = "Figure 1") +  # Added the figure label here
+       x = "Photosynthetic Photon Flux Density, (μmol m⁻² s⁻¹)") +  # Added the figure label here
   facet_wrap(~variable, scales = "free", labeller = labeller(variable = new_titles))
 ```
 
@@ -248,7 +247,7 @@ df_carb_allocation <- dat_carb_allocation[,cols] %>% melt("carb_allocation")
 new_titles <- c(
   "carb_allocation" = "Infrastructure",
   "a" = "Assimilation rate\n(A, μmol m⁻² s⁻¹)",
-  "n_leaf" = "Nitrogen Content\nin Needle (g m-2)",
+  "n_leaf" = "Nitrogen Content\nin Needle (g g-1)",
   "gs" = "Stomatal Conductance\n(gs, mol m⁻² s⁻¹)",
   "jmax" = "Jmax Parameter\n(Jmax, μmol m⁻² s⁻¹)"
 )
@@ -261,8 +260,7 @@ ggplot(df_carb_allocation, aes(y=value, x=carb_allocation)) +
         strip.text = element_text(size = 10, face = "bold"),
         axis.title.y = element_blank(),
         plot.title = element_text(hjust = 0, face = "bold")) +  # Added this line for the figure label
-  labs(x = expression(paste("Infrastructure Parameter I"[b])),
-       title = "Figure 2") +
+  labs(x = expression(paste("Infrastructure Parameter I"[b]))) +
   facet_wrap(~variable, scales = "free", labeller = labeller(variable = new_titles))
 ```
 
@@ -303,7 +301,7 @@ df_nitrogen <- dat_nitrogen[,cols] %>% melt("nitrogen")
 new_titles <- c(
   "carb_allocation" = "Infrastructure",
   "a" = "Assimilation rate\n(A, μmol m⁻² s⁻¹)",
-  "n_leaf" = "Nitrogen Content\nin Needle (g m-2)",
+  "n_leaf" = "Nitrogen Content\nin Needle (g g-2)",
   "gs" = "Stomatal Conductance\n(gs, mol m⁻² s⁻¹)",
   "jmax" = "Jmax Parameter\n(Jmax, μmol m⁻² s⁻¹)"
 )

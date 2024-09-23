@@ -13,6 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(rphydro)
+library(broom)
 library(tidyverse)
 library(ggplot2)
 library(reshape2)
@@ -25,6 +26,7 @@ library(purrr)
 library(ggtext)
 library(ggplot2)
 library(patchwork)
+library(scales)
 ```
 
 ## Simulations
@@ -42,7 +44,7 @@ vwind = 3;
 netrad = ppfd/2
 psi_soil = -0.05
 pa = calc_patm(elv)
-nitrogen = 1 # TODO: this isn't doing anything at the moment
+nitrogen = 1
 
 ### New parameters
   # a_jmax is an estimated value
@@ -81,8 +83,8 @@ dat_original = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::
 
 ```{r}
 # Define ranges for PPFD and VPD
-ppfd_values <- seq(300, 1200, length.out = 50)  # 50 steps from 300 to 1200 umol/m2/s
-vpd_values <- seq(1, 2000, length.out = 50)     # 50 steps from 1 to 2000 Pa
+ppfd_values <- seq(100, 1000, length.out = 50)  # 50 steps from 300 to 1200 umol/m2/s
+vpd_values <- seq(1, 30, length.out = 50)     # 50 steps from 1 to 2000 Pa
 allocation_values <- c(0.75, 1.0, 1.5, 2.0)     # Allocation values
 
 # Create a data frame to store all combinations of PPFD, VPD, and allocation
@@ -136,8 +138,8 @@ data_try$ValuesFromString <-  as.numeric(iconv(data_try$OrigValueStr, to = "ASCI
 ###
 # Units should be changed into %
 ###
-get_response_description(data_try, "Leaf nitrogen content per area (Narea)")
-get_response_description(data_try, "Leaf nitrogen content per dry mass (Nmass)")
+#get_response_description(data_try, "Leaf nitrogen content per area (Narea)")
+#get_response_description(data_try, "Leaf nitrogen content per dry mass (Nmass)")
 
 ###
 # Boreal forest data
@@ -145,44 +147,46 @@ get_response_description(data_try, "Leaf nitrogen content per dry mass (Nmass)")
 data_try_boreal <- data_try[data_try$DataName == 'Vegetation type / Biome' & data_try$OrigValueStr %in% c('Boreal'),]
 data_try_scots_pine <- data_try_boreal[data_try_boreal$AccSpeciesName == "Pinus sylvestris",]
 
-boreal_pivot_std <- data_try_boreal %>%
-    dplyr::mutate(DataName = stringi::stri_trans_general(DataName, "Latin-ASCII")) %>%
-    tidyr::pivot_wider(names_from = DataName, 
-                       values_from = StdValue, 
-                       id_cols = ObservationID, 
-                       values_fn = ~mean(.x, na.rn = T))
+#boreal_pivot_std <- data_try_boreal %>%
+#    dplyr::mutate(DataName = stringi::stri_trans_general(DataName, "Latin-ASCII")) %>%
+#    tidyr::pivot_wider(names_from = DataName, 
+#                       values_from = StdValue, 
+#                       id_cols = ObservationID, 
+#                       values_fn = ~mean(.x, na.rn = T))
 
-boreal_pivot_sting <- data_try_boreal %>%
-  dplyr::mutate(DataName = stringi::stri_trans_general(DataName, "Latin-ASCII")) %>%
-  tidyr::pivot_wider(names_from = DataName, 
-                     values_from = ValuesFromString, 
-                     id_cols = ObservationID, 
-                     values_fn = ~mean(.x, na.rn = T))
+#boreal_pivot_sting <- data_try_boreal %>%
+#  dplyr::mutate(DataName = stringi::stri_trans_general(DataName, "Latin-ASCII")) %>%
+#  tidyr::pivot_wider(names_from = DataName, 
+#                     values_from = ValuesFromString, 
+#                    id_cols = ObservationID, 
+#                     values_fn = ~mean(.x, na.rn = T))
 
-scots_pine_pivot_std_all_cols <- data_try_scots_pine %>%
-  dplyr::mutate(DataName = stringi::stri_trans_general(DataName, "Latin-ASCII")) %>%
-  tidyr::pivot_wider(names_from = DataName, 
-                     values_from = StdValue, 
-                     id_cols = ObservationID, 
-                     values_fn = ~mean(.x, na.rm = TRUE))
+#scots_pine_pivot_std_all_cols <- data_try_scots_pine %>%
+#  dplyr::mutate(DataName = stringi::stri_trans_general(DataName, "Latin-ASCII")) %>%
+#  tidyr::pivot_wider(names_from = DataName, 
+#                     values_from = StdValue, 
+#                     id_cols = ObservationID, 
+#                     values_fn = ~mean(.x, na.rm = TRUE))
   
-scots_pine_pivot_string_all_cols <- data_try_scots_pine %>%
-  dplyr::mutate(DataName = stringi::stri_trans_general(DataName, "Latin-ASCII")) %>%
-  tidyr::pivot_wider(names_from = DataName, 
-                     values_from = ValuesFromString, 
-                     id_cols = ObservationID, 
-                     values_fn = ~mean(.x, na.rn = T))
+#scots_pine_pivot_string_all_cols <- data_try_scots_pine %>%
+#  dplyr::mutate(DataName = stringi::stri_trans_general(DataName, "Latin-ASCII")) %>%
+#  tidyr::pivot_wider(names_from = DataName, 
+#                     values_from = ValuesFromString, 
+#                     id_cols = ObservationID, 
+#                     values_fn = ~mean(.x, na.rn = T))
 
 pivot_std_all_cols <- data_try %>%
   dplyr::mutate(DataName = stringi::stri_trans_general(DataName, "Latin-ASCII")) %>%
   tidyr::pivot_wider(names_from = DataName, 
                      values_from = StdValue, 
-                     id_cols = ObservationID, 
+                     id_cols = c(ObservationID, SpeciesName),
                      values_fn = ~mean(.x, na.rm = TRUE))
 
-check_var_combinations(names(out_data_try_pivot)[-1], out_data_try_pivot)
+# check_var_combinations(names(out_data_try_pivot)[-1], out_data_try_pivot)
 
 column_names <- c(
+    "ObservationID",
+    "SpeciesName",
     "Leaf maintenance respiration, nitrogen basis, at the given temperature",
     "Leaf respiration (growing tissue), nitrogen basis, at the given temperature",
     "Ratio of root nitrogen content per dry mass to foliage nitrogen content per dry mass",
@@ -218,6 +222,11 @@ scots_pine_colums_std <- pivot_std_all_cols[,column_names]
 
 colums_std <- pivot_std_all_cols[,column_names]
 
+# Make the species column sensible
+colums_std$SpeciesName[colums_std$SpeciesName %in% c("", "-", "??")] <- NA
+colums_std$SpeciesName <- iconv(colums_std$SpeciesName, to = "ASCII", sub = "")
+colums_std$SpeciesName[unlist(lapply(colums_std$SpeciesName, startsWith, "?"))] <- NA
+sum(grepl("[^A-Za-z0-9 ]", unique(colums_std$SpeciesName)))
 ```
 
 ## Mesi data
@@ -272,10 +281,9 @@ convert_nitrogen_to_g_g <- function(value, unit) {
   }, a$mesi_main$x_c, a$mesi_main$x_units)
 
 # Transform the data so the response variables are columns
-MESI_df <- a$mesi_main[a$mesi_main$ecosystem_type == "forest",] %>%
-  pivot_wider(names_from = response, values_from = x_corrected, id_cols = index, values_fn = function(x) {mean(x, na.rm = T)})
-
-
+MESI_df <- a$mesi_main %>%
+  pivot_wider(names_from = response, values_from = x_corrected, id_cols = c(index, dominant_species), values_fn = function(x) {mean(x, na.rm = T)})
+MESI_df <- MESI_df[!is.na(MESI_df$dominant_species),]
 ```
 
 ## Jmax and Vcmax
@@ -297,22 +305,33 @@ MESI_df <- a$mesi_main[a$mesi_main$ecosystem_type == "forest",] %>%
 #                      "Photosynthetic carboxylation capacity (Vcmax, Vmax) per leaf area at 25 C",
 #                      "Photosynthetic carboxylation capacity (Vcmax, Vmax) per leaf dry mass at 25 C")])
 
+# First, let's create a combined color palette
+all_colors <- c("1" = "green", "0.75" = "darkgreen", "1.5" = "yellow", "2" = "red")
+species_colors <- scales::hue_pal()(length(unique(colums_std$SpeciesName)))
+names(species_colors) <- unique(colums_std$SpeciesName)
+all_colors <- c(all_colors, species_colors)
+
 ggplot() +
-  geom_point(data = results[nrow(results):1,], aes(y = vcmax25, x = jmax25, color = allocation), size = 2) +
-  geom_point(data = colums_std, aes(x = `Photosynthetic electron transport capacity per leaf area at 25C (Jmax25area)`,
+  # Plot for colums_std dataset (TRY database)
+  geom_point(data = colums_std[nrow(colums_std):1,], aes(x = `Photosynthetic electron transport capacity per leaf area at 25C (Jmax25area)`,
                                     y = `Photosynthetic carboxylation capacity (Vcmax, Vmax) per leaf area at 25 C`,
-                                    shape = "TRY"), 
-             color = "grey", size = 1, alpha = 0.5) +
+                                    shape = "TRY",
+                                    color = "grey"), 
+             size = 1, alpha = 0.5) +
+  # Results
+  geom_point(data = results[nrow(results):1,], aes(y = vcmax25, x = jmax25, color = allocation), size = 1) +
+  # Plot for MESI_df dataset
   geom_point(data = MESI_df, aes(x = jmax, y = vcmax, shape = "MESI"), 
-             color = "black", size = 1, alpha = 0.5) +
+             color = "black", size = 2, alpha = 0.5) +
   labs(y = "Vcmax, micro mol m-2 s-1", x = "Jmax, micro mol m-2 s-1") + 
   theme_minimal() +
   theme(strip.background = element_rect(color = "white", size = 1),
         legend.position = "right") +
-  scale_color_manual(values = c("1" = "green", "0.75" = "darkgreen", "1.5" = "yellow", "2" = "red")) +
   scale_shape_manual(values = c("TRY" = 16, "MESI" = 17)) +
-  guides(color = guide_legend(title = "Infrastructure Belowground"),
+  scale_color_manual(values = all_colors, breaks = c("1", "0.75", "1.5", "2")) +
+  guides(color = guide_legend(title = "Infrastructure Belowground", override.aes = list(size = 1)),
          shape = guide_legend(title = "Dataset"))
+
 ```
 
 ## Jmax and leaf N ratio
@@ -364,78 +383,144 @@ subtitle <- paste(
   sep = " | "
 )
 
+lm_results_MESI <- MESI_df %>%
+  filter(!is.na(jmax), 
+         !is.na(leaf_n_mass)) %>%
+  group_by(dominant_species) %>%
+  do({
+    model <- lm(jmax ~ 0 + leaf_n_mass, data = .)
+    
+    # Add the tidy output of the linear model and number of observations
+    data.frame(tidy(model), n_values = nrow(.))
+  }) %>%
+  ungroup()
+  
 # Now, the ggplot code
+# Filter out rows with NA values before applying the linear model
+lm_results <- colums_std %>%
+  filter(!is.na(`Photosynthetic electron transport capacity per leaf area at 25C (Jmax25area)`), 
+         !is.na(`Leaf nitrogen content per dry mass (Nmass)`)) %>%
+  group_by(SpeciesName) %>%
+  do({
+    model <- lm(`Photosynthetic electron transport capacity per leaf area at 25C (Jmax25area)` ~ 
+                  0 + I(`Leaf nitrogen content per dry mass (Nmass)`/1000), data = .)
+    
+    # Add the tidy output of the linear model and number of observations
+    data.frame(tidy(model), n_values = nrow(.))
+  }) %>%
+  ungroup()
 
+# Extract gradients (slopes), p-values, and number of observations
+slopes <- lm_results %>%
+  filter(term == "I(`Leaf nitrogen content per dry mass (Nmass)`/1000)") %>%
+  select(SpeciesName, estimate, p.value, n_values) %>%
+  rename(gradient = estimate)
+slopes <- slopes[slopes$n_values >= 6,]
+summary(slopes$gradient)
+
+# Print the results
+print(slopes)
+
+# Now plot with linear interpolation for each species
 p <- ggplot() +
   geom_point(data = colums_std, aes(x = `Leaf nitrogen content per dry mass (Nmass)`/1000,
                                     y = `Photosynthetic electron transport capacity per leaf area at 25C (Jmax25area)`,
-                                    shape = "TRY"), color = "grey", size = 1) +
-  geom_smooth(data = colums_std, aes(x = `Leaf nitrogen content per dry mass (Nmass)`/1000,
-                                    y = `Photosynthetic electron transport capacity per leaf area at 25C (Jmax25area)`,
-                                    shape = "TRY"), 
-              method = "lm", formula = y ~ 0 + x, se = FALSE, linetype = "dashed", color = "grey", size = 1) +
+                                    shape = "TRY"), color = "grey", size = 2) +
+  geom_smooth(data = colums_std[colums_std$SpeciesName %in% slopes$SpeciesName,], aes(x = `Leaf nitrogen content per dry mass (Nmass)`/1000,
+                                     y = `Photosynthetic electron transport capacity per leaf area at 25C (Jmax25area)`,
+                                     shape = "TRY", color = SpeciesName),
+              method = "lm", formula = y ~ 0 + x, se = FALSE, linetype = "dashed", size = 1) +
   geom_point(data = MESI_df, aes(x = leaf_n_mass,
                                  y = jmax,
-                                 shape = "MESI"),
-             color = "black", size = 1) +
+                                 shape = "MESI"), color = "black", size = 2) +
   geom_smooth(data = MESI_df, aes(x = leaf_n_mass,
                                   y = jmax,
-                                  shape = "MESI"), 
-              method = "lm", formula = y ~ 0 + x, se = FALSE, linetype = "dashed", color = "black", size = 1) +
-  labs(x = "N per leaf (g g-1)",
-       y = "Jmax, micro mol m-2 s-1",
-       title = "Gradients") +
+                                  shape = "MESI"), method = "lm", formula = y ~ 0 + x, se = FALSE,
+              linetype = "dashed", color = "black", size = 1) +
+  labs(x = "N per leaf (g g-1)", y = "Jmax, micro mol m-2 s-1", title = "Gradients") +
   geom_line(data = dat_2, aes(y = jmax25, x = n_leaf, color = "Infrastructure = 2"), size = 1.2) +
   geom_line(data = dat_1.5, aes(y = jmax25, x = n_leaf, color = "Infrastructure = 1.5"), size = 1.2) +
   geom_line(data = dat, aes(y = jmax25, x = n_leaf, color = "Infrastructure = 1"), size = 1.2) +
   geom_line(data = dat_0.75, aes(y = jmax25, x = n_leaf, color = "Infrastructure = 0.75"), size = 1.2) +
-  scale_color_manual(name = "Lines", 
-                     values = c("TRY" = "grey",
-                                "MESI" = "black",
-                                "Infrastructure = 0.75" = "darkgreen",
-                                "Infrastructure = 1" = "green",
-                                "Infrastructure = 1.5" = "yellow",
-                                "Infrastructure = 2" = "red")) +
+  scale_color_manual(name = "Lines", values = c("TRY" = "grey", "MESI" = "black",
+                                                "Infrastructure = 0.75" = "darkgreen", "Infrastructure = 1" = "green",
+                                                "Infrastructure = 1.5" = "yellow", "Infrastructure = 2" = "red")) +
   scale_shape_manual(name = "Data", values = c("TRY" = 16, "MESI" = 17)) +
   theme_minimal() +
-  theme(strip.background = element_rect(color = "white", size = 1),
-        legend.position = "right",
-        plot.title = element_text(hjust = 0.5)) +
-  coord_cartesian(xlim = c(0, 0.075))  # This line sets the x-axis limits from 0 to 10
-
-# Create a text grob for the subtitle
-subtitle_grob <- grid::textGrob(subtitle, gp = grid::gpar(fontsize = 8))
-
-p <- p + 
+  theme(strip.background = element_rect(color = "white", size = 2),
+        legend.position = "right", plot.title = element_text(hjust = 0.5)) +
+  coord_cartesian(xlim = c(0, 0.075)) +
   labs(subtitle = subtitle) +
-  theme(
-    plot.subtitle = element_markdown(hjust = 0.5, size = 8)
-  )
+  theme(plot.subtitle = element_markdown(hjust = 0.5, size = 8))
 
-# Now just plot p directly, no need for grid.arrange
+# Display the plot
 print(p)
 ```
 ## Vcmax and leaf C/N ratio
 
 ```{r}
-ggplot() +
-  geom_point(data = results[nrow(results):1,], aes(y = vcmax25, x = n_leaf, color = allocation), size = 2, shape = 4) +
-  geom_point(data = colums_std, aes(x = `Leaf nitrogen content per dry mass (Nmass)`/1000,
-                                    y = `Photosynthetic carboxylation capacity (Vcmax, Vmax) per leaf area at 25 C`,
-                                    shape = "TRY"), color = "grey", size = 1, alpha = 0.5) +
+gradient_0.75 <- calc_gradient(dat_0.75, "n_leaf", "vcmax")
+gradient_1 <- calc_gradient(dat, "n_leaf", "vcmax")
+gradient_1.5 <- calc_gradient(dat_1.5, "n_leaf", "vcmax")
+gradient_2 <- calc_gradient(dat_2, "n_leaf", "vcmax")
+
+# Step 1: Clean and Filter Data
+colums_std_clean <- colums_std %>%
+  filter(!is.na(`Photosynthetic carboxylation capacity (Vcmax, Vmax) per leaf area at 25 C`),
+         !is.na(`Leaf nitrogen content per dry mass (Nmass)`))
+
+# Step 2: Linear Models for colums_std (TRY data) by SpeciesName
+lm_results_colums_std <- colums_std_clean %>%
+  group_by(SpeciesName) %>%
+  do({
+    model <- lm(`Photosynthetic carboxylation capacity (Vcmax, Vmax) per leaf area at 25 C` ~ 
+                  0 + I(`Leaf nitrogen content per dry mass (Nmass)` / 1000), data = .)
+    data.frame(tidy(model), n_values = nrow(.))  # Return tidy output and number of observations
+  }) %>%
+  ungroup()
+
+# Extract slopes and p-values for colums_std (TRY data)
+slopes_colums_std <- lm_results_colums_std %>%
+  filter(term == "I(`Leaf nitrogen content per dry mass (Nmass)`/1000)") %>%
+  select(SpeciesName, estimate, p.value, n_values) %>%
+  rename(gradient = estimate)
+slopes_colums_std <- slopes_colums_std[slopes_colums_std$n_values >= 6,]
+
+# Step 3: Plotting the Data
+p <- ggplot() +
+  # Points and TRY data interpolation
+  geom_point(data = colums_std_clean, aes(x = `Leaf nitrogen content per dry mass (Nmass)` / 1000,
+                                          y = `Photosynthetic carboxylation capacity (Vcmax, Vmax) per leaf area at 25 C`,
+                                          shape = "TRY"), color = "grey", size = 2, alpha = 0.5) +
+  geom_smooth(data = colums_std_clean[colums_std_clean$SpeciesName %in% slopes_colums_std$SpeciesName,], 
+              aes(x = `Leaf nitrogen content per dry mass (Nmass)` / 1000,
+                  y = `Photosynthetic carboxylation capacity (Vcmax, Vmax) per leaf area at 25 C`,
+                  color = SpeciesName),
+              method = "lm", formula = y ~ 0 + x, se = FALSE, linetype = "dashed", size = 1, alpha = 0.5) +
+  
+  # MESI dataset
   geom_point(data = MESI_df, aes(x = leaf_n_mass, y = vcmax, shape = "MESI"), 
              color = "black", size = 1) +
-  labs(x = "N per leaf (g g-1)",
-       y = "Vcmax, micro mol m-2 s-1") +
+  geom_smooth(data = MESI_df, aes(x = leaf_n_mass, y = vcmax), 
+             color = "black", method = "lm", formula = y ~ 0 + x, se = FALSE, linetype = "dashed", size = 1) +
+  
+  # Points for the "results" dataset
+  geom_point(data = results[nrow(results):1,], aes(y = vcmax25, x = n_leaf, color = allocation), size = 2, shape = 4) +
+  
+  # Labels and theme
+  labs(x = "N per leaf (g g-1)", y = "Vcmax, micro mol m-2 s-1") +
   theme_minimal() +
-  theme(strip.background = element_rect(color = "white", size = 1),
-        legend.position = "right") +
+  theme(strip.background = element_rect(color = "white", size = 1), legend.position = "right") +
   coord_cartesian(xlim = c(0.0, 0.075), ylim = c(0, 150)) +
+  
+  # Legends for color and shape
   scale_color_manual(values = c("1" = "green", "0.75" = "darkgreen", "1.5" = "yellow", "2" = "red")) +
   scale_shape_manual(values = c("TRY" = 16, "MESI" = 17)) +
   guides(color = guide_legend(title = "Infrastructure Belowground"),
-         shape = guide_legend(title = "Temperature"))
+         shape = guide_legend(title = "Data"))
 
+# Display the plot
+print(p)
 ```
 
 ## Environmental controls
@@ -443,7 +528,7 @@ ggplot() +
 ```{r}
 # First plot
 plot1 <- ggplot(results[results$allocation == 1, ], aes(y = vcmax25, x = n_leaf)) +
-  geom_point(aes(color = ppfd, shape = factor(allocation)), size = 2) +
+  geom_point(aes(color = ppfd, shape = factor(allocation)), size = 1) +
   scale_color_gradient(low = "blue", high = "red", name = "PPFD (umol/m2/s)") +
   scale_shape_manual(values = c(16), name = "Infrastructure", labels = c("1.0")) +
   labs(x = "N per dry leaf mass (g g-1)", y = "Vcmax, micro mol m-2 s-1") +
@@ -454,7 +539,7 @@ plot1 <- ggplot(results[results$allocation == 1, ], aes(y = vcmax25, x = n_leaf)
 
 # Second plot
 plot2 <- ggplot(results[results$allocation == 1, ], aes(y = vcmax25, x = n_leaf)) +
-  geom_point(aes(color = vpd, shape = factor(allocation)), size = 2) +
+  geom_point(aes(color = vpd, shape = factor(allocation)), size = 1) +
   scale_color_gradient(low = "blue", high = "red", name = "VPD") +
   scale_shape_manual(values = c(16), name = "Infrastructure", labels = c("1.0")) +
   labs(x = "N per dry leaf mass (g g-1)", y = "Vcmax, micro mol m-2 s-1") +
