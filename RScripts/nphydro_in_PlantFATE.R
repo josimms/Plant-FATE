@@ -8,6 +8,44 @@ library(patchwork)
 library(parallel)
 
 ###
+# plot the marginal behaviour
+###
+
+dF_dIb = function(Ib, N) {
+  alpha = 0.2
+  ajmax = 800
+  out = (alpha * ajmax * N)/Ib^2
+}
+
+# Define ranges for N and Ib
+N_range <- seq(0.005, 0.02, length.out = 3)
+Ib_range <- seq(0.5, 1.5, length.out = 40)
+
+# Create a grid of all combinations of N and Ib
+grid <- expand.grid(N = N_range, Ib = Ib_range)
+grid$dF_dIb <- mapply(dF_dIb, grid$Ib, grid$N)
+
+p <- ggplot(grid, aes(x = Ib, y = dF_dIb, color = factor(N))) +
+  geom_line() +
+  scale_color_viridis_d() +  # Use viridis color palette for better distinction
+  labs(x = expression(I[b]),
+       y = expression(frac(dF, dI[b])),
+       color = "N (g g-1)") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 22, face = "bold"),  # Larger, bold title
+    axis.title = element_text(size = 18, face = "bold"),  # Larger axis titles
+    axis.text = element_text(size = 14),  # Larger axis tick labels
+    legend.title = element_text(size = 16, face = "bold"),  # Larger legend title
+    legend.text = element_text(size = 14),  # Larger legend text
+    legend.position = "right",
+    axis.title.y = element_text(angle = 0, vjust = 0.5)  # Keep y-axis label vertical
+  )
+
+
+print(p)
+
+###
 # Plotting function
 ###
 
