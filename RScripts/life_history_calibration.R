@@ -7,6 +7,9 @@ boreal_calibration_lho <- function() {
   library(lhs) # Generate all combinations of potential parameters
   library(logger)
   
+  devtools::install_github("jaideep777/Plant-FATE@develop")
+  library(PlantFATE)
+  
   
   ####
   # Weather comparison
@@ -165,7 +168,7 @@ boreal_calibration_lho <- function() {
   
   ### Plot function
   # Define the function
-  create_combined_plot <- function(df_original, sa_ib_all, color_scale, boreal, hyyitala, scots_pine_pivot_string_all_cols, param) {
+  create_combined_plot <- function(sa_ib_all, color_scale, boreal, hyyitala, scots_pine_pivot_string_all_cols, param) {
     sa_ib_all$parameter <- sa_ib_all[,c(param)]
     
     # Plot 1: Height
@@ -178,7 +181,7 @@ boreal_calibration_lho <- function() {
     p1 <- ggplot() +
       geom_point(data = sa_ib_all, aes(x = date, y = height, color = parameter), shape = 45, size = 3) +
       geom_point(data = hyytiala_pine_heights, aes(x = date, y = amount), shape = 4, size = 3) +
-      geom_line(data = df_original, aes(x = date, y = height), color = "black") +
+      # geom_line(data = df_original, aes(x = date, y = height), color = "black") +
       labs(x = "Date", y = "Height (m)") +
       color_scale +
       theme_minimal() +
@@ -196,7 +199,7 @@ boreal_calibration_lho <- function() {
     p2 <- ggplot() +
       geom_point(data = sa_ib_all, aes(x = date, y = stem_mass + coarse_root_mass, color = parameter), shape = 45, size = 3) +
       geom_point(data = hyytiala_pine_coarse_root, aes(x = date, y = amount), shape = 4, size = 3) +
-      geom_line(data = df_original, aes(x = date, y = stem_mass + coarse_root_mass), color = "black") +
+      # geom_line(data = df_original, aes(x = date, y = stem_mass + coarse_root_mass), color = "black") +
       labs(x = "Date", y = "Root Mass") +
       color_scale +
       theme_minimal()
@@ -211,7 +214,7 @@ boreal_calibration_lho <- function() {
     p3 <- ggplot() +
       geom_point(data = sa_ib_all, aes(x = date, y = 100*diameter, color = parameter), shape = 45, size = 3) +
       geom_point(data = hyytiala_pine_diameters, aes(x = date, y = amount), shape = 4, size = 3) +
-      geom_line(data = df_original, aes(x = date, y = 100*diameter), color = "black") +
+      # geom_line(data = df_original, aes(x = date, y = 100*diameter), color = "black") +
       labs(x = "Date", y = "Diameter (cm)") +
       color_scale +
       theme_minimal()
@@ -249,7 +252,7 @@ boreal_calibration_lho <- function() {
                                        y = `pine DBH arithmetic mean_diameter_1`), shape = 4, size = 3) + 
       geom_point(data = wide_data, aes(x = `Arithmetic mean height pine_height_2`,
                                        y = `pine DBH arithmetic mean_diameter_2`), shape = 4, size = 3) + 
-      geom_line(data = df_original, aes(x = height, y = 100*diameter), color = "black") +
+      # geom_line(data = df_original, aes(x = height, y = 100*diameter), color = "black") +
       labs(x = "Height (m)", y = "Diameter (cm)") +
       color_scale +
       theme_minimal()
@@ -257,7 +260,7 @@ boreal_calibration_lho <- function() {
     # Plot 4: Total Mass
     p4 <- ggplot() +
       geom_point(data = sa_ib_all, aes(x = date, y = total_mass, color = parameter), shape = 45, size = 3) +
-      geom_line(data = df_original, aes(x = date, y = total_mass), color = "black") +
+      # geom_line(data = df_original, aes(x = date, y = total_mass), color = "black") +
       labs(x = "Date", y = "Total Mass") +
       color_scale +
       theme_minimal()
@@ -266,7 +269,7 @@ boreal_calibration_lho <- function() {
     # Plot 5: Assim gross
     p5 <- ggplot() +
       geom_point(data = sa_ib_all, aes(x = date, y = assim_gross, color = parameter), shape = 45, size = 3) +
-      geom_line(data = df_original, aes(x = date, y = assim_gross), color = "black") + # TODO: make a different line type!
+      # geom_line(data = df_original, aes(x = date, y = assim_gross), color = "black") + # TODO: make a different line type!
       geom_line(data = boreal, aes(x = date, y = GPP), color = "black") +
       labs(x = "Date", y = "Assim gross") +
       color_scale +
@@ -280,7 +283,7 @@ boreal_calibration_lho <- function() {
     p6 <- ggplot() +
       geom_point(data = sa_ib_all, aes(x = date, y = lai, color = parameter), shape = 45, size = 3) +
       geom_point(data = hyytiala_pine_LAI, aes(x = date, y = amount), shape = 4, size = 3) +
-      geom_line(data = df_original, aes(x = date, y = lai), color = "black") +
+      # geom_line(data = df_original, aes(x = date, y = lai), color = "black") +
       labs(x = "Date", y = "LAI") +
       color_scale +
       theme_minimal()
@@ -295,7 +298,7 @@ boreal_calibration_lho <- function() {
     p7 <- ggplot() +
       geom_point(data = sa_ib_all, aes(x = date, y = leaf_mass, color = parameter), shape = 45, size = 3) +
       geom_point(data = hyytiala_pine_foliage, aes(x = date, y = amount), shape = 4, size = 3) +
-      geom_line(data = df_original, aes(x = date, y = leaf_mass), color = "black") +
+      # geom_line(data = df_original, aes(x = date, y = leaf_mass), color = "black") +
       labs(x = "Date", y = "Leaf Mass") +
       color_scale +
       theme_minimal()
@@ -400,7 +403,7 @@ boreal_calibration_lho <- function() {
     return(lho)
   }
   
-  n_samples <- 10000  # n_samples
+  n_samples <- 1000  # n_samples
   n_params <- 19     # Number of parameters
   
   # Generate LHS samples
@@ -456,9 +459,9 @@ boreal_calibration_lho <- function() {
       
       
       lho_temp <- create_lho_params_core_traits(
-        "tests/params/p_test_boreal_monthly_co2_medium.ini", 
-        "tests/data/PlantFATE_monthly245.csv", 
-        "tests/data/PlantFATE_monthly245.csv", 
+        "tests/params/p_test_v2.ini", 
+        "tests/data/ERAS_Monthly.csv", 
+        "tests/data/ERAS_Monthly.csv", 
         co2File = "",
         init_co2 = 365,
         params
@@ -498,7 +501,8 @@ boreal_calibration_lho <- function() {
   
   for (param in param_names) {
     color_scale <- scale_color_gradientn(colours = rainbow(5), name = param)
-    combined_plot <- create_combined_plot(df_boreal, sa_ib_all_all, color_scale, boreal, hyyitala, scots_pine_pivot_string_all_cols, param)
+    # df_boreal 
+    combined_plot <- create_combined_plot(sa_ib_all_all, color_scale, boreal, hyyitala, scots_pine_pivot_string_all_cols, param)
     ggsave(filename = file.path("pspm_output_test/boreal_monthly_calibration_high_CO2/parameters", 
                                 paste0(param, "_core_traits_sensitivity_analysis.png")), 
            plot = combined_plot, width = 10, height = 6, dpi = 300)
