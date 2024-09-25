@@ -70,16 +70,16 @@ create_combined_plot_Ib_value <- function(df_original, sa_ib_all, color_scale) {
   
   # Plot 3: Ib Value
   p3 <- ggplot() +
-    geom_point(data = sa_ib_all, aes(x = date, y = Ib_min + Ib_value * (root_mass), color = Ib_value), shape = 45, size = 3) +
-    labs(x = "Date", y = "Ib Value") +
+    geom_point(data = sa_ib_all, aes(x = date, y = Ib_value * zeta, color = Ib_value), shape = 45, size = 3) +
+    labs(x = "Date", y = "a") +
     color_scale +
     theme_minimal()
   
   # Plot 4: LAI
   p4 <- ggplot() +
-    geom_point(data = sa_ib_all, aes(x = date, y = lai, color = Ib_value), shape = 45, size = 3) +
-    geom_line(data = df_original, aes(x = date, y = lai), color = "black") +
-    labs(x = "Date", y = "LAI") +
+    geom_point(data = sa_ib_all, aes(x = date, y = crown_area, color = Ib_value), shape = 45, size = 3) +
+    geom_line(data = df_original, aes(x = date, y = crown_area), color = "black") +
+    labs(x = "Date", y = "Crown Area") +
     color_scale +
     theme_minimal()
   
@@ -101,11 +101,11 @@ create_combined_plot_Ib_value <- function(df_original, sa_ib_all, color_scale) {
 }
 
 # Define the function
-create_combined_plot_Ib_min <- function(df_original, sa_ib_all, color_scale) {
+create_combined_plot_zeta <- function(df_original, sa_ib_all, color_scale) {
   
   # Plot 1: Height
   p1 <- ggplot() +
-    geom_point(data = sa_ib_all, aes(x = date, y = height, color = Ib_min), shape = 45, size = 3) +
+    geom_point(data = sa_ib_all, aes(x = date, y = height, color = zeta), shape = 45, size = 3) +
     geom_line(data = df_original, aes(x = date, y = height), color = "black") +
     labs(x = "Date", y = "Height") +
     color_scale +
@@ -113,7 +113,7 @@ create_combined_plot_Ib_min <- function(df_original, sa_ib_all, color_scale) {
   
   # Plot 2: Root Mass
   p2 <- ggplot() +
-    geom_point(data = sa_ib_all, aes(x = date, y = root_mass, color = Ib_min), shape = 45, size = 3) +
+    geom_point(data = sa_ib_all, aes(x = date, y = root_mass, color = zeta), shape = 45, size = 3) +
     geom_line(data = df_original, aes(x = date, y = root_mass), color = "black") +
     labs(x = "Date", y = "Root Mass") +
     color_scale +
@@ -121,22 +121,22 @@ create_combined_plot_Ib_min <- function(df_original, sa_ib_all, color_scale) {
   
   # Plot 3: Ib Min
   p3 <- ggplot() +
-    geom_point(data = sa_ib_all, aes(x = date, y = Ib_min + Ib_value * (root_mass), color = Ib_min), shape = 45, size = 3) +
-    labs(x = "Date", y = "Ib Min") +
+    geom_point(data = sa_ib_all, aes(x = date, y = Ib_value * zeta, color = zeta), shape = 45, size = 3) +
+    labs(x = "Date", y = expression(zeta)) +
     color_scale +
     theme_minimal()
   
   # Plot 4: LAI
   p4 <- ggplot() +
-    geom_point(data = sa_ib_all, aes(x = date, y = lai, color = Ib_min), shape = 45, size = 3) +
-    geom_line(data = df_original, aes(x = date, y = lai), color = "black") +
-    labs(x = "Date", y = "LAI") +
+    geom_point(data = sa_ib_all, aes(x = date, y = crown_area, color = zeta), shape = 45, size = 3) +
+    geom_line(data = df_original, aes(x = date, y = crown_area), color = "black") +
+    labs(x = "Date", y = "Crown Area") +
     color_scale +
     theme_minimal()
   
   # Plot 5: Assim gross
   p5 <- ggplot() +
-    geom_point(data = sa_ib_all, aes(x = date, y = assim_gross, color = Ib_min), shape = 45, size = 3) +
+    geom_point(data = sa_ib_all, aes(x = date, y = assim_gross, color = zeta), shape = 45, size = 3) +
     geom_line(data = df_original, aes(x = date, y = assim_gross), color = "black") +
     labs(x = "Date", y = "Assim gross") +
     color_scale +
@@ -161,7 +161,7 @@ already_run = T
 if (already_run) {
   load("./RScripts/df_original.RData")
 } else {
-  # devtools::install_github("jaideep777/Plant-FATE@develop")
+  devtools::install_github("jaideep777/Plant-FATE@develop", force = T)
   
   # Run the model to get standard outputs
   lho_original <- create_lho("tests/params/p_test_v2.ini", 
@@ -174,9 +174,21 @@ if (already_run) {
 
 ### Run with the changing phydro values
 
+create_lho_zeta <- function(params_file, i_metFile, a_metFile, co2File = "", init_co2 = NULL, zeta) {
+  lho <- new(LifeHistoryOptimizer, params_file)
+  lho$set_i_metFile(i_metFile)
+  lho$set_a_metFile(a_metFile)
+  lho$set_co2File(co2File)
+  if (!is.null(init_co2)) lho$init_co2(init_co2)
+  print(c(lho$env$clim_inst$co2, lho$env$clim_acclim$co2))
+  lho$traits0$zeta <- zeta
+  lho$init()
+  return(lho)
+}
+
 other_package_loaded = F
 if (other_package_loaded) {
-  devtools::install_github("josimms/Plant-FATE@develop_calibration", force = TRUE)
+  devtools::install_github("jaideep777/Plant-FATE@develop", force = TRUE)
 }
 
 lho_Ib <- create_lho("tests/params/p_test_v2.ini", 
@@ -185,84 +197,186 @@ lho_Ib <- create_lho("tests/params/p_test_v2.ini",
                      init_co2 = 365)
 df_Ib <- run_for_dataset(lho_Ib, 2000, 2015, dt)
 
+
+lho_Ib_2 <- create_lho_zeta("tests/params/p_test_v2.ini", 
+                            "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
+                            "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
+                            init_co2 = 365,
+                            zeta = 0.4)
+df_Ib_2 <- run_for_dataset(lho_Ib_2, 2000, 2015, dt)
+
+lho_Ib_1.5 <- create_lho_zeta("tests/params/p_test_v2.ini", 
+                                "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
+                                "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
+                                init_co2 = 365,
+                                zeta = 0.3)
+df_Ib_1.5 <- run_for_dataset(lho_Ib_1.5, 2000, 2015, dt)
+
+lho_Ib_0.75 <- create_lho_zeta("tests/params/p_test_v2.ini", 
+                              "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
+                              "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
+                              init_co2 = 365,
+                              zeta = 0.15)
+df_Ib_0.75 <- run_for_dataset(lho_Ib_0.75, 2000, 2015, dt)
+
 ### Plot
 
 translation = seq(0.6, 2, length.out = 20)
 cols = rainbow(length(translation))
 
-par(mfrow = c(2, 2))
-plot(df_original$date, df_original$height, ylab = "Height", xlab = "Date", type = "l")
-lines(df_Ib$date, df_Ib$height, lty = 2)
-plot(df_original$date, df_original$root_mass + df_original$coarse_root_mass, ylab = "Root Mass", xlab = "Date", type = "l")
-lines(df_original$date, df_Ib$root_mass + df_Ib$coarse_root_mass, lty = 2)
-par(new = T)
-plot(NULL,
-     xlim = c(df_original$date[1], df_original$date[nrow(df_original)]),
-     ylim = 0.9 + c(0, 0.47),
-     axes = FALSE,
-     xlab = "", ylab = "")
-axis(4, col.axis = 'red', col.ticks = 'red')
-mtext("Ib", side = 4, line = 3, cex = 0.8, col = "red")
-lines(df_original$date, 0.7435897 + 4*(df_original$root_mass), col = "red", lty = 2)
-legend("topleft", c("Original Result", "Nitrogen Result", "Ib parameter"), 
-       col = c("black", "black", "red"), 
-       lty = c(1, 2, 2), bty = "n")
-lines(df_Ib$date, df_Ib$root_mass, lty = 2)
-plot(df_original$date, df_original$lai, ylab = "LAI", xlab = "Date", type = "l")
-lines(df_Ib$date, df_Ib$lai, lty = 2)
-plot(df_original$date, df_original$assim_gross, ylab = "Assim gross", xlab = "Date", type = "l", ylim = c(0.02, max(df_Ib$assim_gross)))
-lines(df_Ib$date, df_Ib$assim_gross, lty = 2)
+# Set up the layout for 3 plots on top, 2 on bottom
+par(mfrow = c(2, 3))
 
-plot(df_Ib$date, df_Ib$crown_area)
+# Plot 1: Height
+plot(df_original$date, df_original$height, ylab = "Height, m", xlab = "Date", type = "l", 
+     ylim = c(df_original$height[1], max(df_Ib$height)), ?cex = 1.25)
+lines(df_Ib$date, df_Ib$height, lty = 3, col = "orange")
+lines(df_Ib_2$date, df_Ib_2$height, col = "blue")
+lines(df_Ib_1.5$date, df_Ib_1.5$height, col = "green")
+lines(df_Ib_0.75$date, df_Ib_0.75$height, col = "red")
+legend("bottomright", legend = c(0.15, 0.2, 0.3, 0.4), title = expression(zeta),
+       col = c("red", "orange", "green", "blue"), 
+       lty = 1, bty = "n", cex = 1.25)
 
-###
-# Fit the Ib parameter Amazon
-### 
+# Plot 2: Crown Area
+plot(df_original$date, df_original$crown_area, ylab = "Crown Area, m2", xlab = "Date", 
+     type = "l", ylim = c(df_original$crown_area[1], max(df_original$crown_area)), cex = 1.25)
+lines(df_Ib$date, df_Ib$crown_area, lty = 3, col = "orange")
+lines(df_Ib_2$date, df_Ib_2$crown_area, col = "blue")
+lines(df_Ib_1.5$date, df_Ib_1.5$crown_area, col = "green")
+lines(df_Ib_0.75$date, df_Ib_0.75$crown_area, col = "red")
 
-### Extra Functions
+# Plot 3: Belowground Infrastructure
+plot(df_original$date, rep(5 * 0.2, nrow(df_original)), 
+     ylab = "Belowground Infrastructure\n(Root Mass / Leaf Mass, kg kg-1)", 
+     xlab = "Date", type = "l", ylim = c(0.5, 2), cex = 1.25)
+lines(df_Ib$date, rep(5 * lho_Ib$traits0$zeta, nrow(df_Ib)), lty = 3, col = "orange")
+lines(df_Ib_2$date, rep(5 * lho_Ib_2$traits0$zeta, nrow(df_Ib)), col = "blue")
+lines(df_Ib_1.5$date, rep(5 * lho_Ib_1.5$traits0$zeta, nrow(df_Ib)), col = "green")
+lines(df_Ib_0.75$date, rep(5 * lho_Ib_0.75$traits0$zeta, nrow(df_Ib)), col = "red")
+legend("bottomleft", c("Original Result", "Nitrogen Without Parameter Changes"), 
+       col = c("black", "black"), 
+       lty = c(1, 2), bty = "n")
 
-create_lho_params <- function(params_file, i_metFile, a_metFile, co2File = "", init_co2 = NULL, param) {
-  lho <- new(LifeHistoryOptimizer, params_file)
-  lho$set_i_metFile(i_metFile)
-  lho$set_a_metFile(a_metFile)
-  lho$set_co2File(co2File)
-  if (!is.null(init_co2)) lho$init_co2(init_co2)
-  print(c(lho$env$clim_inst$co2, lho$env$clim_acclim$co2))
-  lho$par0$infra_translation <- param
-  lho$par0$infra_min <- 0.55
-  lho$init()
-  return(lho)
+# Plot 4: Nitrogen
+plot(df_Ib$date, df_Ib$nitrogen, ylab = "Nitrogen, g g-1 dry mass", xlab = "Date", 
+     type = "l", lty = 3, ylim = c(0, 0.35), col = "orange", cex = 1.25)
+lines(df_Ib_2$date, df_Ib_2$nitrogen, col = "blue")
+lines(df_Ib_1.5$date, df_Ib_1.5$nitrogen, col = "green")
+lines(df_Ib_0.75$date, df_Ib_0.75$nitrogen, col = "red")
+
+# Plot 5: Assim gross
+plot(df_original$date, df_original$assim_gross, ylab = "Assim gross, umol m-2 s-1", xlab = "Date", 
+     type = "l", ylim = c(0, 0.15), cex = 1.25)
+lines(df_Ib_2$date, df_Ib_2$assim_gross, col = "blue")
+lines(df_Ib_1.5$date, df_Ib_1.5$assim_gross, col = "green")
+lines(df_Ib_0.75$date, df_Ib_0.75$assim_gross, col = "red")
+
+plot(df_original$date, df_original$assim_gross, ylab = "Assim gross, umol m-2 s-1", xlab = "Date", 
+     type = "l", ylim = c(0, 0.15), cex = 1.25)
+lines(df_Ib$date, df_Ib$assim_gross, lty = 3, col = "orange")
+
+
+library(ggplot2)
+library(patchwork)
+library(dplyr)
+
+# Assuming df_original, df_Ib, df_Ib_2, df_Ib_1.5, and df_Ib_0.75 are your dataframes
+
+# Function to create a base plot
+create_base_plot <- function(data, x, y, ylabel, ylim) {
+  ggplot(data, aes(x = {{x}}, y = {{y}})) +
+    geom_line(aes(color = "Original", linetype = "Original")) +
+    labs(x = "Date", y = ylabel) +
+    ylim(ylim) +
+    theme_minimal(base_size = 12)
 }
 
-potential_parameters <- seq(2, 4, length.out = 40)
+# Plot 1: Height
+p1 <- create_base_plot(df_original, date, height, "Height, m", c(df_original$height[1], max(df_Ib$height))) +
+  geom_line(data = df_Ib, aes(color = "0.2", linetype = "0.2")) +
+  geom_line(data = df_Ib_2, aes(color = "0.4", linetype = "0.4")) +
+  geom_line(data = df_Ib_1.5, aes(color = "0.3", linetype = "0.3")) +
+  geom_line(data = df_Ib_0.75, aes(color = "0.15", linetype = "0.15")) +
+  scale_color_manual(values = c("Original" = "black", "0.15" = "red", "0.2" = "orange", "0.3" = "green", "0.4" = "blue"),
+                     name = expression(zeta)) +
+  scale_linetype_manual(values = c("Original" = "solid", "0.15" = "solid", "0.2" = "dashed", "0.3" = "solid", "0.4" = "solid"),
+                        name = expression(zeta)) +
+  theme(legend.position = "bottom")
 
-# Use mclapply for parallel processing
-sa_ib <- mclapply(potential_parameters, function(i) {
-  lho_temp <- create_lho_params("tests/params/p_test_v2.ini", 
-                                "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
-                                "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
-                                co2File = "",
-                                init_co2 = 365,
-                                i)
-  result <- run_for_dataset(lho_temp, 2000, 2015, dt)
-  result$parameter <- i
-  return(result)
-}, mc.cores = detectCores()-2)
+# Plot 2: Crown Area
+p2 <- create_base_plot(df_original, date, crown_area, "Crown Area, m2", 
+                       c(df_original$crown_area[1], max(df_original$crown_area))) +
+  geom_line(data = df_Ib, aes(color = "0.2", linetype = "0.2")) +
+  geom_line(data = df_Ib_2, aes(color = "0.4", linetype = "0.4")) +
+  geom_line(data = df_Ib_1.5, aes(color = "0.3", linetype = "0.3")) +
+  geom_line(data = df_Ib_0.75, aes(color = "0.15", linetype = "0.15")) +
+  scale_color_manual(values = c("Original" = "black", "0.15" = "red", "0.2" = "orange", "0.3" = "green", "0.4" = "blue"),
+                     guide = "none") +
+  scale_linetype_manual(values = c("Original" = "solid", "0.15" = "solid", "0.2" = "dashed", "0.3" = "solid", "0.4" = "solid"),
+                        guide = "none")
 
-# Combine the results into a single data frame
-sa_ib_all <- do.call(rbind, sa_ib)
+# Plot 3: Belowground Infrastructure
+p3 <- ggplot(df_original, aes(x = date)) +
+  geom_line(aes(y = 5 * 0.2, color = "Original", linetype = "Original")) +
+  geom_line(data = df_Ib, aes(y = 5 * lho_Ib$traits0$zeta, color = "0.2", linetype = "0.2")) +
+  geom_line(data = df_Ib_2, aes(y = 5 * lho_Ib_2$traits0$zeta, color = "0.4", linetype = "0.4")) +
+  geom_line(data = df_Ib_1.5, aes(y = 5 * lho_Ib_1.5$traits0$zeta, color = "0.3", linetype = "0.3")) +
+  geom_line(data = df_Ib_0.75, aes(y = 5 * lho_Ib_0.75$traits0$zeta, color = "0.15", linetype = "0.15")) +
+  labs(x = "Date", y = expression(paste("Belowground Infrastructure", (a * zeta), sep = " "))) +
+  ylim(0.5, 2) +
+  scale_color_manual(values = c("Original" = "black", "0.15" = "red", "0.2" = "orange", "0.3" = "green", "0.4" = "blue"),
+                     guide = "none") +
+  scale_linetype_manual(values = c("Original" = "solid", "0.15" = "solid", "0.2" = "dashed", "0.3" = "solid", "0.4" = "solid"),
+                        guide = "none") +
+  theme_minimal(base_size = 12)
 
-# Plot
-color_scale <- scale_color_gradientn(colours = rainbow(5), name = "Ib Value")
-combined_plot <- create_combined_plot(df_original, sa_ib_all, color_scale)
-print(combined_plot)
+# Plot 4: Nitrogen
+p4 <- ggplot(df_Ib, aes(x = date, y = nitrogen)) +
+  geom_line(aes(color = "0.2", linetype = "0.2")) +
+  geom_line(data = df_Ib_2, aes(color = "0.4", linetype = "0.4")) +
+  geom_line(data = df_Ib_1.5, aes(color = "0.3", linetype = "0.3")) +
+  geom_line(data = df_Ib_0.75, aes(color = "0.15", linetype = "0.15")) +
+  labs(x = "Date", y = "Nitrogen, g g-1 dry mass") +
+  ylim(0, 0.35) +
+  scale_color_manual(values = c("0.15" = "red", "0.2" = "orange", "0.3" = "green", "0.4" = "blue"),
+                     guide = "none") +
+  scale_linetype_manual(values = c("0.15" = "solid", "0.2" = "dashed", "0.3" = "solid", "0.4" = "solid"),
+                        guide = "none") +
+  theme_minimal(base_size = 12)
+
+# Plot 5: Assim gross
+p5 <- create_base_plot(df_original, date, assim_gross, "Assim gross, umol m-2 s-1", c(0, 0.15)) +
+  geom_line(data = df_Ib_2, aes(color = "0.4", linetype = "0.4")) +
+  geom_line(data = df_Ib_1.5, aes(color = "0.3", linetype = "0.3")) +
+  geom_line(data = df_Ib_0.75, aes(color = "0.15", linetype = "0.15")) +
+  scale_color_manual(values = c("Original" = "black", "0.15" = "red", "0.2" = "orange", "0.3" = "green", "0.4" = "blue"),
+                     guide = "none") +
+  scale_linetype_manual(values = c("Original" = "solid", "0.15" = "solid", "0.2" = "dashed", "0.3" = "solid", "0.4" = "solid"),
+                        guide = "none")
+
+# Plot 6: Assim gross (with df_Ib)
+p6 <- create_base_plot(df_original, date, assim_gross, "Assim gross, umol m-2 s-1", c(0, 0.15)) +
+  geom_line(data = df_Ib, aes(color = "0.2", linetype = "0.2")) +
+  scale_color_manual(values = c("Original" = "black", "0.2" = "orange"),
+                     guide = "none") +
+  scale_linetype_manual(values = c("Original" = "solid", "0.2" = "dashed"),
+                        guide = "none")
+
+# Combine plots
+combined_plot <- (p1 + p2 + p3) / (p4 + p5 + p6) +
+  plot_layout(guides = "collect") &
+  theme(legend.position = "bottom")
+
+# Display the combined plot
+combined_plot
 
 ###
 # Two variables
 ###
 
 # Function to create LifeHistoryOptimizer objects
-create_lho_params_two <- function(params_file, i_metFile, a_metFile, co2File = "", init_co2 = NULL, Ib_transfrom, Ib_min) {
+create_lho_params_two <- function(params_file, i_metFile, a_metFile, co2File = "", init_co2 = NULL, Ib_transfrom, zeta) {
   lho <- new(LifeHistoryOptimizer, params_file)
   lho$set_i_metFile(i_metFile)
   lho$set_a_metFile(a_metFile)
@@ -270,17 +384,17 @@ create_lho_params_two <- function(params_file, i_metFile, a_metFile, co2File = "
   if (!is.null(init_co2)) lho$init_co2(init_co2)
   print(c(lho$env$clim_inst$co2, lho$env$clim_acclim$co2))
   lho$par0$infra_translation <- Ib_transfrom
-  lho$par0$infra_min <- Ib_min
+  lho$traits0$zeta <- zeta
   lho$init()
   return(lho)
 }
 
 # Generate all combinations of potential parameters
-Ib_transform_values <- seq(2, 5, length.out = 40)
-Ib_min_values <- seq(0.5, 1, length.out = 40)
+Ib_transform_values <- seq(4, 6, length.out = 40)
+zeta_values <- seq(0.15, 0.4, length.out = 40)
 
 # Create a data frame of all parameter combinations
-param_grid <- expand.grid(Ib_value = Ib_transform_values, Ib_min = Ib_min_values)
+param_grid <- expand.grid(Ib_value = Ib_transform_values, zeta = zeta_values)
 
 # Use mclapply for parallel processing over the parameter grid
 sa_ib_both <- mclapply(1:nrow(param_grid), function(i) {
@@ -296,24 +410,26 @@ sa_ib_both <- mclapply(1:nrow(param_grid), function(i) {
                                     co2File = "",
                                     init_co2 = 365,
                                     Ib_transfrom = params$Ib_value,
-                                    Ib_min = params$Ib_min)
+                                    zeta = params$zeta)
   result <- run_for_dataset(lho_temp, 2000, 2015, dt)
   result$Ib_value <- params$Ib_value
-  result$Ib_min <- params$Ib_min
+  result$zeta <- params$zeta
   
   return(result)
 }, mc.cores = detectCores()-2)
 
+sa_ib_both_no_error <- sa_ib_both[sapply(sa_ib_both, is.data.frame)]
+
 # Combine the results into a single data frame
-sa_ib_all_both <- do.call(rbind, sa_ib_both)
+sa_ib_all_both <- do.call(rbind, sa_ib_both_no_error)
 
 # Plot
-color_scale_Ib_value <- scale_color_gradientn(colours = rainbow(5), name = "Ib Value")
-combined_plot <- create_combined_plot_Ib_value(df_original, sa_ib_all_both[sa_ib_all_both$Ib_min == unique(sa_ib_all_both$Ib_min)[20],], color_scale_Ib_value)
+color_scale_Ib_value <- scale_color_gradientn(colours = rainbow(5), name = "a")
+combined_plot <- create_combined_plot_Ib_value(df_original, sa_ib_all_both[sa_ib_all_both$zeta == unique(sa_ib_all_both$zeta)[9],], color_scale_Ib_value)
 print(combined_plot)
 
-color_scale_Ib_min <- scale_color_gradientn(colours = rainbow(5), name = "Ib Min")
-combined_plot <- create_combined_plot_Ib_min(df_original, sa_ib_all_both[sa_ib_all_both$Ib_value == 4,], color_scale_Ib_min)
+color_scale_zeta <- scale_color_gradientn(colours = rainbow(5), name = expression(zeta))
+combined_plot <- create_combined_plot_zeta(df_original, sa_ib_all_both[sa_ib_all_both$Ib_value == unique(sa_ib_all_both$Ib_value)[36],], color_scale_zeta)
 print(combined_plot)
 
 ###
