@@ -7,8 +7,8 @@ boreal_calibration_lho <- function() {
   library(lhs) # Generate all combinations of potential parameters
   library(logger)
   
-  devtools::install_github("jaideep777/Plant-FATE@develop")
-  library(PlantFATE)
+  #devtools::install_github("jaideep777/Plant-FATE@develop")
+  #library(PlantFATE)
   
   
   ####
