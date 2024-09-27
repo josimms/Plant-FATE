@@ -6,6 +6,7 @@
 library(ggplot2)
 library(patchwork)
 library(parallel)
+library(dplyr)
 
 ###
 # plot the marginal behaviour
@@ -191,6 +192,7 @@ if (other_package_loaded) {
   devtools::install_github("jaideep777/Plant-FATE@develop", force = TRUE)
 }
 
+dt = 1/12
 lho_Ib <- create_lho("tests/params/p_test_v2.ini", 
                      "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
                      "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
@@ -220,9 +222,6 @@ lho_Ib_0.75 <- create_lho_zeta("tests/params/p_test_v2.ini",
 df_Ib_0.75 <- run_for_dataset(lho_Ib_0.75, 2000, 2015, dt)
 
 ### Plot
-
-translation = seq(0.6, 2, length.out = 20)
-cols = rainbow(length(translation))
 
 # Set up the layout for 3 plots on top, 2 on bottom
 par(mfrow = c(2, 3))
@@ -275,11 +274,6 @@ lines(df_Ib_0.75$date, df_Ib_0.75$assim_gross, col = "red")
 plot(df_original$date, df_original$assim_gross, ylab = "Assim gross, umol m-2 s-1", xlab = "Date", 
      type = "l", ylim = c(0, 0.15), cex = 1.25)
 lines(df_Ib$date, df_Ib$assim_gross, lty = 3, col = "orange")
-
-
-library(ggplot2)
-library(patchwork)
-library(dplyr)
 
 # Assuming df_original, df_Ib, df_Ib_2, df_Ib_1.5, and df_Ib_0.75 are your dataframes
 
@@ -433,24 +427,189 @@ combined_plot <- create_combined_plot_zeta(df_original, sa_ib_all_both[sa_ib_all
 print(combined_plot)
 
 ###
-# Rosendahl / Boreal
+# Raised CO2
 ###
 
+raied_co2 <- function(init_co2, a = 5) {
+  lho_Ib <- create_lho_params_two("tests/params/p_test_v2.ini", 
+                                   "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
+                                   "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
+                                   init_co2 = init_co2,
+                                  zeta = 0.2,
+                                  Ib_transfrom = a)
+  df_Ib <- run_for_dataset(lho_Ib, 2000, 2015, dt)
+  
+  
+  lho_Ib_2 <- create_lho_params_two("tests/params/p_test_v2.ini", 
+                              "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
+                              "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
+                              init_co2 = init_co2,
+                              Ib_transfrom = a,
+                              zeta = 0.4)
+  df_Ib_2 <- run_for_dataset(lho_Ib_2, 2000, 2015, dt)
+  
+  lho_Ib_1.5 <- create_lho_params_two("tests/params/p_test_v2.ini", 
+                                "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
+                                "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
+                                init_co2 = init_co2,
+                                Ib_transfrom = a,
+                                zeta = 0.3)
+  df_Ib_1.5 <- run_for_dataset(lho_Ib_1.5, 2000, 2015, dt)
+  
+  lho_Ib_0.75 <- create_lho_params_two("tests/params/p_test_v2.ini", 
+                                 "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
+                                 "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
+                                 init_co2 = init_co2,
+                                 Ib_transfrom = a,
+                                 zeta = 0.15)
+  df_Ib_0.75 <- run_for_dataset(lho_Ib_0.75, 2000, 2015, dt)
+  
+  out = list(df_Ib = df_Ib,
+             lho_Ib = lho_Ib$traits0$zeta,
+             df_Ib_2 = df_Ib_2,
+             lho_Ib_2 = lho_Ib_2$traits0$zeta,
+             df_Ib_1.5 = df_Ib_1.5,
+             lho_Ib_1.5 = lho_Ib_1.5$traits0$zeta,
+             df_Ib_0.75 = df_Ib_0.75,
+             lho_Ib_0.75 = lho_Ib_0.75$traits0$zeta)
+  
+  return(out)
+}
+
 
 ###
-# Plant-FATE aggregation
+# Plot
 ###
 
-# amazon_sim <- run_simulation("tests/params/p_test_v2.ini", 1000, 1050, "test_3spp_100yr")
-# amazon_sim_data <- read_sim_data(amazon_sim$dir_path)
+plot_co2 <- function(init_co2, init_co2_2, a) {
+  ### 
+  # Plot
+  ###
+  co2_init_1 <- raied_co2(init_co2, a = a)
+  co2_init_2 <- raied_co2(init_co2_2, a = a)
+  
+  all_dataframes = c(co2_init_1[c(1, 3, 5, 7)], co2_init_2[c(1, 3, 5, 7)])
+  
+  create_base_plot <- function(data, x, y, ylabel, ylim) {
+    ggplot(data, aes(x = {{x}}, y = {{y}})) +
+      geom_line(aes(color = "0.2", linetype = "low")) +
+      labs(x = "Date", y = ylabel) +
+      ylim(ylim) +
+      theme_minimal(base_size = 12)
+  }
+  
+  overall_min <- purrr::map_dbl(all_dataframes, ~ min(.x$height)) %>% min()
+  overall_max <- purrr::map_dbl(all_dataframes, ~ max(.x$height)) %>% max()
+  
+  # Plot 1: Height (already provided, included for completeness)
+  p1 <- create_base_plot(df_Ib, date, height, "Height, m", c(overall_min, overall_max)) +
+    geom_line(data = co2_init_1$df_Ib_2, aes(color = "0.4", linetype = "low")) +
+    geom_line(data = co2_init_1$df_Ib_1.5, aes(color = "0.3", linetype = "low")) +
+    geom_line(data = co2_init_1$df_Ib_0.75, aes(color = "0.15", linetype = "low")) +
+    geom_line(data = co2_init_2$df_Ib, aes(color = "0.2", linetype = "high")) +
+    geom_line(data = co2_init_2$df_Ib_2, aes(color = "0.4", linetype = "high")) +
+    geom_line(data = co2_init_2$df_Ib_1.5, aes(color = "0.3", linetype = "high")) +
+    geom_line(data = co2_init_2$df_Ib_0.75, aes(color = "0.15", linetype = "high")) +
+    scale_color_manual(values = c("0.15" = "red", "0.2" = "orange", "0.3" = "green", "0.4" = "blue"),
+                       name = expression(zeta)) +
+    scale_linetype_manual(values = c("low" = "solid", "high" = "dashed"),
+                          name = "CO2 Values") +
+    theme(legend.position = "right",
+          legend.direction = "vertical")
+  
+  # Plot 2: Crown Area
+  overall_min <- purrr::map_dbl(all_dataframes, ~ min(.x$crown_area)) %>% min()
+  overall_max <- purrr::map_dbl(all_dataframes, ~ max(.x$crown_area)) %>% max()
+  
+  p2 <- create_base_plot(df_Ib, date, crown_area, "Crown Area, m2", c(overall_min, overall_max)) +
+    geom_line(data = co2_init_1$df_Ib_2, aes(color = "0.4", linetype = "low")) +
+    geom_line(data = co2_init_1$df_Ib_1.5, aes(color = "0.3", linetype = "low")) +
+    geom_line(data = co2_init_1$df_Ib_0.75, aes(color = "0.15", linetype = "low")) +
+    geom_line(data = co2_init_2$df_Ib, aes(color = "0.2", linetype = "high")) +
+    geom_line(data = co2_init_2$df_Ib_2, aes(color = "0.4", linetype = "high")) +
+    geom_line(data = co2_init_2$df_Ib_1.5, aes(color = "0.3", linetype = "high")) +
+    geom_line(data = co2_init_2$df_Ib_0.75, aes(color = "0.15", linetype = "high")) +
+    scale_color_manual(values = c("0.15" = "red", "0.2" = "orange", "0.3" = "green", "0.4" = "blue"),
+                       name = expression(zeta)) +
+    scale_linetype_manual(values = c("low" = "solid", "high" = "dashed"),
+                          name = "CO2 Values") +
+    theme(legend.position = "none")
+  
+  # Plot 3: Belowground Infrastructure
+  p3 <- create_base_plot(co2_init_1$df_Ib, date, a * co2_init_1$lho_Ib, "", c(0.6, 2.0)) +
+    geom_line(data = co2_init_1$df_Ib_2, aes(y = a * co2_init_1$lho_Ib_2, color = "0.4", linetype = "low")) +
+    geom_line(data = co2_init_1$df_Ib_1.5, aes(y = a * co2_init_1$lho_Ib_1.5, color = "0.3", linetype = "low")) +
+    geom_line(data = co2_init_1$df_Ib_0.75, aes(y = a * co2_init_1$lho_Ib_0.75, color = "0.15", linetype = "low")) +
+    geom_line(data = co2_init_2$df_Ib, aes(y = a * co2_init_2$lho_Ib, color = "0.2", linetype = "high")) +
+    geom_line(data = co2_init_2$df_Ib_2, aes(y = a * co2_init_2$lho_Ib_2, color = "0.4", linetype = "high")) +
+    geom_line(data = co2_init_2$df_Ib_1.5, aes(y = a * co2_init_2$lho_Ib_1.5, color = "0.3", linetype = "high")) +
+    geom_line(data = co2_init_2$df_Ib_0.75, aes(y = a * co2_init_2$lho_Ib_0.75, color = "0.15", linetype = "high")) +
+    labs(x = "Date", y = expression(paste("Belowground Infrastructure", (a * zeta), sep = " "))) +
+    ylim(0.5, 2) +
+    scale_color_manual(values = c("0.15" = "red", "0.2" = "orange", "0.3" = "green", "0.4" = "blue"),
+                       name = expression(zeta)) +
+    scale_linetype_manual(values = c("low" = "solid", "high" = "dashed"),
+                          name = "CO2 Values") +
+    theme(legend.position = "none")
+  
+  # Plot 4: Nitrogen
+  overall_min <- purrr::map_dbl(all_dataframes, ~ min(.x$crown_area)) %>% min()
+  overall_max <- purrr::map_dbl(all_dataframes, ~ max(.x$crown_area)) %>% max()
+  
+  p4 <- create_base_plot(co2_init_1$df_Ib, date, nitrogen, "Nitrogen, g g-1 dry mass", c(overall_min, overall_max)) +
+    geom_line(data = co2_init_1$df_Ib_2, aes(color = "0.4", linetype = "low")) +
+    geom_line(data = co2_init_1$df_Ib_1.5, aes(color = "0.3", linetype = "low")) +
+    geom_line(data = co2_init_1$df_Ib_0.75, aes(color = "0.15", linetype = "low")) +
+    geom_line(data = co2_init_2$df_Ib, aes(color = "0.2", linetype = "high")) +
+    geom_line(data = co2_init_2$df_Ib_2, aes(color = "0.4", linetype = "high")) +
+    geom_line(data = co2_init_2$df_Ib_1.5, aes(color = "0.3", linetype = "high")) +
+    geom_line(data = co2_init_2$df_Ib_0.75, aes(color = "0.15", linetype = "high")) +
+    ylim(0, 0.35) +
+    scale_color_manual(values = c("0.15" = "red", "0.2" = "orange", "0.3" = "green", "0.4" = "blue"),
+                       name = expression(zeta)) +
+    scale_linetype_manual(values = c("low" = "solid", "high" = "dashed"),
+                          name = "CO2 Values") +
+    theme(legend.position = "none")
+  
+  # Plot 5: Assim gross
+  overall_min <- purrr::map_dbl(all_dataframes, ~ min(.x$assim_gross)) %>% min()
+  overall_max <- purrr::map_dbl(all_dataframes, ~ max(.x$assim_gross)) %>% max()
+  
+  p5 <- create_base_plot(co2_init_1$df_Ib, date, assim_gross, "Assim gross, umol m-2 s-1", 
+                         c(overall_min, overall_max)) +
+    geom_line(data = co2_init_1$df_Ib_2, aes(color = "0.4", linetype = "low")) +
+    geom_line(data = co2_init_1$df_Ib_1.5, aes(color = "0.3", linetype = "low")) +
+    geom_line(data = co2_init_1$df_Ib_0.75, aes(color = "0.15", linetype = "low")) +
+    geom_line(data = co2_init_2$df_Ib, aes(color = "0.2", linetype = "high")) +
+    geom_line(data = co2_init_2$df_Ib_2, aes(color = "0.4", linetype = "high")) +
+    geom_line(data = co2_init_2$df_Ib_1.5, aes(color = "0.3", linetype = "high")) +
+    geom_line(data = co2_init_2$df_Ib_0.75, aes(color = "0.15", linetype = "high")) +
+    scale_color_manual(values = c("0.15" = "red", "0.2" = "orange", "0.3" = "green", "0.4" = "blue"),
+                       name = expression(zeta)) +
+    scale_linetype_manual(values = c("low" = "solid", "high" = "dashed"),
+                          name = "CO2 Values") +
+    theme(legend.position = "none")
+  
+  # Combine plots
+  combined_plot <- (p1 + p2 + p3) / (p4 + p5) +
+    plot_layout(guides = "collect") &
+    plot_annotation(
+      title = paste("CO2 Analysis (CO2: low", init_co2, "ppm, high", init_co2_2, "ppm, a:", a, ")"),
+      theme = theme(
+        plot.title = element_text(hjust = 0.5, size = 16),
+        plot.caption = element_text(hjust = 0, size = 10, margin = margin(t = 20)),
+        plot.margin = margin(t = 20, r = 20, b = 20, l = 20)
+      )
+    )
+  
+  # Display the combined plot
+  print(combined_plot)
+}
 
-# plot(amazon_sim_data$D$YEAR, amazon_sim_data$D$GPP)
 
-# TODO: calibration files updated with the infrastructure parameter
+#####
+# Results
+#####
 
-# TODO: plot the amazon with different levels of underground investment
-  # TODO: how should this relate to the root parameters?
-
-
-
-
+plot_co2(365, 1200, a = 5)
+plot_co2(365, 1200, a = 4.25)
