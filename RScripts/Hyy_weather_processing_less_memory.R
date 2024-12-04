@@ -1,6 +1,5 @@
 whole_weather_process <- function(raw.directory = "/home/josimms/Documents/CASSIA_Calibration/Raw_Data/hyytiala_weather/",
                                   output_directory = "/home/josimms/Documents/Austria/Plant-FATE/tests/data") {
-  library(data.table)
   
   variables <- c("RH672", "RH1250", "RHTd", "PAR", "CO2168", "T168", "T336", "Precip", 
                  "tsoil_5", "tsoil_10", "wsoil_B1", "wsoil_B2", "Glob", "Glob67", 
@@ -56,7 +55,7 @@ whole_weather_process <- function(raw.directory = "/home/josimms/Documents/CASSI
   daily_result[, ':='(Year = as.numeric(Year), 
                       Month = as.numeric(Month), 
                       Day = as.numeric(Day))]
-  daily_result[, VPD := bigleaf::rH.to.VPD(0.001*RH672_mean, T336_mean)]
+  daily_result[, VPD := 10 * bigleaf::rH.to.VPD(0.01*RH672_mean, T336_mean)]
   
   # Add Monthly column
   daily_result[, Monthly := paste(Year, sprintf("%02d", Month), sep = "-")]
