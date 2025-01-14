@@ -55,7 +55,7 @@ nitrogen = 1
   # micro mols m-2 s-2 (mg g)-1
 a_jmax = 3700
 
-par_cost = list(alpha=0.1, gamma=1, carbon_allocation = 1);
+par_cost = list(alpha=0.1, gamma=1, root_cost_per_zeta = 1);
 par_plant = list(conductivity=3e-17, psi50=-2, b=2);
 options = list(gs_method = "GS_IGF", 
                et_method = "ET_DIFFUSION",
@@ -64,17 +64,17 @@ options = list(gs_method = "GS_IGF",
                ftemp_br_method = "FB_atkin15",
                scale_alpha = F)
 
-allocation = 1.0
-dat = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_nitrogen(tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, list(alpha=0.1, gamma=1, carbon_allocation = allocation), options))) %>% unnest_wider(dat)
+allocation = 1.0/0.2
+dat = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_nitrogen(tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, list(alpha=0.1, gamma=1, root_cost_per_zeta = allocation), options))) %>% unnest_wider(dat)
 
-allocation = 2.0
-dat_2 = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_nitrogen(tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, list(alpha=0.1, gamma=1, carbon_allocation = allocation), options))) %>% unnest_wider(dat)
+allocation = 2.0/0.2
+dat_2 = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_nitrogen(tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, list(alpha=0.1, gamma=1, root_cost_per_zeta = allocation), options))) %>% unnest_wider(dat)
 
-allocation = 1.5
-dat_1.5 = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_nitrogen(tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, list(alpha=0.1, gamma=1, carbon_allocation = allocation), options))) %>% unnest_wider(dat)
+allocation = 1.5/0.2
+dat_1.5 = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_nitrogen(tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, list(alpha=0.1, gamma=1, root_cost_per_zeta = allocation), options))) %>% unnest_wider(dat)
 
-allocation = 0.75
-dat_0.75 = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_nitrogen(tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, list(alpha=0.1, gamma=1, carbon_allocation = allocation), options))) %>% unnest_wider(dat)
+allocation = 0.75/0.2
+dat_0.75 = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_nitrogen(tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, list(alpha=0.1, gamma=1, root_cost_per_zeta = allocation), options))) %>% unnest_wider(dat)
 
 dat_original = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_numerical(tc, tc, .x, netrad, vpd, co2, pa, fapar, kphio, psi_soil, rdark, vwind, par_plant, par_cost, options))) %>% unnest_wider(dat)
 ```
@@ -96,7 +96,7 @@ run_model_safe <- function(ppfd, vpd, allocation) {
     netrad <- ppfd / 2  # Update net radiation with new PPFD
     dat <- rphydro_nitrogen(tc, tc, ppfd, netrad, vpd, co2, pa, nitrogen, fapar, kphio, 
                             psi_soil, rdark, vwind, a_jmax, par_plant, 
-                            list(alpha=0.1, gamma=1, carbon_allocation = allocation), options)
+                            list(alpha=0.1, gamma=1, root_cost_per_zeta = allocation), options)
     return(dat)
   }, error = function(e) {
     warning(paste("Error in model at ppfd =", ppfd, ", vpd =", vpd, ", allocation =", allocation))

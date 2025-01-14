@@ -20,7 +20,7 @@ namespace phydro{
   class PHydro_Profit_Nitrogen{
   private:
     
-    int n = 2;
+    int n = 3;
     
     double psi_soil;
     
@@ -42,14 +42,15 @@ namespace phydro{
     inline double value(const VectorXd &x) {
       double n_leaf = exp(x[0]);
       double dpsi = x[1];
+      double zeta = x[2];
       
       double Q = calc_sapflux(dpsi, psi_soil, par_plant, par_env);
       double gs = calc_gs_from_Q(Q, psi_soil, par_plant, par_env);
       auto   aj = calc_assim_light_limited_nitrogen(gs, n_leaf, par_photosynth);  // Aj in umol/m2/s
       
       double jmax = n_leaf * par_photosynth.a_jmax;
-      // NOTE: I know that I could just update alpha, but this makes it closer to the equations!
-      double costs = par_cost.alpha / par_cost.carbon_allocation * jmax + par_cost.gamma * dpsi * dpsi;
+      // NOTE: Format chosen as it is as close to the equations as possible
+      double costs = (par_cost.alpha * jmax) / (par_cost.root_cost_per_zeta * zeta) + par_cost.gamma * dpsi * dpsi - par_cost.root_cost_per_zeta * zeta;
       
       double profit = aj.a - costs;
       
@@ -75,12 +76,12 @@ namespace phydro{
   struct jmaxDpsi{
     double jmax;
     double dpsi;
+    double zeta;
   };
-  
   
   inline jmaxDpsi optimize_midterm_multi_nitrogen(double psi_soil, double nitrogen_store, ParCostNitrogen _par_cost, ParPhotosynthNitrogen _par_photosynth, ParPlant _par_plant, ParEnv _par_env){
     
-    const int q = 2; // dimensions of the vector for the foptimisation
+    const int q = 3; // dimensions of the vector for the foptimisation
     // Set up parameters
     LBFGSpp::LBFGSBParam<double> param;
     param.epsilon = 1e-6;
@@ -92,12 +93,12 @@ namespace phydro{
     
     // bounds
     VectorXd lb(q), ub(q);
-    lb << -10, 0;
-    ub << log(nitrogen_store), 50;
+    lb << -10, 0, 0.4;
+    ub << log(nitrogen_store), 50, 0.5;
     
     // Initial guess
     VectorXd x(q);
-    x << log(nitrogen_store), 1; 
+    x << log(nitrogen_store), 1, 0.2; 
     
     // x will be overwritten to be the best point found
     double fx;
@@ -106,6 +107,7 @@ namespace phydro{
     jmaxDpsi res;
     res.jmax = _par_photosynth.a_jmax * exp(x[0]);
     res.dpsi = x[1];
+    res.zeta = x[2];
     
     return res;
   }
