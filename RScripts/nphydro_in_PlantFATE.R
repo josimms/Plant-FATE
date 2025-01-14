@@ -12,25 +12,26 @@ library(dplyr)
 # plot the marginal behaviour
 ###
 
-dF_dIb = function(Ib, N) {
+dF_dzeta = function(zeta, N) {
   alpha = 0.2
   ajmax = 800
-  out = (alpha * ajmax * N)/Ib^2
+  a = 5
+  out = (alpha * ajmax * N)/(a * zeta)^2 - a
 }
 
 # Define ranges for N and Ib
 N_range <- seq(0.005, 0.02, length.out = 3)
-Ib_range <- seq(0.5, 1.5, length.out = 40)
+zeta_range <- seq(0.5, 1.5, length.out = 40)
 
 # Create a grid of all combinations of N and Ib
-grid <- expand.grid(N = N_range, Ib = Ib_range)
-grid$dF_dIb <- mapply(dF_dIb, grid$Ib, grid$N)
+grid <- expand.grid(N = N_range, zeta = zeta_range)
+grid$dF_dzeta <- mapply(dF_dzeta, grid$zeta, grid$N)
 
-p <- ggplot(grid, aes(x = Ib, y = dF_dIb, color = factor(N))) +
+p <- ggplot(grid, aes(x = zeta, y = dF_dzeta, color = factor(N))) +
   geom_line() +
   scale_color_viridis_d() +  # Use viridis color palette for better distinction
-  labs(x = expression(I[b]),
-       y = expression(frac(dF, dI[b])),
+  labs(x = expression(zeta),
+       y = expression(frac(dF, dzeta)),
        color = "N (g g-1)") +
   theme_minimal() +
   theme(
@@ -42,7 +43,6 @@ p <- ggplot(grid, aes(x = Ib, y = dF_dIb, color = factor(N))) +
     legend.position = "right",
     axis.title.y = element_text(angle = 0, vjust = 0.5)  # Keep y-axis label vertical
   )
-
 
 print(p)
 
@@ -175,14 +175,14 @@ if (already_run) {
 
 ### Run with the changing phydro values
 
-create_lho_zeta <- function(params_file, i_metFile, a_metFile, co2File = "", init_co2 = NULL, zeta) {
+create_lho_a <- function(params_file, i_metFile, a_metFile, co2File = "", init_co2 = NULL, a) {
   lho <- new(LifeHistoryOptimizer, params_file)
   lho$set_i_metFile(i_metFile)
   lho$set_a_metFile(a_metFile)
   lho$set_co2File(co2File)
   if (!is.null(init_co2)) lho$init_co2(init_co2)
   print(c(lho$env$clim_inst$co2, lho$env$clim_acclim$co2))
-  lho$traits0$zeta <- zeta
+  lho$par0$infra_translation <- a
   lho$init()
   return(lho)
 }
@@ -193,33 +193,33 @@ if (other_package_loaded) {
 }
 
 dt = 1/12
-lho_Ib <- create_lho("tests/params/p_test_v2.ini", 
-                     "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
-                     "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
-                     init_co2 = 365)
-df_Ib <- run_for_dataset(lho_Ib, 2000, 2015, dt)
+lho_ib_1 <- create_lho_a("tests/params/p_test_v2.ini", 
+                         "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
+                         "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
+                         init_co2 = 365,
+                         a = 1/0.2)
+df_Ib_1 <- run_for_dataset(lho_ib_1, 2000, 2015, dt)
 
+lho_Ib_1.5 <- create_lho_a("tests/params/p_test_v2.ini", 
+                           "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
+                           "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
+                           init_co2 = 365,
+                           a = 1.5/0.2)
+df_Ib_1.5 <- run_for_dataset(lho_Ib_1.5, 2000, 2015, dt)
 
-lho_Ib_2 <- create_lho_zeta("tests/params/p_test_v2.ini", 
+lho_Ib_0.75 <- create_lho_a("tests/params/p_test_v2.ini", 
                             "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
                             "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
                             init_co2 = 365,
-                            zeta = 0.4)
-df_Ib_2 <- run_for_dataset(lho_Ib_2, 2000, 2015, dt)
-
-lho_Ib_1.5 <- create_lho_zeta("tests/params/p_test_v2.ini", 
-                                "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
-                                "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
-                                init_co2 = 365,
-                                zeta = 0.3)
-df_Ib_1.5 <- run_for_dataset(lho_Ib_1.5, 2000, 2015, dt)
-
-lho_Ib_0.75 <- create_lho_zeta("tests/params/p_test_v2.ini", 
-                              "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
-                              "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
-                              init_co2 = 365,
-                              zeta = 0.15)
+                            a = 0.75/0.2)
 df_Ib_0.75 <- run_for_dataset(lho_Ib_0.75, 2000, 2015, dt)
+
+lho_Ib_0.5 <- create_lho_a("tests/params/p_test_v2.ini", 
+                           "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
+                           "tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv", 
+                           init_co2 = 365,
+                           a = 0.5/0.2)
+df_Ib_0.5 <- run_for_dataset(lho_Ib_0.5, 2000, 2015, dt)
 
 ### Plot
 
@@ -228,7 +228,7 @@ par(mfrow = c(2, 3))
 
 # Plot 1: Height
 plot(df_original$date, df_original$height, ylab = "Height, m", xlab = "Date", type = "l", 
-     ylim = c(df_original$height[1], max(df_Ib$height)), ?cex = 1.25)
+     ylim = c(df_original$height[1], max(df_Ib$height)), cex = 1.25)
 lines(df_Ib$date, df_Ib$height, lty = 3, col = "orange")
 lines(df_Ib_2$date, df_Ib_2$height, col = "blue")
 lines(df_Ib_1.5$date, df_Ib_1.5$height, col = "green")
