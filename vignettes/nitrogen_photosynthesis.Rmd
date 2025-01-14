@@ -100,20 +100,21 @@ ggplot() +
 ## Formatted weekly response
 
 ```{r}
-cols = c("ppfd", "a", "n_leaf", "gs", "jmax")
+cols = c("ppfd", "a", "n_leaf", "gs", "jmax", "zeta")
 df <- dat[,cols] %>% melt("ppfd")
 df_2 <- dat_2[,cols] %>% melt("ppfd")
 df_1.5 <- dat_1.5[,cols] %>% melt("ppfd")
 df_0.75 <- dat_0.75[,cols] %>% melt("ppfd")
 #df_original.m <- dat_original[,cols] %>% melt("ppfd")
-df_original.m <- dat_original[,cols[-3]] %>% melt("ppfd")
+df_original.m <- dat_original[,cols[-c(3,6)]] %>% melt("ppfd")
 
 new_titles <- c(
   "ppfd" = "Photosynthetic Photon Flux Density (μmol m⁻² s⁻¹)",
   "a" = "Assimilation rate\n(A, μmol m⁻² s⁻¹)",
   "n_leaf" = "Nitrogen Content\nin Needle (g g-2)",
   "gs" = "Stomatal Conductance\n(gs, mol m⁻² s⁻¹)",
-  "jmax" = "Jmax Parameter\n(Jmax, μmol m⁻² s⁻¹)"
+  "jmax" = "Jmax Parameter\n(Jmax, μmol m⁻² s⁻¹)",
+  "zeta" = "zeta, ratio"
 )
 
 ggplot() + 
@@ -143,19 +144,19 @@ ggplot() +
 ```{r}
 allocation = 1.0
 acc = dat %>% filter(ppfd == 1200)
-dat_inst = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_nitrogen(acc$vcmax25, acc$jmax25, tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, list(alpha=0.1, gamma=1, root_cost_per_zeta = allocation), options))) %>% unnest_wider(dat)
+dat_inst = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_nitrogen(acc$vcmax25, acc$jmax25, tc, tc, .x, netrad, vpd, co2, pa, nitrogen, acc$zeta, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, list(alpha=0.1, gamma=1, root_cost_per_zeta = allocation), options))) %>% unnest_wider(dat)
 
 allocation = 0.75
 acc_0.75 = dat_0.75 %>% filter(ppfd == 1200)
-dat_inst_0.75 = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat_0.75 = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_nitrogen(acc_0.75$vcmax25, acc_0.75$jmax25, tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, list(alpha=0.1, gamma=1, root_cost_per_zeta = allocation), options))) %>% unnest_wider(dat_0.75)
+dat_inst_0.75 = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat_0.75 = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_nitrogen(acc_0.75$vcmax25, acc_0.75$jmax25, tc, tc, .x, netrad, vpd, co2, pa, nitrogen, acc$zeta, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, list(alpha=0.1, gamma=1, root_cost_per_zeta = allocation), options))) %>% unnest_wider(dat_0.75)
 
 allocation = 1.5
 acc_1.5 = dat_1.5 %>% filter(ppfd == 1200)
-dat_inst_1.5 = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat_1.5 = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_nitrogen(acc_1.5$vcmax25, acc_1.5$jmax25, tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, list(alpha=0.1, gamma=1, root_cost_per_zeta = allocation), options))) %>% unnest_wider(dat_1.5)
+dat_inst_1.5 = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat_1.5 = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_nitrogen(acc_1.5$vcmax25, acc_1.5$jmax25, tc, tc, .x, netrad, vpd, co2, pa, nitrogen, acc$zeta, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, list(alpha=0.1, gamma=1, root_cost_per_zeta = allocation), options))) %>% unnest_wider(dat_1.5)
 
 allocation = 2.0
 acc_2 = dat_2 %>% filter(ppfd == 1200)
-dat_inst_2 = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat_2 = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_nitrogen(acc_2$vcmax25, acc_2$jmax25, tc, tc, .x, netrad, vpd, co2, pa, nitrogen, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, list(alpha=0.1, gamma=1, root_cost_per_zeta = allocation), options))) %>% unnest_wider(dat_2)
+dat_inst_2 = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(dat_2 = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_nitrogen(acc_2$vcmax25, acc_2$jmax25, tc, tc, .x, netrad, vpd, co2, pa, nitrogen, acc$zeta, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, list(alpha=0.1, gamma=1, root_cost_per_zeta = allocation), options))) %>% unnest_wider(dat_2)
 
 acc_original = dat_original %>% filter(ppfd == 1200)
 dat_inst_original = tibble(ppfd = seq(1,1200,length.out=50)) %>% mutate(acc_original = purrr::map(.x=ppfd, .f = ~rphydro_instantaneous_numerical(acc_original$vcmax25, acc_original$jmax25, tc, tc, .x, netrad, vpd, co2, pa, fapar, kphio, psi_soil, rdark, vwind, par_plant, list(alpha=0.1, gamma=1), options))) %>% unnest_wider(acc_original)
@@ -240,7 +241,7 @@ ggplot(df_a_per_zeta, aes(y=value, x=a_per_zeta)) +
 ## Formatted weekly response
 
 ```{r}
-cols = c("a_per_zeta", "a", "n_leaf", "gs", "jmax")
+cols = c("a_per_zeta", "a", "n_leaf", "gs", "jmax", "zeta")
 df_a_per_zeta <- dat_a_per_zeta[,cols] %>% melt("a_per_zeta")
 
 new_titles <- c(
@@ -248,7 +249,8 @@ new_titles <- c(
   "a" = "Assimilation rate\n(A, μmol m⁻² s⁻¹)",
   "n_leaf" = "Nitrogen Content\nin Needle (g g-1)",
   "gs" = "Stomatal Conductance\n(gs, mol m⁻² s⁻¹)",
-  "jmax" = "Jmax Parameter\n(Jmax, μmol m⁻² s⁻¹)"
+  "jmax" = "Jmax Parameter\n(Jmax, μmol m⁻² s⁻¹)",
+  "zeta" = "zeta, ratio"
 )
 
 ggplot(df_a_per_zeta, aes(y=value, x=a_per_zeta)) + 

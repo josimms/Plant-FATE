@@ -25,12 +25,13 @@ public:
   double Iabs;  // Net absorbed PAR [umol m-2 s-1]
   double patm;  // Atmospheric pressure [Pa]
   double a_jmax; // a_jmax parameter
+  double zeta;
   
   double fT_vcmax;
   double fT_jmax;
   double fT_rd;
   
-  inline ParPhotosynthNitrogen(double _tc, double _patm, double _kphio, double _co2, double _ppfd, double _nitrogen_store, double _fapar, double _rdark25, double _tcgrowth, double _tchome, double _a_jmax,
+  inline ParPhotosynthNitrogen(double _tc, double _patm, double _kphio, double _co2, double _ppfd, double _nitrogen_store, double _fapar, double _rdark25, double _tcgrowth, double _tchome, double _a_jmax, double _zeta,
                                FtempVcmaxJmaxMethod _ftemp_vj_method = FV_kumarathunge19, 
                                FtempRdMethod        _ftemp_rd_method = FR_heskel16, 
                                FtempBrMethod        _ftemp_br_method = FB_atkin15){
@@ -45,6 +46,7 @@ public:
     fT_rd    = calc_ftemp_inst_rd(_tc, _ftemp_rd_method);
     
     a_jmax = _a_jmax;
+    zeta = _zeta;
     
     kmm = calc_kmm(_tc, _patm);
     gammastar = calc_gammastar(_tc, _patm);
@@ -72,6 +74,7 @@ public:
     std::cout << "   ftemp_rd_method = " << ftemp_rd_method << '\n';
     std::cout << "   ftemp_br_method = " << ftemp_br_method << '\n';
     std::cout << "   a_jmax = " << a_jmax << '\n';
+    std::cout << "   zeta = " << zeta << '\n';
   }
 };
 
