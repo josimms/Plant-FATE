@@ -240,7 +240,7 @@ void CommunityProperties::writeOut(double t, Patch& P){
 			<< spp->getCohort(-1).traits.wood_density << ","
 			<< spp->getCohort(-1).traits.hmat << ","
 			<< spp->getCohort(-1).traits.p50_xylem << ","
-			<< spp->getCohort(-1).traits.zeta << ","
+      << spp->getCohort(-1).traits.zeta << ","
 			<< spp->r0_hist.get_last() << ","
 			<< spp->r0_hist.get() << ","
 			<< 0 << ","

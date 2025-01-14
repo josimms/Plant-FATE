@@ -99,6 +99,7 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
 		, "vcmax"
 		, "transpiration"
     , "nitrogen" // leaf_canopy_average
+    , "zeta"
 		, "height"
 		, "diameter"
 		, "crown_area"
@@ -147,6 +148,7 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
 		, P.assimilator.plant_assim.vcmax_avg
 		, P.assimilator.plant_assim.trans
     , P.assimilator.plant_assim.nitrogen_avg
+    , P.assimilator.plant_assim.zeta
 		, P.geometry.height
 		, P.geometry.diameter
 		, P.geometry.crown_area

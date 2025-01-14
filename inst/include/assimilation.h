@@ -22,7 +22,8 @@ struct PlantAssimilationResult{
 	double gs_avg = 0;       ///< Crown-area weighted average stomatal conductance across canopy layers
 	double c_open_avg = 0;   ///< Crown-area weighted average canopy opennness experience by the plant
 	
-	double nitrogen_avg = 0;       ///< Crown-area weighted average of Nitrogen across canopy laters 
+	double nitrogen_avg = 0;       ///< Crown-area weighted average of Nitrogen across canopy layers 
+	double zeta = 0;
 
 	double rleaf = 0;        ///< Leaf dark respiration rate [kg-biomass yr-1]
 	double rroot = 0;        ///< Fine root respiration rate [kg-biomass yr-1]
