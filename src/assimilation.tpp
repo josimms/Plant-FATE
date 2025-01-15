@@ -227,7 +227,7 @@ void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, 
 	
 	// Traits updated with the zeta value
 	traits.zeta = plant_assim.zeta;
-	std::cout << " zeta " << traits.zeta;
+	// std::cout << " zeta " << traits.zeta;
 
 	// TODO: other traits (vcmax, jmax, gs) etc could also be converted but they are only used in output and not in dynamics
 }
