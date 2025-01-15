@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO)
 # New data request
 #### 
 
-for year in range(2012, 2023): # Hyytiälä was planted in 1962
+for year in range(1964, 2000): # Hyytiälä was planted in 1962
 	print(year)
 	dataset = "reanalysis-era5-single-levels"
 	request = {
