@@ -76,6 +76,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 		C.clim_inst.co2,	       // co2 [ppm]
 		C.clim_inst.pa,            // surface pressure [Pa]
 		1, // TODO: this should be the nitrogen_store when there is one
+		out_phydro_acclim.zeta,    // zeta ratio
 		fapar,                     // fraction of absorbed PAR
 		par.kphio,                 // phi0 - quantum yield
 		C.clim_inst.swp,           // soil water potential [MPa]
@@ -226,7 +227,7 @@ void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, 
 	
 	// Traits updated with the zeta value
 	traits.zeta = plant_assim.zeta;
-	std::cout << "zeta" << traits.zeta << endl;
+	std::cout << " zeta " << traits.zeta;
 
 	// TODO: other traits (vcmax, jmax, gs) etc could also be converted but they are only used in output and not in dynamics
 }
