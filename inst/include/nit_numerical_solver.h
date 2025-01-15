@@ -50,7 +50,7 @@ namespace phydro{
       
       double jmax = n_leaf * par_photosynth.a_jmax;
       // NOTE: Format chosen as it is as close to the equations as possible
-      double costs = (par_cost.alpha * jmax) / (par_cost.root_cost_per_zeta * zeta) + par_cost.gamma * dpsi * dpsi - par_cost.root_cost_per_zeta * zeta;
+      double costs = (par_cost.alpha * jmax) / (par_cost.root_cost_per_zeta * zeta) + par_cost.gamma * dpsi * dpsi + par_cost.root_cost_per_zeta * zeta;
       
       double profit = aj.a - costs;
       
@@ -93,8 +93,8 @@ namespace phydro{
     
     // bounds
     VectorXd lb(q), ub(q);
-    lb << -10, 0, 0.4;
-    ub << log(nitrogen_store), 50, 0.5;
+    lb << -10, 0, 0.01;
+    ub << log(nitrogen_store), 50, 1;
     
     // Initial guess
     VectorXd x(q);
