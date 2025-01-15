@@ -229,8 +229,8 @@ par(mfrow = c(2, 3))
 # Plot 1: Height
 plot(df_original$date, df_original$height, ylab = "Height, m", xlab = "Date", type = "l", 
      ylim = c(df_original$height[1], max(df_Ib$height)), cex = 1.25)
-lines(df_Ib$date, df_Ib$height, lty = 3, col = "orange")
-lines(df_Ib_2$date, df_Ib_2$height, col = "blue")
+lines(df_Ib_1$date, df_Ib_1$height, lty = 3, col = "orange")
+lines(df_Ib_0.5$date, df_Ib_0.5$height, col = "blue")
 lines(df_Ib_1.5$date, df_Ib_1.5$height, col = "green")
 lines(df_Ib_0.75$date, df_Ib_0.75$height, col = "red")
 legend("bottomright", legend = c(0.15, 0.2, 0.3, 0.4), title = expression(zeta),
@@ -240,8 +240,8 @@ legend("bottomright", legend = c(0.15, 0.2, 0.3, 0.4), title = expression(zeta),
 # Plot 2: Crown Area
 plot(df_original$date, df_original$crown_area, ylab = "Crown Area, m2", xlab = "Date", 
      type = "l", ylim = c(df_original$crown_area[1], max(df_original$crown_area)), cex = 1.25)
-lines(df_Ib$date, df_Ib$crown_area, lty = 3, col = "orange")
-lines(df_Ib_2$date, df_Ib_2$crown_area, col = "blue")
+lines(df_Ib_1$date, df_Ib_1$crown_area, lty = 3, col = "orange")
+lines(df_Ib_0.5$date, df_Ib_0.5$crown_area, col = "blue")
 lines(df_Ib_1.5$date, df_Ib_1.5$crown_area, col = "green")
 lines(df_Ib_0.75$date, df_Ib_0.75$crown_area, col = "red")
 
@@ -249,8 +249,8 @@ lines(df_Ib_0.75$date, df_Ib_0.75$crown_area, col = "red")
 plot(df_original$date, rep(5 * 0.2, nrow(df_original)), 
      ylab = "Belowground Infrastructure\n(Root Mass / Leaf Mass, kg kg-1)", 
      xlab = "Date", type = "l", ylim = c(0.5, 2), cex = 1.25)
-lines(df_Ib$date, rep(5 * lho_Ib$traits0$zeta, nrow(df_Ib)), lty = 3, col = "orange")
-lines(df_Ib_2$date, rep(5 * lho_Ib_2$traits0$zeta, nrow(df_Ib)), col = "blue")
+lines(df_Ib_1$date, rep(5 * lho_ib_1$traits0$zeta, nrow(df_Ib)), lty = 3, col = "orange")
+lines(df_Ib_0.5$date, rep(5 * lho_Ib_0.5$traits0$zeta, nrow(df_Ib)), col = "blue")
 lines(df_Ib_1.5$date, rep(5 * lho_Ib_1.5$traits0$zeta, nrow(df_Ib)), col = "green")
 lines(df_Ib_0.75$date, rep(5 * lho_Ib_0.75$traits0$zeta, nrow(df_Ib)), col = "red")
 legend("bottomleft", c("Original Result", "Nitrogen Without Parameter Changes"), 
@@ -258,22 +258,25 @@ legend("bottomleft", c("Original Result", "Nitrogen Without Parameter Changes"),
        lty = c(1, 2), bty = "n")
 
 # Plot 4: Nitrogen
-plot(df_Ib$date, df_Ib$nitrogen, ylab = "Nitrogen, g g-1 dry mass", xlab = "Date", 
+plot(df_Ib_1$date, df_Ib_1$nitrogen, ylab = "Nitrogen, g g-1 dry mass", xlab = "Date", 
      type = "l", lty = 3, ylim = c(0, 0.35), col = "orange", cex = 1.25)
-lines(df_Ib_2$date, df_Ib_2$nitrogen, col = "blue")
+lines(df_Ib_0.5$date, df_Ib_0.5$nitrogen, col = "blue")
 lines(df_Ib_1.5$date, df_Ib_1.5$nitrogen, col = "green")
 lines(df_Ib_0.75$date, df_Ib_0.75$nitrogen, col = "red")
 
 # Plot 5: Assim gross
-plot(df_original$date, df_original$assim_gross, ylab = "Assim gross, umol m-2 s-1", xlab = "Date", 
-     type = "l", ylim = c(0, 0.15), cex = 1.25)
-lines(df_Ib_2$date, df_Ib_2$assim_gross, col = "blue")
+plot(df_Ib_0.5$date, df_Ib_0.5$assim_gross, col = "blue", ylab = "Assim gross, umol m-2 s-1", xlab = "Date", 
+     type = "l", cex = 1.25)
+lines(df_Ib_1$date, df_Ib_1$assim_gross, col = "orange")
 lines(df_Ib_1.5$date, df_Ib_1.5$assim_gross, col = "green")
 lines(df_Ib_0.75$date, df_Ib_0.75$assim_gross, col = "red")
 
-plot(df_original$date, df_original$assim_gross, ylab = "Assim gross, umol m-2 s-1", xlab = "Date", 
-     type = "l", ylim = c(0, 0.15), cex = 1.25)
-lines(df_Ib$date, df_Ib$assim_gross, lty = 3, col = "orange")
+# Plot 6: zeta
+plot(df_Ib_1$date, df_Ib_1$zeta, col = "orange", ylab = "zeta, ratio", xlab = "Date", 
+     type = "l", cex = 1.25)
+lines(df_Ib_0.5$date, df_Ib_0.5$zeta, col = "blue")
+lines(df_Ib_1.5$date, df_Ib_1.5$zeta, col = "green")
+lines(df_Ib_0.75$date, df_Ib_0.75$zeta, col = "red")
 
 # Assuming df_original, df_Ib, df_Ib_2, df_Ib_1.5, and df_Ib_0.75 are your dataframes
 
@@ -288,7 +291,7 @@ create_base_plot <- function(data, x, y, ylabel, ylim) {
 
 # Plot 1: Height
 p1 <- create_base_plot(df_original, date, height, "Height, m", c(df_original$height[1], max(df_Ib$height))) +
-  geom_line(data = df_Ib, aes(color = "0.2", linetype = "0.2")) +
+  geom_line(data = df_Ib_1, aes(color = "0.2", linetype = "0.2")) +
   geom_line(data = df_Ib_2, aes(color = "0.4", linetype = "0.4")) +
   geom_line(data = df_Ib_1.5, aes(color = "0.3", linetype = "0.3")) +
   geom_line(data = df_Ib_0.75, aes(color = "0.15", linetype = "0.15")) +
@@ -301,7 +304,7 @@ p1 <- create_base_plot(df_original, date, height, "Height, m", c(df_original$hei
 # Plot 2: Crown Area
 p2 <- create_base_plot(df_original, date, crown_area, "Crown Area, m2", 
                        c(df_original$crown_area[1], max(df_original$crown_area))) +
-  geom_line(data = df_Ib, aes(color = "0.2", linetype = "0.2")) +
+  geom_line(data = df_Ib_1, aes(color = "0.2", linetype = "0.2")) +
   geom_line(data = df_Ib_2, aes(color = "0.4", linetype = "0.4")) +
   geom_line(data = df_Ib_1.5, aes(color = "0.3", linetype = "0.3")) +
   geom_line(data = df_Ib_0.75, aes(color = "0.15", linetype = "0.15")) +
@@ -313,7 +316,7 @@ p2 <- create_base_plot(df_original, date, crown_area, "Crown Area, m2",
 # Plot 3: Belowground Infrastructure
 p3 <- ggplot(df_original, aes(x = date)) +
   geom_line(aes(y = 5 * 0.2, color = "Original", linetype = "Original")) +
-  geom_line(data = df_Ib, aes(y = 5 * lho_Ib$traits0$zeta, color = "0.2", linetype = "0.2")) +
+  geom_line(data = df_Ib_1, aes(y = 5 * lho_Ib$traits0$zeta, color = "0.2", linetype = "0.2")) +
   geom_line(data = df_Ib_2, aes(y = 5 * lho_Ib_2$traits0$zeta, color = "0.4", linetype = "0.4")) +
   geom_line(data = df_Ib_1.5, aes(y = 5 * lho_Ib_1.5$traits0$zeta, color = "0.3", linetype = "0.3")) +
   geom_line(data = df_Ib_0.75, aes(y = 5 * lho_Ib_0.75$traits0$zeta, color = "0.15", linetype = "0.15")) +
@@ -326,7 +329,7 @@ p3 <- ggplot(df_original, aes(x = date)) +
   theme_minimal(base_size = 12)
 
 # Plot 4: Nitrogen
-p4 <- ggplot(df_Ib, aes(x = date, y = nitrogen)) +
+p4 <- ggplot(df_Ib_1, aes(x = date, y = nitrogen)) +
   geom_line(aes(color = "0.2", linetype = "0.2")) +
   geom_line(data = df_Ib_2, aes(color = "0.4", linetype = "0.4")) +
   geom_line(data = df_Ib_1.5, aes(color = "0.3", linetype = "0.3")) +
@@ -351,11 +354,25 @@ p5 <- create_base_plot(df_original, date, assim_gross, "Assim gross, umol m-2 s-
 
 # Plot 6: Assim gross (with df_Ib)
 p6 <- create_base_plot(df_original, date, assim_gross, "Assim gross, umol m-2 s-1", c(0, 0.15)) +
-  geom_line(data = df_Ib, aes(color = "0.2", linetype = "0.2")) +
+  geom_line(data = df_Ib_1, aes(color = "0.2", linetype = "0.2")) +
   scale_color_manual(values = c("Original" = "black", "0.2" = "orange"),
                      guide = "none") +
   scale_linetype_manual(values = c("Original" = "solid", "0.2" = "dashed"),
                         guide = "none")
+
+# Plot 7
+p7 <- ggplot(df_Ib_1, aes(x = date, y = zeta)) +
+  geom_line(aes(color = "0.2", linetype = "0.2")) +
+  geom_line(data = df_Ib_2, aes(color = "0.4", linetype = "0.4")) +
+  geom_line(data = df_Ib_1.5, aes(color = "0.3", linetype = "0.3")) +
+  geom_line(data = df_Ib_0.75, aes(color = "0.15", linetype = "0.15")) +
+  labs(x = "Date", y = "zeta, ratio") +
+  ylim(0, 0.35) +
+  scale_color_manual(values = c("0.15" = "red", "0.2" = "orange", "0.3" = "green", "0.4" = "blue"),
+                     guide = "none") +
+  scale_linetype_manual(values = c("0.15" = "solid", "0.2" = "dashed", "0.3" = "solid", "0.4" = "solid"),
+                        guide = "none") +
+  theme_minimal(base_size = 12)
 
 # Combine plots
 combined_plot <- (p1 + p2 + p3) / (p4 + p5 + p6) +
