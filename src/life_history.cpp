@@ -232,7 +232,6 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 		update_climate(ts.to_julian(t));
 	  // C.Climate::print(t);
 		set_state(S.begin());
-		// TODO: NA pattern happening here!
 		P.calc_demographic_rates(C, t);
 		
 		// Override Plant-FATE fecundity calculations 

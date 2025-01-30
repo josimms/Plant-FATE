@@ -73,7 +73,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 		Iabs_day,                  // daytime mean incident PAR [umol m-2 s-1]
 		C.clim_inst.rn,            // mean net radiation [W m-2] (only used for LE calculations which we dont use)
 		C.clim_inst.vpd,           // vpd [kPa]
-		C.clim_inst.co2,	       // co2 [ppm]
+		C.clim_inst.co2,	         // co2 [ppm]
 		C.clim_inst.pa,            // surface pressure [Pa]
 		1, // TODO: this should be the nitrogen_store when there is one
 		out_phydro_acclim.zeta,    // zeta ratio
@@ -157,7 +157,7 @@ void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, 
 	plant_assim.gs_avg     = 0;
 	plant_assim.c_open_avg = 0;
 	plant_assim.nitrogen_avg  = 0;
-	plant_assim.zeta       = 0;
+	//plant_assim.zeta       = 0;
 	
 
 	double ca_cumm = 0;
@@ -178,7 +178,7 @@ void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, 
 			plant_assim.vcmax25_avg += res.vcmax25 * ca_layer;
 			plant_assim.mc_avg     += res.mc * ca_layer;
 			plant_assim.nitrogen_avg     += res.n_leaf * ca_layer;
-			plant_assim.zeta       += res.zeta * ca_layer;
+			//plant_assim.zeta       += res.zeta * ca_layer;
 		}
 
 		plant_assim.c_open_avg += env.canopy_openness[ilayer] * ca_layer;
@@ -195,7 +195,7 @@ void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, 
 		plant_assim.vcmax25_avg /= ca_total;               // umol CO2/m2/s
 		plant_assim.mc_avg     /= ca_total;                // unitless
 		plant_assim.nitrogen_avg     /= ca_total;          // TODO: add units
-		plant_assim.zeta       /= ca_total;                // Ratio between leaf area and root biomass
+		//plant_assim.zeta       /= ca_total;                // Ratio between leaf area and root biomass
 		//std::cout << "--- total (by layer) \n";
 		//std::cout << "h = " << G->height << ", nz* = " << env.n_layers << ", I = " << plant_assim.c_open_avg << ", fapar = " << fapar << ", A = " << plant_assim.gpp/ca_total << " umol/m2/s x " << ca_total << " = " << plant_assim.gpp << ", vcmax_avg = " << plant_assim.vcmax_avg << "\n"; 
 	}
@@ -211,7 +211,7 @@ void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, 
 		plant_assim.vcmax25_avg = res.vcmax25;
 		plant_assim.mc_avg     = res.mc;
 		plant_assim.nitrogen_avg     = res.n_leaf;
-		plant_assim.zeta       = res.zeta;
+		// plant_assim.zeta       = res.zeta;
 
 		//std::cout << "--- total (by avg light)\n";
 		//std::cout << "h = " << G->height << ", nz* = " << env.n_layers << ", I = " << plant_assim.c_open_avg << ", fapar = " << fapar << ", A = " << plant_assim.gpp/ca_total << " umol/m2/s x " << ca_total << " = " << plant_assim.gpp << ", vcmax_avg = " << plant_assim.vcmax_avg << "\n"; 
@@ -226,7 +226,7 @@ void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, 
 	plant_assim.trans *= (sec_per_unit_t * 18e-3);                  // mol h2o/s  ----> mol h2o/unit_t  --> kg h2o /unit_t
 	
 	// Traits updated with the zeta value
-	traits.zeta = plant_assim.zeta;
+	// traits.zeta = plant_assim.zeta;
 	// std::cout << " zeta " << traits.zeta;
 
 	// TODO: other traits (vcmax, jmax, gs) etc could also be converted but they are only used in output and not in dynamics
@@ -237,12 +237,15 @@ template<class Env>
 PlantAssimilationResult Assimilator::net_production(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits){
 	plant_assim = PlantAssimilationResult(); // reset plant_assim
 
+  // TODO: Add the nitrogen 
+  
+  // calc_plant_assimilation_rate
 	calc_plant_assimilation_rate(env, G, par, traits); // update plant_assim
 	les_update_lifespans(G->lai, par, traits);
 
 	plant_assim.rleaf = leaf_respiration_rate(G, par, traits);      // kg unit_t-1  
-	plant_assim.rroot = root_respiration_rate(G, par, traits);     // kg unit_t-1
-	plant_assim.rstem = sapwood_respiration_rate(G, par, traits);  // kg unit_t-1
+	plant_assim.rroot = root_respiration_rate(G, par, traits);      // kg unit_t-1
+	plant_assim.rstem = sapwood_respiration_rate(G, par, traits);   // kg unit_t-1
 
 	plant_assim.tleaf = leaf_turnover_rate(kappa_l, G, par, traits);  // kg unit_t-1
 	plant_assim.troot = root_turnover_rate(kappa_r, G, par, traits);  // kg unit_t-1
@@ -252,7 +255,7 @@ PlantAssimilationResult Assimilator::net_production(Env& env, PlantArchitecture*
 	double T = plant_assim.tleaf + plant_assim.troot;
 
 	plant_assim.npp = par.y * (A - R) - T; // net biomass growth rate (kg unit_t-1)
-	if (std::isnan(plant_assim.npp)){
+	if (std::isnan(plant_assim.npp)) {
 		std::cout << "ART = " << A << " " << R << " " << T << '\n';
 		throw std::runtime_error("assimilator npp is nan");
 	}
