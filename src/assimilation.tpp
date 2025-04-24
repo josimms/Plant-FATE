@@ -237,8 +237,6 @@ template<class Env>
 PlantAssimilationResult Assimilator::net_production(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits){
 	plant_assim = PlantAssimilationResult(); // reset plant_assim
 
-  // TODO: Add the nitrogen 
-  
   // calc_plant_assimilation_rate
 	calc_plant_assimilation_rate(env, G, par, traits); // update plant_assim
 	les_update_lifespans(G->lai, par, traits);
