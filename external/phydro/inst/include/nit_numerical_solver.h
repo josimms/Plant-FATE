@@ -23,6 +23,7 @@ namespace phydro{
     int n = 3;
     
     double psi_soil;
+    double nitrogen_store;
     
     ParCostNitrogen               par_cost;
     ParEnv                        par_env;
@@ -31,8 +32,9 @@ namespace phydro{
     
   public:
     
-    inline PHydro_Profit_Nitrogen(double _psi_soil, ParCostNitrogen _par_cost, ParPhotosynthNitrogen _par_photosynth, ParPlant _par_plant, ParEnv _par_env) : 
+    inline PHydro_Profit_Nitrogen(double _psi_soil, double _nitrogen_store, ParCostNitrogen _par_cost, ParPhotosynthNitrogen _par_photosynth, ParPlant _par_plant, ParEnv _par_env) : 
       psi_soil       ( _psi_soil),
+      nitrogen_store (_nitrogen_store),
       par_cost       ( _par_cost),
       par_env        ( _par_env),
       par_photosynth ( _par_photosynth),
@@ -42,7 +44,7 @@ namespace phydro{
     inline double value(const VectorXd &x) {
       double n_leaf = exp(x[0]);
       double dpsi = x[1];
-      double zeta = x[2];
+      // double zeta = x[2];
       
       double Q = calc_sapflux(dpsi, psi_soil, par_plant, par_env);
       double gs = calc_gs_from_Q(Q, psi_soil, par_plant, par_env);
@@ -50,7 +52,7 @@ namespace phydro{
       
       double jmax = n_leaf * par_photosynth.a_jmax;
       // NOTE: Format chosen as it is as close to the equations as possible
-      double costs = (par_cost.alpha * jmax) / (par_cost.root_cost_per_zeta * zeta) + par_cost.gamma * dpsi * dpsi + par_cost.root_cost_per_zeta * zeta;
+      double costs = (par_cost.alpha / (par_cost.nitrogen_store_conversion * nitrogen_store)) * jmax + par_cost.gamma * dpsi * dpsi; // + par_cost.root_cost_per_zeta * zeta / par_cost.root_biomass;
       
       double profit = aj.a - costs;
       
@@ -76,12 +78,11 @@ namespace phydro{
   struct jmaxDpsi{
     double jmax;
     double dpsi;
-    double zeta;
   };
   
   inline jmaxDpsi optimize_midterm_multi_nitrogen(double psi_soil, double nitrogen_store, ParCostNitrogen _par_cost, ParPhotosynthNitrogen _par_photosynth, ParPlant _par_plant, ParEnv _par_env){
     
-    const int q = 3; // dimensions of the vector for the foptimisation
+    const int q = 2; // dimensions of the vector for the foptimisation
     // Set up parameters
     LBFGSpp::LBFGSBParam<double> param;
     param.epsilon = 1e-6;
@@ -89,16 +90,16 @@ namespace phydro{
     
     // Create solver and function object
     LBFGSpp::LBFGSBSolver<double> solver(param);
-    PHydro_Profit_Nitrogen profit_fun_nitrogen(psi_soil, _par_cost, _par_photosynth, _par_plant, _par_env);
+    PHydro_Profit_Nitrogen profit_fun_nitrogen(psi_soil, nitrogen_store, _par_cost, _par_photosynth, _par_plant, _par_env);
     
     // bounds
     VectorXd lb(q), ub(q);
-    lb << -10, 0, 0.01;
-    ub << log(nitrogen_store), 50, 1;
+    lb << -10, 0;
+    ub << log(nitrogen_store), 50;
     
     // Initial guess
     VectorXd x(q);
-    x << log(nitrogen_store), 1, 0.2; 
+    x << log(nitrogen_store), 1; 
     
     // x will be overwritten to be the best point found
     double fx;
@@ -107,7 +108,6 @@ namespace phydro{
     jmaxDpsi res;
     res.jmax = _par_photosynth.a_jmax * exp(x[0]);
     res.dpsi = x[1];
-    res.zeta = x[2];
     
     return res;
   }

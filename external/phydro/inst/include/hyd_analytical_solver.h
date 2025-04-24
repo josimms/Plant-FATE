@@ -19,9 +19,12 @@ inline double calc_J(double gs, double x, ParPhotosynth par_photosynth){
 
 
 inline double calc_jmax_from_J(double J, ParPhotosynth par_photosynth){
-	double p = 4*par_photosynth.phi0 * par_photosynth.Iabs;
-	double pj = p/J;
-	return p/sqrt(pj*pj-1);
+  double p = 4*par_photosynth.phi0 * par_photosynth.Iabs;
+  double pj = p/J;
+  double sqrt_term = sqrt(pj*pj - 1);
+  std::cout << "p: " << p << ", pj: " << pj << ", sqrt_term: " << sqrt_term << std::endl;
+  if (p < 1e-12) return 1e-20;
+  else return p / sqrt_term;
 }
 
 
@@ -134,7 +137,7 @@ inline DPsiBounds calc_dpsi_bound(double psi_soil, ParPlant par_plant, ParEnv pa
   double use_bound = exact;
 	
   //# cat(psi_soil, ":", exact, " ", approx_O2, " ", use_bound, "\n");
-  double Iabs_bound = pn::zero(use_bound*0.001, use_bound*0.99, f1, 1e-6).root;
+  double Iabs_bound = pn::zero(use_bound*1e-6, use_bound*0.99, f1, 1e-6).root;
   
   // If using PM, find max dpsi from max possible transpiration 
   if (par_env.et_method == ET_PM){

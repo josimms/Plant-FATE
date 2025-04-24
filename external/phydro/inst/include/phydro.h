@@ -39,7 +39,7 @@ struct PHydroResultNitrogen{
   double ci;
   double chi;
   double n_leaf;
-  double zeta;
+  // double zeta;
   double vcmax;
   double jmax;
   double dpsi;
@@ -282,8 +282,7 @@ inline PHydroResultNitrogen phydro_nitrogen(double tc, double tg, double ppfd, d
   
   // double pa = calc_patm(elv);
   
-  // 0.0 is a filler for the zeta value
-  ParPhotosynthNitrogen par_photosynth(tc, pa, kphio, co2, ppfd, nitrogen_store, fapar, rdark, tg, par_plant.tchome, a_jmax, 0.0,
+  ParPhotosynthNitrogen par_photosynth(tc, pa, kphio, co2, ppfd, nitrogen_store, fapar, rdark, tg, par_plant.tchome, a_jmax,
                                        par_control.ftemp_vj_method, par_control.ftemp_rd_method, par_control.ftemp_br_method);
   ParEnv                par_env(tc, pa, vpd, netrad, vwind);
   if (par_control.scale_alpha) par_cost.alpha /= par_photosynth.fT_jmax; // convert alpha from cost of jmax to cost of jmax25
@@ -307,7 +306,6 @@ inline PHydroResultNitrogen phydro_nitrogen(double tc, double tg, double ppfd, d
   res.vcmax = vcmax;
   res.jmax = opt.jmax;
   res.dpsi = opt.dpsi;
-  res.zeta = opt.zeta;
   res.psi_l = psi_soil - opt.dpsi;
   res.nfnct = 0;
   res.mc = (aj.ci - par_photosynth.gammastar) / (aj.ci + par_photosynth.kmm);
@@ -326,12 +324,12 @@ inline PHydroResultNitrogen phydro_nitrogen(double tc, double tg, double ppfd, d
   return res;
 }
 
-inline PHydroResultNitrogen phydro_instantaneous_nitrogen(double vcmax25, double jmax25, double tc, double tg, double ppfd, double netrad, double vpd, double co2, double pa, double nitrogen_store, double zeta, double fapar, 
+inline PHydroResultNitrogen phydro_instantaneous_nitrogen(double vcmax25, double jmax25, double tc, double tg, double ppfd, double netrad, double vpd, double co2, double pa, double nitrogen_store, double fapar, 
                                                           double kphio, double psi_soil, double rdark, double vwind, double a_jmax, ParPlant par_plant, ParCostNitrogen par_cost, ParControl par_control = ParControl()){
   
   // double pa = calc_patm(elv);
   
-  ParPhotosynthNitrogen par_photosynth(tc, pa, kphio, co2, ppfd, nitrogen_store, fapar, rdark, tg, par_plant.tchome, a_jmax, zeta,
+  ParPhotosynthNitrogen par_photosynth(tc, pa, kphio, co2, ppfd, nitrogen_store, fapar, rdark, tg, par_plant.tchome, a_jmax,
                                        par_control.ftemp_vj_method, par_control.ftemp_rd_method, par_control.ftemp_br_method);
   ParEnv                par_env(tc, pa, vpd, netrad, vwind);
   if (par_control.scale_alpha) par_cost.alpha /= par_photosynth.fT_jmax; // convert alpha from cost of jmax to cost of jmax25
@@ -358,7 +356,7 @@ inline PHydroResultNitrogen phydro_instantaneous_nitrogen(double vcmax25, double
   res.vcmax = vcmax;
   res.jmax = jmax;
   res.dpsi = dpsi;
-  res.zeta = par_photosynth.zeta;
+  // res.zeta = par_photosynth.zeta;
   res.psi_l = psi_soil - dpsi;
   res.mc = (A.ci - par_photosynth.gammastar) / (A.ci + par_photosynth.kmm);
   res.mj = (A.ci - par_photosynth.gammastar) / (A.ci + 2*par_photosynth.gammastar);
