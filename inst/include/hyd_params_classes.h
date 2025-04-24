@@ -62,12 +62,12 @@ class ParCostNitrogen {
 public:
   double alpha;
   double gamma;
-  double root_cost_per_zeta;
+  double nitrogen_store_conversion;
   
   inline ParCostNitrogen(double _a, double _g, double _c){
     alpha = _a;
     gamma = _g;
-    root_cost_per_zeta = _c;
+    nitrogen_store_conversion = _c;
   }
 };
 
