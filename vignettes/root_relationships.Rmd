@@ -1,0 +1,27 @@
+---
+title: "root_relationships"
+output: html_document
+---
+
+```{r}
+direct = "/home/josimms/Documents/Austria/GRooT-Data-master/DataFiles/"
+GRooT_aggregate_species <- data.table::fread(paste0(direct, "GRooTAggregateSpeciesVersion.csv"))
+GRooT_all <- data.table::fread(paste0(direct, "GRooTFullVersion.csv"))
+```
+
+
+
+```{r}
+summary(GRooT_all)
+
+unique(GRooT_all$traitName)
+
+GRooT_all_chosen_variables <- GRooT_all[GRooT_all$traitName %in% c("Root_mycorrhizal colonization", "Root_cortex_thickness", "Root_branching_density", "Mean_Root_diameter", "Root_lifespan_mean", "Root_turnover_rate", "Root_mass_density", "Root_lifespan_median"),]
+
+GRooT_transform <- tidyr::pivot_wider(GRooT_all_chosen_variables, names_from = traitName, values_from = traitValue)
+
+plot(GRooT_transform$Mean_Root_diameter, GRooT_transform$`Root_mycorrhizal colonization`, xlim = c(0, 0.8), pch = as.numeric(as.factor(GRooT_transform$mycorrhizalAssociationType)))
+order <- unique(as.numeric(as.factor(GRooT_transform$mycorrhizalAssociationType)))
+legend("topright", levels(as.factor(GRooT_transform$mycorrhizalAssociationType))[order], pch = order, bty = "n")
+
+```
