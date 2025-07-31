@@ -70,6 +70,10 @@ class PlantParameters{
 	double infra_translation; ///< Translation for biomass to infrastructure
 	double infra_min; ///< Minimal Ib value
 	
+	// Root optimisation
+	double root_no0;		        ///< Initial number of root tips
+	double root_lemgth0;		    ///< Initial root length
+	
 	// Allocation and geometric paramaters  
 	double fg;		        ///< upper canopy gap fraction
 

@@ -37,6 +37,10 @@ class PlantArchitecture{
 	// current state
 	double lai;          ///< Crown leaf area index 
 	double diameter;     ///< basal diameter (diameter at ground level)
+	
+	// Root parameters
+	double root_no;      ///< Initial number of root tips
+	double root_length;  ///< Initial root length
 
 	// variables calculated from state variables
 	double height;                       ///< Plant height

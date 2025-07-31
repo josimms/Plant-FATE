@@ -23,6 +23,7 @@ std::unordered_map<std::string, double PlantTraits::*> PlantTraits::members{
 };
 
 void PlantTraits::init(io::Initializer& I){
+  // TODO: should I add the 
 	lma = I.get<double>("lma");
 	zeta = I.get<double>("zeta");
 	fcr = I.get<double>("fcr");
@@ -57,7 +58,7 @@ double& PlantTraits::operator[](const std::string& s){
 bool PlantTraits::operator == (const PlantTraits& rhs) const{
 	return
 		(this->lma == rhs.lma &&
-			this->zeta == rhs.zeta &&
+		  this->zeta == rhs.zeta &&
 			this->fcr == rhs.fcr &&
 			this->hmat == rhs.hmat &&
 			this->fhmat == rhs.fhmat &&
@@ -163,6 +164,9 @@ void PlantParameters::init(io::Initializer& I){
 	infra_translation  = I.get<double>("infra_translation");
 	infra_min          = I.get<double>("infra_min");
 	fg                 = I.get<double>("fg");
+	
+	root_no0           = I.get<double>("root_no0");
+	root_lemgth0       = I.get<double>("root_length0");
 
 	Cc                 = I.get<double>("Cc");
 	Chyd               = I.get<double>("Chyd");
@@ -230,6 +234,8 @@ void PlantParameters::print(){
     << "   infra_translation = " << infra_translation << '\n'
     << "   infra_min = " << infra_min << '\n'
 		<< "   fg = " << fg << '\n'
+    << "   root_no0 = " << root_no0 << '\n'
+    << "   root_length0 = " << root_length0 << '\n'
 		<< "   Cc = " << Cc << '\n'
 		<< "   Chyd = " << Chyd << '\n'
 		<< "   response_intensity = " << response_intensity << '\n'
@@ -285,6 +291,8 @@ void PlantParameters::save(std::ostream& fout){
     , infra_translation
     , infra_min
 		, fg
+    , root_no0
+    , root_length0
 		, Cc
 		, Chyd
 		, response_intensity
@@ -339,6 +347,8 @@ void PlantParameters::restore(std::istream& fin){
     >> infra_translation
     >> infra_min
 		>> fg
+    >> root_no0
+    >> root_length0
 		>> Cc
 		>> Chyd
 		>> response_intensity

@@ -76,13 +76,13 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 		C.clim_inst.co2,	         // co2 [ppm]
 		C.clim_inst.pa,            // surface pressure [Pa]
 		1, // TODO: this should be the nitrogen_store when there is one
-		out_phydro_acclim.zeta,    // zeta ratio
+		0.2,    // zeta ratio
 		fapar,                     // fraction of absorbed PAR
 		par.kphio,                 // phi0 - quantum yield
 		C.clim_inst.swp,           // soil water potential [MPa]
 		par.rd,                    // ratio or dark respiration to vcmax
 		C.clim_inst.vwind,         // wind speed [m s-1], only used by PML, which we dont use, so set to global average of 3 m/s
-		a_jmax, // TODO: a_jmax parameter
+		// a_jmax, // TODO: a_jmax parameter
 		par_plant,                 // plant hydraulic traits
 		par_cost,                  // cost params
 		par_control                // configuration params for phydro
