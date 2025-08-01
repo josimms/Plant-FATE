@@ -42,6 +42,13 @@ void PlantTraits::init(io::Initializer& I){
 	a = I.get<double>("a");
 	c = I.get<double>("c");
 	// p50_leaf = // set by coordination
+	k_1 = I.get<double>("k_1");
+	k_2 = I.get<double>("k_2");
+	k_3 = I.get<double>("k_3");
+	k_4 = I.get<double>("k_4");
+	k_5 = I.get<double>("k_5");
+	k_6 = I.get<double>("k_6");
+	k_7 = I.get<double>("k_7");
 }
 
 void PlantTraits::initFromFile(std::string fname){
@@ -166,7 +173,7 @@ void PlantParameters::init(io::Initializer& I){
 	fg                 = I.get<double>("fg");
 	
 	root_no0           = I.get<double>("root_no0");
-	root_lemgth0       = I.get<double>("root_length0");
+	root_length0       = I.get<double>("root_length0");
 
 	Cc                 = I.get<double>("Cc");
 	Chyd               = I.get<double>("Chyd");
