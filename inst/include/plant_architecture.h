@@ -60,10 +60,8 @@ class PlantArchitecture{
 	/// @brief  Initialize geometry from traits, precompute any necessary variables
 	void init(PlantParameters& par, PlantTraits& traits);
 
-
 	/// @brief  The height at which crown radius is maximum.
 	double zm();
-
 
 	/// @brief Vertical profiles of crown and stem  
 	/// @{
@@ -85,6 +83,15 @@ class PlantArchitecture{
 
 	/// Rate of change of leaf mass due to change in LAI
 	double dmass_dt_lai(double& dL_dt, double dmass_dt_max, PlantTraits& traits);
+	
+	
+	/// @brief Root allometry equations
+	/// @{
+	double root_diameter(double _rl, PlantTraits& traits);
+	double percentage_root_density(double _rl, PlantTraits& traits);
+	double density(double _rl, PlantTraits& traits);
+	double root_lifespan(double _rl, PlantTraits& traits);
+	/// @}
 
 
 	/// @brief Get biomass in various carbon pools.
