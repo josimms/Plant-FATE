@@ -6,6 +6,7 @@ namespace plant{
 /// TODO: Should init() functions be made constructors, to prevent risk of creating a plant without
 /// @brief  This function initializes the plant (traits, par, and geometry) from an Initialzer object
 void Plant::init(const PlantParameters& _par, const PlantTraits& _traits){
+  // TODO: should the roots be here somewhere?
 	par = _par;
 	traits = _traits;
 	coordinateTraits();
