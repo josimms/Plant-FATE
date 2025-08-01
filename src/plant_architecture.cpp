@@ -115,7 +115,39 @@ double PlantArchitecture::dmass_dt_lai(double& dL_dt, double dmass_dt_max, Plant
 	return dm_dt_lai;
 }
 
+// **
+// ** root allometry
+// **
 
+// TODO: first write out the equations
+// TODO: second add the parameters to the inputs somehow - add to the initalisation
+// TODO: third check the _l, _x thing it might have something to do woth states?
+double root_diameter(double _rl, PlantTraits& traits) {
+  double root_length = _rl;
+  return traits.k_1 / pow(root_length, 0.5);
+}
+
+double percentage_root_density(double _rl, PlantTraits& traits) {
+  double root_length = _rl;
+  return pow(traits.k_2 + traits.k_3/root_diameter(root_length), 2.0);
+}
+
+double root_density(double _rl, PlantTraits& traits) {
+  double root_length = _rl;
+  return traits.k_4 * percentage_root_density(root_diameter(root_length)) + traits.k_5;
+}
+
+// TODO: I think there is already a function for this!
+double root_lifespan(double _rl, PlantTraits& traits) {
+  double root_length = _rl;
+  return(traits.k_6 * (1 - exp(- traits.k_7 * root_diameter(root_length))));
+}
+
+// TODO: Old formulation to test the code
+double mycorrhizal_biomass(double _rn) {
+  double root_number = _rn;
+  return(4.81 * 1e-8 * root_number);
+}
 
 // **
 // ** Carbon pools
@@ -124,8 +156,16 @@ double PlantArchitecture::leaf_mass(const PlantTraits& traits) const{
 	return crown_area * lai * traits.lma;
 }
 
-double PlantArchitecture::root_mass(const PlantTraits& traits) const{
-	return crown_area * lai * traits.zeta;
+double PlantArchitecture::root_mass(double _rl, double _rn, const PlantTraits& traits) const{
+	// TODO: how should the root growth and number be entered into this formula?
+	root_length;
+  root_no;
+  
+  double numerator = root_density(percentage_root_density(root_length)) * pow(root_diameter(root_length)/2.0, 2.0) * root_length * M_PI * root_no * 1e-12;
+  double demonimator = root_lifespan(root_length);
+  
+  // TODO: what should this return?
+	return numerator/demonimator;
 }
 
 double PlantArchitecture::coarse_root_mass(const PlantTraits& traits) const{
@@ -189,6 +229,8 @@ std::vector<double>::iterator PlantArchitecture::set_state(std::vector<double>::
 // ** Simple growth simulator for testing purposes
 // ** - simulates growth over dt with constant assimilation rate A
 // ** 
+
+// TODO: should I add to this?
 void PlantArchitecture::grow_for_dt(double t, double dt, double& prod, double& litter_pool, double A, PlantTraits& traits){
 
 	auto derivs = [A, &traits, &litter_pool, this](double t, std::vector<double>& S, std::vector<double>& dSdt){
