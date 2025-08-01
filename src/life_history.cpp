@@ -124,6 +124,8 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
 		, "mortrate_hyd"
 		, "leaf_lifespan"
 		, "fineroot_lifespan"
+    , "root_no"
+    , "root_length"
 	};
 }
 
@@ -173,6 +175,8 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
 		, P.mort.mu_hyd
 		, 1 / P.assimilator.kappa_l
 		, 1 / P.assimilator.kappa_r
+    , P.geometry.root_no
+    , P.geometry.root_length
 	};
 }
 
