@@ -36,6 +36,10 @@ class PlantTraits{
 	double sm_xylem;        ///< Xylem safety margin (P50x - Pg88) [MPa]
 	double m;               ///< Crown shape flatness at the top
 	double n;               ///< Crown top-heaviness 
+	
+	// roots
+	double root_no;         ///< root number [Number, average per root tip]
+	double root_length;     ///< root length [mm, average root tip length]
 
 	// traits set by coordination
 	double a;               ///< Initial height to diameter ratio 
