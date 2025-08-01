@@ -40,12 +40,19 @@ class PlantTraits{
 	// roots
 	double root_no;         ///< root number [Number, average per root tip]
 	double root_length;     ///< root length [mm, average root tip length]
-
+	double k_1;                 ///< Fitting parameter for root length (Ding)
+	double k_2;                 ///< Fitted parameter for woody plants (Kong, 2019)
+	double k_3;                 ///< Fitted parameter for woody plants (Kong, 2019)
+	double k_4;                 ///< Fitted parameter root density (Ding)
+	double k_5;                 ///< Fitted parameter root density (Ding)
+	double k_6;                 ///< Fitted parameter root lifespan mm-1 (Ding)
+	double k_7;                 ///< Fitted parameter root lifespan years (Ding)
+	double k_8;                 ///< Years (Ilvonen)
+	
 	// traits set by coordination
 	double a;               ///< Initial height to diameter ratio 
 	double c;               ///< Crown area to sapwood area ratio
 	double p50_leaf;        ///< Leaf or whole-plant hydraulic vulnerability [MPa] (calculated from Xylem P50 and Safety margin)
-
 
 	public:
 	void init(io::Initializer& I);
@@ -72,14 +79,14 @@ class PlantParameters{
 	double alpha;           ///< Cost of maintaining photosynthetic capacity
 	double gamma;           ///< Cost of hydraulic risks
 	double infra_translation; ///< Translation for biomass to infrastructure
-	double infra_min; ///< Minimal Ib value
+	double infra_min;       ///< Minimal Ib value
 	
 	// Root optimisation
 	double root_no0;		        ///< Initial number of root tips
-	double root_lemgth0;		    ///< Initial root length
+	double root_length0;		    ///< Initial root length
 	
 	// Allocation and geometric paramaters  
-	double fg;		        ///< upper canopy gap fraction
+	double fg;		              ///< upper canopy gap fraction
 
 	// LAI optimization
 	double Cc;                  ///< leaf construction costs
