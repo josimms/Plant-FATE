@@ -90,7 +90,7 @@ class Assimilator{
 	double leaf_turnover_rate(double _kappa_l, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
 	
 	// Note this is the original version
-	double root_turnover_rate(const PlantTraits& traits);
+	double root_turnover_rate(PlantArchitecture* G, const PlantTraits& traits);
 	/// @}
 
 };

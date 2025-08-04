@@ -246,7 +246,7 @@ PlantAssimilationResult Assimilator::net_production(Env& env, PlantArchitecture*
 	plant_assim.rstem = sapwood_respiration_rate(G, par, traits);   // kg unit_t-1
 
 	plant_assim.tleaf = leaf_turnover_rate(kappa_l, G, par, traits);  // kg unit_t-1
-	plant_assim.troot = root_turnover_rate(kappa_r, G, par, traits);  // kg unit_t-1
+	plant_assim.troot = root_turnover_rate(G, traits);  // kg unit_t-1
 
 	double A = plant_assim.gpp;
 	double R = plant_assim.rleaf + plant_assim.rroot + plant_assim.rstem;
