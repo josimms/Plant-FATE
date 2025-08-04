@@ -175,7 +175,7 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
 		, P.mort.mu_d
 		, P.mort.mu_hyd
 		, 1 / P.assimilator.kappa_l
-		, 1 / P.assimilator.kappa_r
+		, P.geometry.root_lifespan(P.traits)
     , P.geometry.root_no
     , P.geometry.root_length
 	};
