@@ -40,14 +40,15 @@ class PlantTraits{
 	// roots
 	double root_no;         ///< root number [Number, average per root tip]
 	double root_length;     ///< root length [mm, average root tip length]
-	double k_1;                 ///< Fitting parameter for root length (Ding)
-	double k_2;                 ///< Fitted parameter for woody plants (Kong, 2019)
-	double k_3;                 ///< Fitted parameter for woody plants (Kong, 2019)
-	double k_4;                 ///< Fitted parameter root density (Ding)
-	double k_5;                 ///< Fitted parameter root density (Ding)
-	double k_6;                 ///< Fitted parameter root lifespan mm-1 (Ding)
-	double k_7;                 ///< Fitted parameter root lifespan years (Ding)
-	double k_8;                 ///< Years (Ilvonen)
+	
+	double k_1;             ///< Fitting parameter for root length (Ding)
+	double k_2;             ///< Fitted parameter for woody plants (Kong, 2019)
+	double k_3;             ///< Fitted parameter for woody plants (Kong, 2019)
+	double k_4;             ///< Fitted parameter root density (Ding)
+	double k_5;             ///< Fitted parameter root density (Ding)
+	double k_6;             ///< Fitted parameter root lifespan [mm-1] (Ding)
+	double k_7;             ///< Fitted parameter root lifespan [years] (Ding)
+	double k_8;             ///< Years (Ilvonen)
 	
 	// traits set by coordination
 	double a;               ///< Initial height to diameter ratio 
@@ -148,8 +149,6 @@ class PlantParameters{
 	void restore(std::istream& fin);
 
 };
-
-
 
 } // namespace plant
 
