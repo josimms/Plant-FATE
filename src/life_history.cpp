@@ -56,6 +56,10 @@ void LifeHistoryOptimizer::init_co2(double _co2){
 	C.init_co2(_co2);
 }
 
+void LifeHistoryOptimizer::set_soil_nitrogen(double _N){
+  C.set_soil_nitrogen(_N);
+}
+
 void LifeHistoryOptimizer::init(){
 	rep = 0;
 	litter_pool = 0;

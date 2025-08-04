@@ -146,6 +146,7 @@ RCPP_MODULE(plantfate_module){
 		.method("set_a_metFile", &pfate::LifeHistoryOptimizer::set_a_metFile)
 		.method("set_co2File", &pfate::LifeHistoryOptimizer::set_co2File)
 		.method("init_co2", &pfate::LifeHistoryOptimizer::init_co2)
+    .method("set_soil_nitrogen", &pfate::LifeHistoryOptimizer::set_soil_nitrogen)
 
 		.method("get_header", &pfate::LifeHistoryOptimizer::get_header)
 		.method("get_state", &pfate::LifeHistoryOptimizer::get_state)

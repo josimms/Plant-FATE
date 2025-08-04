@@ -58,6 +58,7 @@ class LifeHistoryOptimizer{
 	void set_a_metFile(std::string file);
 	void set_co2File(std::string co2file);
 	void init_co2(double _co2);
+	void set_soil_nitrogen(double _N);
 
 	void init();
 
