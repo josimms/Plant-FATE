@@ -23,6 +23,7 @@ class Clim{
 	double swp = -0.04;       ///< Soil water potential [MPa]
 	double vwind = 3;         ///< Wind speed [m s-1]
 	double pa;                ///< Surface pressure [Pa]
+	double nitrogen;
 
 	Clim();
 
@@ -85,6 +86,7 @@ class Climate{
 
 	void set_elevation(double _elv);
 	void init_co2(double _co2);
+	void set_soil_nitrogen(double _N);
 
 	/// @brief Initialize acclim forcing 
 	/// @param t0  initial time [julian day]

@@ -87,6 +87,11 @@ void Climate::set_acclim_timescale(double tau){
 	tau_acclim = tau;
 }
 
+void Climate::set_soil_nitrogen(double _N) {
+  clim_inst.nitrogen = _N;
+  clim_acclim.nitrogen = _N;
+}
+
 // REF: https://stackoverflow.com/questions/1023860/exponential-moving-average-sampled-at-varying-times
 void Climate::set_forcing_acclim(double t, const Clim& c){
 	double dt = t - t_last;
