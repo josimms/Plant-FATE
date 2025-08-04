@@ -74,6 +74,7 @@ void LifeHistoryOptimizer::init(){
 	P.init(par0, traits0);
 
 	P.geometry.set_lai(P.par.lai0);
+	P.geometry.set_root(P.par.root_no0, P.par.root_length0);
 	P.set_size(0.01);
 	// Simulation below starts at seedling stage. So account for survival until seedling stage
 	P.state.mortality = -log(P.p_survival_dispersal(C) * P.p_survival_germination(C)); // p{fresh seed is still alive after germination} = p{it survives dispersal}*p{it survives germination}
@@ -204,6 +205,7 @@ void LifeHistoryOptimizer::printMeta(){
 
 void LifeHistoryOptimizer::set_state(vector<double>::iterator it){
 	P.geometry.set_lai(*it++);
+  // TODO: start here! This should have a initiation for the root parameters
 	P.set_size(*it++);
 	prod = *it++;
 	litter_pool = *it++;
@@ -234,9 +236,9 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 	auto derivs = [this](double t, std::vector<double>& S, std::vector<double>& dSdt){
 		//if (fabs(t - 2050) < 1e-5) 
 		update_climate(ts.to_julian(t));
-	  // C.Climate::print(t);
+	  //C.Climate::print(t);
 		set_state(S.begin());
-		P.calc_demographic_rates(C, t);
+	  P.calc_demographic_rates(C, t);
 		
 		// Override Plant-FATE fecundity calculations 
 		// We need to explicitly include plant mortality here for fitness calcs
@@ -247,7 +249,7 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 		get_rates(dSdt.begin());
 		};
 
-	std::vector<double> S = {P.geometry.lai, P.geometry.get_size(), prod, litter_pool, rep, seeds, P.state.mortality};
+	std::vector<double> S = {P.geometry.lai, P.geometry.root_no, P.geometry.root_length, P.geometry.get_size(), prod, litter_pool, rep, seeds, P.state.mortality};
 	RK4(t, dt, S, derivs);
 	// Euler(t, dt, S, derivs);
 	set_state(S.begin());
