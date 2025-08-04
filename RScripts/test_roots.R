@@ -4,6 +4,7 @@ blank <- function() {
   lho$set_i_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
   lho$set_a_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
   lho$set_co2File("")
+  lho$set_soil_nitrogen(0.5);
   lho$init()
   
   dt <- 1/12
