@@ -37,8 +37,6 @@ class PlantArchitecture{
 	// current state
 	double lai;          ///< Crown leaf area index 
 	double diameter;     ///< basal diameter (diameter at ground level)
-	
-	// Root parameters
 	double root_no;      ///< Initial number of root tips
 	double root_length;  ///< Initial root length
 
@@ -87,17 +85,17 @@ class PlantArchitecture{
 	
 	/// @brief Root allometry equations
 	/// @{
-	double root_diameter(double _rl, PlantTraits& traits);
-	double percentage_root_density(double _rl, PlantTraits& traits);
-	double density(double _rl, PlantTraits& traits);
-	double root_lifespan(double _rl, PlantTraits& traits);
+	double root_diameter(const PlantTraits& traits) const;
+	double root_density(const PlantTraits& traits) const;
+	double root_lifespan(const PlantTraits& traits) const;
+	double root_mass(const PlantTraits& traits) const;
+	// double mycorrhizal_biomass(double _rn);
 	/// @}
-
+	
 
 	/// @brief Get biomass in various carbon pools.
 	/// @{
 	double leaf_mass(const PlantTraits& traits) const;
-	double root_mass(const PlantTraits& traits) const;
 	double sapwood_mass(const PlantTraits& traits) const;
 	double sapwood_mass_real(const PlantTraits& traits) const;
 	double stem_mass(const PlantTraits& traits) const;
@@ -114,6 +112,7 @@ class PlantArchitecture{
 	/// Set the crown LAI and properties that change with LAI
 	void set_lai(double _l);
 	/// Set plant size (diameter) and other variables that scale with size  
+	void set_root(double _rn, double _rl);
 	void set_size(double _x, PlantTraits& traits);
 	/// Set size and lai, the two state variables that define plant geometry
 	std::vector<double>::iterator set_state(std::vector<double>::iterator S, PlantTraits& traits);
