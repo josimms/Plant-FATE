@@ -117,6 +117,7 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
 		, "stem_mass"
 		, "coarse_root_mass"
 		, "total_mass"
+    , "tree_nitrogen"
 		, "total_rep"
 		// , "seed_pool"
 		// , "germinated"
@@ -171,6 +172,7 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
 		, P.geometry.stem_mass(P.traits)
 		, P.geometry.coarse_root_mass(P.traits)
 		, P.get_biomass()
+    , P.uptake.tree_nitrogen
 		, rep
 	//  , P.state.seed_pool
 	//  , germinated
@@ -247,6 +249,10 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 		update_climate(ts.to_julian(t));
 	  //C.Climate::print(t);
 		set_state(S.begin());
+		
+		// TODO: make this before the assimilation
+		nitrogen_process(clim C, const PlantArchitecture& G);
+		
 	  P.calc_demographic_rates(C, t);
 		
 		// Override Plant-FATE fecundity calculations 
