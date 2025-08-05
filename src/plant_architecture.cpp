@@ -148,6 +148,11 @@ double PlantArchitecture::root_mass(const PlantTraits& traits) const {
   return density * pow(diamater/2.0, 2.0) * root_length * M_PI * root_no * 1e-12;
 }
 
+double ectomycorrhiza_mass(const PlantTraits& traits) const {
+  // TODO: link this somehow, but there the function is now here
+  ectomycorrhiza_mass = 0;
+}
+
 double PlantArchitecture::coarse_root_mass(const PlantTraits& traits) const{
 	return stem_mass(traits) * traits.fcr;
 }

@@ -35,10 +35,11 @@ class PlantArchitecture{
 
 	public:
 	// current state
-	double lai;          ///< Crown leaf area index 
-	double diameter;     ///< basal diameter (diameter at ground level)
-	double root_no;      ///< Initial number of root tips
-	double root_length;  ///< Initial root length
+	double lai;                  ///< Crown leaf area index 
+	double diameter;             ///< basal diameter (diameter at ground level)
+	double root_no;              ///< Number of root tips
+	double root_length;          ///< Root length
+	double ectomycorrhiza_mass;  ///< Mycorrhizal biomass
 
 	// variables calculated from state variables
 	double height;                       ///< Plant height
@@ -89,7 +90,7 @@ class PlantArchitecture{
 	double root_density(const PlantTraits& traits) const;
 	double root_lifespan(const PlantTraits& traits) const;
 	double root_mass(const PlantTraits& traits) const;
-	// double mycorrhizal_biomass(double _rn);
+	double ectomycorrhiza_mass(const PlantTraits& traits) const;
 	/// @}
 	
 

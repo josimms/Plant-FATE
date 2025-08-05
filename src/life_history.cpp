@@ -113,6 +113,7 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
 		, "sapwood_fraction"
 		, "leaf_mass"
 		, "root_mass"
+    , "ectomycorrhiza_mass"
 		, "stem_mass"
 		, "coarse_root_mass"
 		, "total_mass"
@@ -132,6 +133,8 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
 		, "fineroot_lifespan"
     , "root_no"
     , "root_length"
+    // , "nitrogen_tree"
+    // , "ectomycorrhiza_mass"
 	};
 }
 
@@ -164,6 +167,7 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
 		, P.geometry.sapwood_fraction
 		, P.geometry.leaf_mass(P.traits)
 		, P.geometry.root_mass(P.traits)
+    , P.geometry.ectomycorrhiza_mass
 		, P.geometry.stem_mass(P.traits)
 		, P.geometry.coarse_root_mass(P.traits)
 		, P.get_biomass()
