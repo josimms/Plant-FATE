@@ -30,6 +30,7 @@ class Patch{
 
 	plant::PlantParameters par0;
 	plant::PlantTraits traits0;
+	plant::Uptake uptake0;
 
 	// should be moved out of patch
 	env::ClimateStream  climate_stream;

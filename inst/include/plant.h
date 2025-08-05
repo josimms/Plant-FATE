@@ -2,11 +2,10 @@
 #define PLANT_FATE_PLANT_PLANT_H_
 #include <fstream>
 #include "traits_params.h"
-#include "plant_architecture.h"
+#include "nitrogen.h"
 #include "assimilation.h"
 #include "utils/rk4.h"
 #include "utils/moving_average.h"
-#include "utils/initializer_v2.h"
 
 namespace plant{
 
@@ -61,6 +60,7 @@ class Plant{
 	//std::ofstream fmuh; // Cannot use streams here because we need copy-constructor for Plants, which in turn would need a copy constructor for streams, which is deleted.
 	PlantTraits traits;   ///< Collection of all functional traits
 	PlantParameters par;  ///< Collection of all model parameters that are not traits
+	Uptake uptake;        ///< Collection of all uptake / nitrogen parameters
 
 	Assimilator assimilator;
 	PlantArchitecture geometry;
@@ -73,7 +73,7 @@ class Plant{
 
 	public:
 	/// @brief  This function initializes the plant (traits, par, and geometry) from params and traits objects
-	void init(const PlantParameters& _par, const PlantTraits& _traits);
+	void init(const PlantParameters& _par, const PlantTraits& _traits, const Uptake& _uptake);
 
 	/// @brief  This function initializes the plant (traits, par, and geometry) from an Initialzer object
 	void init(io::Initializer& I);

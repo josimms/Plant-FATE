@@ -30,7 +30,8 @@ SOURCES = traits_params.cpp \
           state_restore.cpp \
           life_history.cpp \
           plantfate_patch.cpp \
-          r_interface.cpp 
+          r_interface.cpp \
+          nitrogen.cpp
           #julia_wrapper.cpp  # Add this line for your Julia wrapper
 
 # Obtain the object files

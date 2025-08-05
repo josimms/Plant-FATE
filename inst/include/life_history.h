@@ -40,6 +40,7 @@ class LifeHistoryOptimizer{
 
 	plant::PlantParameters par0;
 	plant::PlantTraits traits0;
+	plant::Uptake uptake0;
 
 	io::Initializer I;
 
