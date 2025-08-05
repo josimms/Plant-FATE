@@ -68,6 +68,7 @@ namespace plant {
     k_13                = I.get<double>("k_13");
     mycorrhized         = I.get<double>("mycorrhized");
     investment_myco     = I.get<double>("investment_myco");
+    investment_tree     = I.get<double>("investment_tree");
     u_c_B               = I.get<double>("u_c_B");
     e_u_root            = I.get<double>("e_u_root");
     e_u_myco            = I.get<double>("e_u_myco");

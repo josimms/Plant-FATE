@@ -14,6 +14,7 @@ public:
   double k_13;
   double mycorrhized;
   double investment_myco;
+  double investment_tree;
   double u_c_B;
   double e_u_root;
   double e_u_myco;
