@@ -20,6 +20,8 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
   phydro::ParCostNitrogen par_cost(par.alpha, par.gamma, par.infra_translation);
 	phydro::ParPlant par_plant(traits.K_leaf, traits.p50_leaf, traits.b_leaf);
 	phydro::ParControl par_control;
+	
+	nitrogen_store = nitrogen_leaf(C.clim_acclim.nitrogen, G, T);
 
 	par_control.gs_method = phydro::GS_APX;
 	par_control.et_method = phydro::ET_DIFFUSION;
@@ -39,7 +41,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 		C.clim_acclim.vpd,    // vpd [kPa]
 		C.clim_acclim.co2,	  // co2 [ppm]
 		C.clim_acclim.pa,     // surface pressure [Pa]
-		1, // TODO: this should be the nitrogen_store when there is one
+		nitrogen_store,       // nitorgen in leaf [TODO: units]
 		fapar,                // fraction of absorbed PAR
 		par.kphio,            // phi0 - quantum yield
 		C.clim_acclim.swp,    // soil water potential [MPa]

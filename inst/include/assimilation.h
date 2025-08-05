@@ -95,6 +95,12 @@ class Assimilator{
 	double leaf_turnover_rate(double _kappa_l, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
 	double root_turnover_rate(PlantArchitecture* G, const PlantTraits& traits);
 	/// @}
+	
+	/// @brief 
+	/// @{
+	double nitrogen_store(double N, PlantArchitecture& G, PlantTraits& T);
+	double nitrogen_leaf(double N, PlantArchitecture& G, PlantTraits& T);
+	/// @}
 
 };
 

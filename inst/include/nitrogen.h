@@ -20,9 +20,6 @@ public:
   double e_u_myco;
   double q;
   
-  // Nitrogen state
-  double tree_nitrogen;
-  
 public:
   // Uptake equations
   double uptake_myco(double N);
