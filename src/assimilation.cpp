@@ -40,6 +40,13 @@ double Assimilator::root_respiration_rate(PlantArchitecture* G, PlantParameters&
 	return (par.rr * par.years_per_tunit_avg) * G->root_mass(traits) * (gpp_annual / G->crown_area);
 }
 
+// cost for the root arhcitexture optimisation
+double Assimilator::root_cost(PlantArchitecture* G, PlantParameters& par, PlantTraits& traits) {
+  double biomass_cost = 1e-12/2.0 * G->root_mass(traits) / G->root_age(traits); // carbon not biomass
+  double respiration = root_respiration_rate(G, par, traits);
+  return biomass_cost + respiration;
+}
+
 // rate adjusted for time unit
 double Assimilator::sapwood_respiration_rate(PlantArchitecture* G, PlantParameters& par, PlantTraits& traits){
 	//return par.rs * G->sapwood_mass(traits);

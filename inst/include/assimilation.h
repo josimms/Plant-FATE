@@ -84,6 +84,11 @@ class Assimilator{
 	double sapwood_respiration_rate(PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
 	/// @}
 
+	
+	/// @brief Calculate leaf and fine-root respiration rates 
+	/// @{
+	double root_cost(PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
+	///@
 
 	/// @brief Calculate leaf and fine-root turnover rates 
 	/// @{
