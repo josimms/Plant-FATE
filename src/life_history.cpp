@@ -28,6 +28,7 @@ LifeHistoryOptimizer::LifeHistoryOptimizer(std::string params_file){
 
 	traits0.init(I);
 	par0.init(I);
+	uptake0.init(I);
 
 	par0.set_tscale(ts.get_tscale()); // default time unit is year
 
@@ -75,7 +76,7 @@ void LifeHistoryOptimizer::init(){
 	// We are tracking the life-cycle of a seed: how many seeds does a single seed produce (having gone through dispersal, germination, and plant life stages)
 	P = plant::Plant();
 	// P.initFromFile(params_file);
-	P.init(par0, traits0);
+	P.init(par0, traits0, uptake0);
 
 	P.geometry.set_lai(P.par.lai0);
 	P.geometry.set_root(P.par.root_no0, P.par.root_length0);
