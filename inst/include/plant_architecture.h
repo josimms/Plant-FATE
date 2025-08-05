@@ -90,7 +90,6 @@ class PlantArchitecture{
 	double root_density(const PlantTraits& traits) const;
 	double root_lifespan(const PlantTraits& traits) const;
 	double root_mass(const PlantTraits& traits) const;
-	double ectomycorrhiza_mass(const PlantTraits& traits) const;
 	/// @}
 	
 
@@ -117,6 +116,7 @@ class PlantArchitecture{
 	void set_size(double _x, PlantTraits& traits);
 	/// Set size and lai, the two state variables that define plant geometry
 	std::vector<double>::iterator set_state(std::vector<double>::iterator S, PlantTraits& traits);
+	void get_ectomycorrhiza_mass(PlantTraits& traits);
 	/// @}
 
 
