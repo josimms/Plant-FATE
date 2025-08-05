@@ -31,6 +31,7 @@ class PlantArchitecture{
 
 		// allocation
 		double dmat;    ///< Diameter at reproductive maturity, calculated as diameter when H = `fhmat x` hmat
+		double investment_tree;  ///< The constant ratio of allocation from assimilation to ectomycorrhiza
 	} geom;
 
 	public:
