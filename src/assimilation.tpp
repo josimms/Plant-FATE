@@ -16,12 +16,12 @@ inline void print_phydro(const phydro::PHydroResultNitrogen& res, std::string s)
 // ** Gross and Net Assimilation 
 // **
 template<class _Climate>
-phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G){
+phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G, Uptake& U){
   phydro::ParCostNitrogen par_cost(par.alpha, par.gamma, par.infra_translation);
 	phydro::ParPlant par_plant(traits.K_leaf, traits.p50_leaf, traits.b_leaf);
 	phydro::ParControl par_control;
 	
-	nitrogen_store_leaf = nitrogen_leaf(C.clim_acclim.nitrogen, G, T);
+	double nitrogen_store_leaf = nitrogen_leaf(C.clim_acclim.nitrogen, G, traits, U);
 
 	par_control.gs_method = phydro::GS_APX;
 	par_control.et_method = phydro::ET_DIFFUSION;
@@ -144,7 +144,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 
 
 template<class Env>
-void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits){
+void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits, Uptake& U){
 	//double GPP_plant = 0, Rl_plant = 0, dpsi_avg = 0;
 	double fapar = 1 - exp(-par.k_light * G->lai);
 	bool by_layer = false;
@@ -170,7 +170,7 @@ void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, 
 		//std::cout << "h = " << G->height << ", z* = " << zst << ", I = " << env.canopy_openness[ilayer] << ", fapar = " << fapar << /*", A = " << (res.a + res.vcmax*par.rd) << " umol/m2/s x " <<*/ ", ca_layer = " << ca_layer << /*" m2 = " << (res.a + res.vcmax*par.rd) * ca_layer << ", vcmax = " << res.vcmax <<*/ "\n"; 
 
 		if (by_layer == true){
-			auto res = leaf_assimilation_rate(env.canopy_openness[ilayer], fapar, env, par, traits, G);
+			auto res = leaf_assimilation_rate(env.canopy_openness[ilayer], fapar, env, par, traits, G, U);
 			plant_assim.gpp        += (res.a + res.vcmax * par.rd) * ca_layer;
 			plant_assim.rleaf      += (res.vcmax * par.rd) * ca_layer;
 			plant_assim.trans      += res.e * ca_layer;
@@ -203,7 +203,7 @@ void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, 
 	}
 
 	if (by_layer == false){
-		auto res = leaf_assimilation_rate(plant_assim.c_open_avg, fapar, env, par, traits, G);
+		auto res = leaf_assimilation_rate(plant_assim.c_open_avg, fapar, env, par, traits, G, U);
 		plant_assim.gpp        = (res.a + res.vcmax * par.rd) * ca_total;
 		plant_assim.rleaf      = (res.vcmax * par.rd) * ca_total;
 		plant_assim.trans      = res.e * ca_total;
@@ -227,6 +227,10 @@ void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, 
 	plant_assim.rleaf *= (sec_per_unit_t * 1e-6 * par.cbio);        // umol co2/s ----> umol co2/unit_t --> mol co2/unit_t --> kg/unit_t 
 	plant_assim.trans *= (sec_per_unit_t * 18e-3);                  // mol h2o/s  ----> mol h2o/unit_t  --> kg h2o /unit_t
 	
+	// TODO: run this function twice, could optimise the code here
+	// TODO: how do I get the climate here? Probably have to get the result from the previous function...
+	plant_assim.nitrogen_tree = nitrogen_store(0.5, G, traits, U);
+	
 	// Traits updated with the zeta value
 	// traits.zeta = plant_assim.zeta;
 	// std::cout << " zeta " << traits.zeta;
@@ -236,11 +240,11 @@ void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, 
 
 
 template<class Env>
-PlantAssimilationResult Assimilator::net_production(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits){
+PlantAssimilationResult Assimilator::net_production(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits, Uptake& U){
 	plant_assim = PlantAssimilationResult(); // reset plant_assim
 
   // calc_plant_assimilation_rate
-	calc_plant_assimilation_rate(env, G, par, traits); // update plant_assim
+	calc_plant_assimilation_rate(env, G, par, traits, U); // update plant_assim
 	les_update_lifespans(G->lai, par, traits);
 
 	plant_assim.rleaf = leaf_respiration_rate(G, par, traits);      // kg unit_t-1  
