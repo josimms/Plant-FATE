@@ -1,9 +1,9 @@
 #include "assimilation.h"
+#include "nitrogen.h"
 
 #include <cmath>
 
 namespace plant{
-
 
 // adjusted for time unit
 void Assimilator::les_update_lifespans(double lai, PlantParameters& par, PlantTraits& traits){
@@ -42,7 +42,7 @@ double Assimilator::root_respiration_rate(PlantArchitecture* G, PlantParameters&
 
 // cost for the root arhcitexture optimisation
 double Assimilator::root_cost(PlantArchitecture* G, PlantParameters& par, PlantTraits& traits) {
-  double biomass_cost = 1e-12/2.0 * G->root_mass(traits) / G->root_age(traits); // carbon not biomass
+  double biomass_cost = 1e-12/2.0 * G->root_mass(traits) / G->root_lifespan(traits); // carbon not biomass
   double respiration = root_respiration_rate(G, par, traits);
   return biomass_cost + respiration;
 }
@@ -64,10 +64,10 @@ double Assimilator::root_turnover_rate(PlantArchitecture* G, const PlantTraits& 
   return G->root_mass(traits) / G->root_lifespan(traits); // / par.lr;
 }
 
-double Assimilator::nitrogen_store(double N, PlantArchitecture& G, PlantTraits& T){
+double Assimilator::nitrogen_store(double N, PlantArchitecture* G, PlantTraits& traits, Uptake& U){
   
   // STEP 1: Tree uptake
-  double nitrogen_tree_uptake = nitrogen_plant(double N, PlantArchitecture& G, PlantTraits& T);
+  double nitrogen_tree_uptake = U.nitrogen_plant(N, *G, traits);
   // TODO: could make the double N into climate as nitrogen is part of that
   
   // STEP 2: Nitrogen balance in the tree
@@ -77,13 +77,13 @@ double Assimilator::nitrogen_store(double N, PlantArchitecture& G, PlantTraits& 
   return(nitrogen_tree);
 }
 
-double Assimilator::nitrogen_leaf(double N, PlantArchitecture& G, PlantTraits& T) {
+double Assimilator::nitrogen_leaf(double N, PlantArchitecture* G, PlantTraits& traits, Uptake& U) {
   
   // Get nitrogen balance
-  double nitrogen_tree = nitrogen_store(N, G, T);
+  double nitrogen_tree = nitrogen_store(N, G, traits, U);
   
   // Get the percentage of nitrogen that is allocated to the leaf
-  double nitrogen_leaf = k_10 * nitrogen_tree;
+  double nitrogen_leaf = traits.k_10 * nitrogen_tree;
   
   return(nitrogen_leaf);
 }
