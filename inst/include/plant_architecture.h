@@ -117,7 +117,7 @@ class PlantArchitecture{
 	void set_size(double _x, PlantTraits& traits);
 	/// Set size and lai, the two state variables that define plant geometry
 	std::vector<double>::iterator set_state(std::vector<double>::iterator S, PlantTraits& traits);
-	void get_ectomycorrhiza_mass(PlantTraits& traits);
+	void get_ectomycorrhiza_mass(double exudates, PlantTraits& traits);
 	/// @}
 
 
