@@ -72,15 +72,10 @@ double Assimilator::nitrogen_store(double N, PlantArchitecture* G, PlantTraits& 
   
   // STEP 2: Nitrogen balance in the tree
   double nitrogen_used = 0.0;
-  double nitrogen_tree = nitrogen_tree_uptake - nitrogen_used;
-  
-  return(nitrogen_tree);
+  return nitrogen_tree_uptake - nitrogen_used;
 }
 
-double Assimilator::nitrogen_leaf(double N, PlantArchitecture* G, PlantTraits& traits, Uptake& U) {
-  
-  // Get nitrogen balance
-  double nitrogen_tree = nitrogen_store(N, G, traits, U);
+double Assimilator::nitrogen_leaf(double nitrogen_tree) {
   
   // Get the percentage of nitrogen that is allocated to the leaf
   double nitrogen_leaf = traits.k_10 * nitrogen_tree;

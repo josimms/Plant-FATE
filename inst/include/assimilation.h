@@ -105,7 +105,7 @@ class Assimilator{
 	/// @brief 
 	/// @{
 	double nitrogen_store(double N, PlantArchitecture* G, PlantTraits& traits, Uptake& U);
-	double nitrogen_leaf(double N, PlantArchitecture* G, PlantTraits& traits, Uptake& U);
+	double nitrogen_leaf(double nitrogen_tree);
 	/// @}
 
 };

@@ -21,7 +21,8 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 	phydro::ParPlant par_plant(traits.K_leaf, traits.p50_leaf, traits.b_leaf);
 	phydro::ParControl par_control;
 	
-	double nitrogen_store_leaf = nitrogen_leaf(C.clim_acclim.nitrogen, G, traits, U);
+	double nitrogen_store = nitrogen_store(double N, PlantArchitecture* G, PlantTraits& traits, Uptake& U);
+	double potential_nitrogen_leaf = nitrogen_leaf(nitrogen_store);
 
 	par_control.gs_method = phydro::GS_APX;
 	par_control.et_method = phydro::ET_DIFFUSION;
@@ -41,7 +42,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 		C.clim_acclim.vpd,    // vpd [kPa]
 		C.clim_acclim.co2,	  // co2 [ppm]
 		C.clim_acclim.pa,     // surface pressure [Pa]
-		nitrogen_store_leaf,       // nitorgen in leaf [TODO: units]
+		potential_nitrogen_leaf,  // nitorgen in leaf [TODO: units]
 		fapar,                // fraction of absorbed PAR
 		par.kphio,            // phi0 - quantum yield
 		C.clim_acclim.swp,    // soil water potential [MPa]
@@ -52,6 +53,10 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 		par_cost,             // cost params
 		par_control           // configuration params for phydro
 	);
+	// TODO: scale problem here, should the nitrogen store be updated by leaf or by canopy?
+	out_phydro_acclim.nitrogen_tree = nitrogen_store - out_phydro_acclim.nitrogen_avg; // TODO: double check the definition of the nitrogen_avg
+	out_phydro_acclim.nitrogen_leaf_potential = potential_nitrogen_leaf;
+	// Note: the nitrogen optimal is given as an output from the model from the nitrogen leaf potential nitrogen content
 
 	// print_phydro(out_phydro_acclim, "acclim");
 
@@ -77,7 +82,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 		C.clim_inst.vpd,           // vpd [kPa]
 		C.clim_inst.co2,	         // co2 [ppm]
 		C.clim_inst.pa,            // surface pressure [Pa]
-		nitrogen_store_leaf,            // nitorgen in leaf [TODO: units]
+		potential_nitrogen_leaf,            // nitorgen in leaf [TODO: units]
 		0.2,    // zeta ratio
 		fapar,                     // fraction of absorbed PAR
 		par.kphio,                 // phi0 - quantum yield
@@ -89,6 +94,8 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 		par_cost,                  // cost params
 		par_control                // configuration params for phydro
 	);
+	photo_leaf.nitrogen_leaf_potential = potential_nitrogen_leaf;
+	// Note: the nitrogen optimal is given as an output from the model from the nitrogen leaf potential nitrogen content
 	
 	// auto photo_leaf = phydro::phydro_instantaneous_analytical(
 	// 	out_phydro_acclim.vcmax25, // acclimated vcmax25
@@ -160,6 +167,8 @@ void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, 
 	plant_assim.c_open_avg = 0;
 	plant_assim.nitrogen_avg  = 0;
 	//plant_assim.zeta       = 0;
+	plant_assim.nitrogen_tree = 0;
+	plant_assim.nitrogen_leaf_potential = 0;
 	
 
 	double ca_cumm = 0;
