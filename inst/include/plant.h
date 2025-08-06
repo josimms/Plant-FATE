@@ -1,8 +1,6 @@
 #ifndef PLANT_FATE_PLANT_PLANT_H_
 #define PLANT_FATE_PLANT_PLANT_H_
 #include <fstream>
-#include "traits_params.h"
-#include "nitrogen.h"
 #include "assimilation.h"
 #include "utils/rk4.h"
 #include "utils/moving_average.h"
