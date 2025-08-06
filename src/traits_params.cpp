@@ -49,6 +49,7 @@ void PlantTraits::init(io::Initializer& I){
 	k_5 = I.get<double>("k_5");
 	k_6 = I.get<double>("k_6");
 	k_7 = I.get<double>("k_7");
+	k_10 = I.get<double>("k_10");
 }
 
 void PlantTraits::initFromFile(std::string fname){

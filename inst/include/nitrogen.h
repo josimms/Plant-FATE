@@ -1,3 +1,6 @@
+#ifndef PLANT_UPTAKE_H
+#define PLANT_UPTAKE_H
+
 #include "plant_architecture.h"
 #include "utils/initializer_v2.h"
 
@@ -8,7 +11,6 @@ public:
   // Parameters
   double k_8;
   double k_9;
-  double k_10;
   double k_11;
   double k_12;
   double k_13;
@@ -36,3 +38,4 @@ public:
 } // end of namespace
 
   
+#endif // PLANT_UPTAKE_H

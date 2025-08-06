@@ -49,6 +49,7 @@ class PlantTraits{
 	double k_6;             ///< Fitted parameter root lifespan [mm-1] (Ding)
 	double k_7;             ///< Fitted parameter root lifespan [years] (Ding)
 	double k_8;             ///< Years (Ilvonen)
+	double k_10;            ///< Conversion from uptake to leaf N allocation
 	
 	// traits set by coordination
 	double a;               ///< Initial height to diameter ratio 

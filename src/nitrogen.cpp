@@ -62,7 +62,6 @@ namespace plant {
     // Nitrogen parameters
     k_8                 = I.get<double>("k_8");
     k_9                 = I.get<double>("k_9");
-    k_10                = I.get<double>("k_10");
     k_11                = I.get<double>("k_11");
     k_12                = I.get<double>("k_12");
     k_13                = I.get<double>("k_13");
