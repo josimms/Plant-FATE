@@ -3,8 +3,7 @@
 
 #include <phydro.h>
 
-#include "traits_params.h"
-#include "plant_architecture.h"
+#include "nitrogen.h"
 
 namespace plant{
 
@@ -31,6 +30,8 @@ struct PlantAssimilationResult{
 
 	double tleaf = 0;        ///< Leaf turnover rate [kg-biomass yr-1]
 	double troot = 0;        ///< Fine root turnover rate [kg-biomass yr-1]
+	
+	double nitrogen_tree = 0;   ///< The nitrogen balance in the tree
 };
 
 
@@ -42,9 +43,14 @@ class Assimilator{
 	// ~~ These are defined here rather than in local scope for debugging purposes. 
 	PlantAssimilationResult plant_assim; ///< Plant assimilation result calculated by calc_plant_assimilation_rate()
 	// ~~
+	
+	// Define the uptake class here so the functions can be accessed
+	Uptake uptake;
 
 	double kappa_l;   ///< leaf turnover rate, updated by les functions
 	double kappa_r;   ///< fine root turnover rate, updated by les functions
+	
+	double nitrogen_tree; ///< nitrogen balence within the whole tree
 
 	public:
 
@@ -56,17 +62,17 @@ class Assimilator{
 	/// @param traits  plant traits
 	/// @return        leaf assimilatio rate and a bunch of other leaf-level things
 	template<class _Climate>
-	phydro::PHydroResultNitrogen leaf_assimilation_rate(double fipar, double fapar, _Climate& clim, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G);
+	phydro::PHydroResultNitrogen leaf_assimilation_rate(double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G, Uptake& U);
 
 
 	/// @brief  Calculate whole-plant gross assimilation, transpiration, gs, etc. 
 	template<class Env>
-	void  calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
+	void  calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits, Uptake& U);
 
 
 	/// @brief  Calculate whole-plant net assimilation 
 	template<class Env>
-	PlantAssimilationResult net_production(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
+	PlantAssimilationResult net_production(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits, Uptake& U);
 
 
 	/// @brief Leaf economics - calculate optimal leaf lifespan 
@@ -98,8 +104,8 @@ class Assimilator{
 	
 	/// @brief 
 	/// @{
-	double nitrogen_store(double N, PlantArchitecture& G, PlantTraits& T);
-	double nitrogen_leaf(double N, PlantArchitecture& G, PlantTraits& T);
+	double nitrogen_store(double N, PlantArchitecture* G, PlantTraits& traits, Uptake& U);
+	double nitrogen_leaf(double N, PlantArchitecture* G, PlantTraits& traits, Uptake& U);
 	/// @}
 
 };
