@@ -119,8 +119,6 @@ double PlantArchitecture::dmass_dt_lai(double& dL_dt, double dmass_dt_max, Plant
 // ** root allometry
 // **
 
-// TODO: first write out the equations
-// TODO: second add the parameters to the inputs somehow - add to the initalisation
 double PlantArchitecture::root_diameter(const PlantTraits& traits) const {
   return traits.k_1 / pow(root_length, 0.5);
 }
@@ -142,7 +140,6 @@ double PlantArchitecture::leaf_mass(const PlantTraits& traits) const{
 }
 
 double PlantArchitecture::root_mass(const PlantTraits& traits) const {
-	// TODO: how should the root growth and number be entered into this formula?
 	double diamater = root_diameter(traits);
   double density = root_density(traits);
   return density * pow(diamater/2.0, 2.0) * root_length * M_PI * root_no * 1e-12;
@@ -214,7 +211,7 @@ void PlantArchitecture::set_size(double _x, PlantTraits& traits){
 std::vector<double>::iterator PlantArchitecture::set_state(std::vector<double>::iterator S, PlantTraits& traits){
 	set_lai(*S++);             // must be set first as it is used bt set_size() - not required any more
   set_root(*S++, *S++);
-	set_size(*S++, traits);     // TODO: check if this has the extra traits / states I added
+	set_size(*S++, traits);
 //	litter_pool = *S++;
 	return S;
 }
@@ -225,7 +222,6 @@ std::vector<double>::iterator PlantArchitecture::set_state(std::vector<double>::
 // ** - simulates growth over dt with constant assimilation rate A
 // ** 
 
-// TODO: should I add to this?
 void PlantArchitecture::grow_for_dt(double t, double dt, double& prod, double& litter_pool, double A, PlantTraits& traits){
 
 	auto derivs = [A, &traits, &litter_pool, this](double t, std::vector<double>& S, std::vector<double>& dSdt){
