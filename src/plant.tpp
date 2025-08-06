@@ -153,7 +153,16 @@ template<class Env>
 void Plant::calc_demographic_rates(Env& env, double t){
 
 	res = assimilator.net_production(env, &geometry, par, traits, uptake);
-	bp.dmass_dt_tot = std::max(res.npp, 0.0);  // No biomass growth if npp is negative
+	
+	// Take a percentage of the total npp and allocate this to mycorrhiza
+	double res_all = std::max(res.npp, 0.0);
+	double res_after_myco = res_all * (1 - traits.investment_from_tree);
+	
+	// Ectomycorrhiza,
+	// Note, the res_all tree investment is applied in the function
+	get_ectomycorrhiza_mass(res_all, traits);
+	
+	bp.dmass_dt_tot = std::max(res_after_myco, 0.0);  // No biomass growth if npp is negative
 	if (std::isnan(bp.dmass_dt_tot)) throw std::runtime_error("biomass production is nan");
 
 	// set rates.dlai_dt and bp.dmass_dt_lai

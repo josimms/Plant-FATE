@@ -149,15 +149,9 @@ double PlantArchitecture::root_mass(const PlantTraits& traits) const {
 }
 
 void PlantArchitecture::get_ectomycorrhiza_mass(double exudates, PlantTraits& traits) {
-  // TODO: how do I get the assimilation value?
-  // TODO: would this be better if it was 
-  
-  // Parameters
-  double mycorrhizal_biomass_conversion = 1.5; // TODO: add to the input function
-  double turnover = 0.2; // TODO: add to the input function
-  
   // Update the ectomycorrhizal mass
-  ectomycorrhiza_mass = (1 - turnover) * ectomycorrhiza_mass + exudates * mycorrhizal_biomass_conversion;
+  double input = exudates * traits.investment_from_tree;
+  ectomycorrhiza_mass = (1 - traits.mycorrhizal_turnover) * ectomycorrhiza_mass + input * traits.mycorrhizal_biomass_conversion;
 }
 
 double PlantArchitecture::coarse_root_mass(const PlantTraits& traits) const{

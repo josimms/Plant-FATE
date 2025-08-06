@@ -51,6 +51,11 @@ class PlantTraits{
 	double k_8;             ///< Years (Ilvonen)
 	double k_10;            ///< Conversion from uptake to leaf N allocation
 	
+	// Ectomycorrhizal parameters
+	double mycorrhizal_biomass_conversion;  ///< The biomass created per carbon unit from photosynthesis
+	double mycorrhizal_turnover;  ///< The ectomycorrhizal turnover
+	double investment_from_tree;  ///< The constant ratio of allocation from assimilation to ectomycorrhiza
+	
 	// traits set by coordination
 	double a;               ///< Initial height to diameter ratio 
 	double c;               ///< Crown area to sapwood area ratio
