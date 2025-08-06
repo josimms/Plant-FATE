@@ -50,6 +50,9 @@ void PlantTraits::init(io::Initializer& I){
 	k_6 = I.get<double>("k_6");
 	k_7 = I.get<double>("k_7");
 	k_10 = I.get<double>("k_10");
+	mycorrhizal_biomass_conversion = I.get<double>("mycorrhizal_biomass_conversion");
+	mycorrhizal_turnover           = I.get<double>("mycorrhizal_turnover");
+	investment_from_tree           = I.get<double>("investment_from_tree");
 }
 
 void PlantTraits::initFromFile(std::string fname){
