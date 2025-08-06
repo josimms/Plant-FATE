@@ -172,7 +172,7 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
 		, P.geometry.stem_mass(P.traits)
 		, P.geometry.coarse_root_mass(P.traits)
 		, P.get_biomass()
-    , P.uptake.tree_nitrogen
+    , P.assimilator.plant_assim.nitrogen_tree
 		, rep
 	//  , P.state.seed_pool
 	//  , germinated
@@ -251,7 +251,7 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 		set_state(S.begin());
 		
 		// TODO: make this before the assimilation
-		nitrogen_process(clim C, const PlantArchitecture& G);
+		// nitrogen_process(C, G);
 		
 	  P.calc_demographic_rates(C, t);
 		
