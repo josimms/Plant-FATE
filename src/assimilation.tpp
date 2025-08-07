@@ -20,16 +20,14 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
   phydro::ParCostNitrogen par_cost(par.alpha, par.gamma, par.infra_translation);
 	phydro::ParPlant par_plant(traits.K_leaf, traits.p50_leaf, traits.b_leaf);
 	phydro::ParControl par_control;
-	
-	double nitrogen_store = nitrogen_store(double N, PlantArchitecture* G, PlantTraits& traits, Uptake& U);
-	double potential_nitrogen_leaf = nitrogen_leaf(nitrogen_store);
+
+	double potential_nitrogen_leaf = nitrogen_leaf(nitrogen_store, traits);
 
 	par_control.gs_method = phydro::GS_APX;
 	par_control.et_method = phydro::ET_DIFFUSION;
 
 	double f_day_length = 0.5;
-	double a_jmax = 50; // TODO: make this part of one of the parameters
-
+	
 	double Iabs_acclim = fipar * C.clim_acclim.ppfd;
 	double Iabs_day    = fipar * C.clim_inst.ppfd / f_day_length;
 	double Iabs_24hr   = fipar * C.clim_inst.ppfd;
@@ -48,7 +46,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 		C.clim_acclim.swp,    // soil water potential [MPa]
 		par.rd,               // ratio or dark respiration to vcmax
 		C.clim_acclim.vwind,  // wind speed [m s-1], only used by PML, which we dont use, so set to global average of 3 m/s
-		a_jmax, // TODO: a_jmax parameter
+		par.a_jmax,           // TODO: units
 		par_plant,            // plant hydraulic traits
 		par_cost,             // cost params
 		par_control           // configuration params for phydro
@@ -89,7 +87,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 		C.clim_inst.swp,           // soil water potential [MPa]
 		par.rd,                    // ratio or dark respiration to vcmax
 		C.clim_inst.vwind,         // wind speed [m s-1], only used by PML, which we dont use, so set to global average of 3 m/s
-		// a_jmax, // TODO: a_jmax parameter
+		// a_jmax,                 // TODO: a_jmax parameter // TODO: why is this commented?
 		par_plant,                 // plant hydraulic traits
 		par_cost,                  // cost params
 		par_control                // configuration params for phydro
