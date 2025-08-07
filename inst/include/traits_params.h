@@ -51,10 +51,15 @@ class PlantTraits{
 	double k_8;             ///< Years (Ilvonen)
 	double k_10;            ///< Conversion from uptake to leaf N allocation
 	
+	// Nitrogen carbon ratio
+	double nc_leaf;         ///< Korhonen 2013
+	double nc_root;         ///< Ding data, root order 1-3
+	double nc_wood;         ///< Korhonen 2013
+	
 	// Ectomycorrhizal parameters
 	double mycorrhizal_biomass_conversion;  ///< The biomass created per carbon unit from photosynthesis
-	double mycorrhizal_turnover;  ///< The ectomycorrhizal turnover
-	double investment_from_tree;  ///< The constant ratio of allocation from assimilation to ectomycorrhiza
+	double mycorrhizal_turnover;            ///< The ectomycorrhizal turnover
+	double investment_from_tree;            ///< The constant ratio of allocation from assimilation to ectomycorrhiza
 	
 	// traits set by coordination
 	double a;               ///< Initial height to diameter ratio 
@@ -87,7 +92,8 @@ class PlantParameters{
 	double gamma;           ///< Cost of hydraulic risks
 	double infra_translation; ///< Translation for biomass to infrastructure
 	double infra_min;       ///< Minimal Ib value
-	
+  double a_jmax;          ///< Conversion from nitrogen to Jmax
+		
 	// Root optimisation
 	double root_no0;		        ///< Initial number of root tips
 	double root_length0;		    ///< Initial root length

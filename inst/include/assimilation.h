@@ -31,7 +31,8 @@ struct PlantAssimilationResult{
 	double tleaf = 0;        ///< Leaf turnover rate [kg-biomass yr-1]
 	double troot = 0;        ///< Fine root turnover rate [kg-biomass yr-1]
 	
-	double nitrogen_tree = 0;   ///< The nitrogen balance in the tree
+	double nitrogen_tree = 0;             ///< The nitrogen balance in the tree
+	double nitrogen_leaf_potential = 0;   ///< The nitrogen leaf potential
 };
 
 
@@ -100,12 +101,6 @@ class Assimilator{
 	/// @{
 	double leaf_turnover_rate(double _kappa_l, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
 	double root_turnover_rate(PlantArchitecture* G, const PlantTraits& traits);
-	/// @}
-	
-	/// @brief 
-	/// @{
-	double nitrogen_store(double N, PlantArchitecture* G, PlantTraits& traits, Uptake& U);
-	double nitrogen_leaf(double nitrogen_tree);
 	/// @}
 
 };

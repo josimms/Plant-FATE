@@ -50,6 +50,9 @@ void PlantTraits::init(io::Initializer& I){
 	k_6 = I.get<double>("k_6");
 	k_7 = I.get<double>("k_7");
 	k_10 = I.get<double>("k_10");
+	nc_leaf = I.get<double>("nc_leaf");
+	nc_root = I.get<double>("nc_root");
+	nc_wood = I.get<double>("nc_wood");
 	mycorrhizal_biomass_conversion = I.get<double>("mycorrhizal_biomass_conversion");
 	mycorrhizal_turnover           = I.get<double>("mycorrhizal_turnover");
 	investment_from_tree           = I.get<double>("investment_from_tree");
@@ -175,6 +178,8 @@ void PlantParameters::init(io::Initializer& I){
 	infra_translation  = I.get<double>("infra_translation");
 	infra_min          = I.get<double>("infra_min");
 	fg                 = I.get<double>("fg");
+	
+	a_jmax             = I.get<double>("a_jmax");
 	
 	root_no0           = I.get<double>("root_no0");
 	root_length0       = I.get<double>("root_length0");

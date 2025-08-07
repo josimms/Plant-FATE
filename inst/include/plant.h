@@ -78,6 +78,11 @@ class Plant{
 
 	/// @brief  This function initializes the plant (traits, par, and geometry) from an ini file
 	void initFromFile(std::string file);
+	
+	/// @breif Nitrogen balance equations
+	/// @{
+	double nitrogen_leaf(double nitrogen_tree);
+	/// @}
 
 	/// @addtogroup trait_evolution
 	/// @{

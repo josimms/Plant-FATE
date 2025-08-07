@@ -64,25 +64,6 @@ double Assimilator::root_turnover_rate(PlantArchitecture* G, const PlantTraits& 
   return G->root_mass(traits) / G->root_lifespan(traits); // / par.lr;
 }
 
-double Assimilator::nitrogen_store(double N, PlantArchitecture* G, PlantTraits& traits, Uptake& U){
-  
-  // STEP 1: Tree uptake
-  double nitrogen_tree_uptake = U.nitrogen_plant(N, *G, traits);
-  // TODO: could make the double N into climate as nitrogen is part of that
-  
-  // STEP 2: Nitrogen balance in the tree
-  double nitrogen_used = 0.0;
-  return nitrogen_tree_uptake - nitrogen_used;
-}
-
-double Assimilator::nitrogen_leaf(double nitrogen_tree) {
-  
-  // Get the percentage of nitrogen that is allocated to the leaf
-  double nitrogen_leaf = traits.k_10 * nitrogen_tree;
-  
-  return(nitrogen_leaf);
-}
-
 } // namespace plant
 
 

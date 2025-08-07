@@ -80,6 +80,14 @@ void Plant::print(){
 	traits.print();
 }
 
+double Plant::nitrogen_leaf(double nitrogen_tree, PlantTraits& traits) {
+  
+  // Get the percentage of nitrogen that is allocated to the leaf
+  double nitrogen_leaf = traits.k_10 * nitrogen_tree;
+  
+  return(nitrogen_leaf);
+}
+
 
 }	// namespace plant
 
