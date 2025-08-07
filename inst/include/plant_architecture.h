@@ -47,8 +47,9 @@ class PlantArchitecture{
 	double sapwood_fraction;             ///< Fraction of stem cross sectional area that is sapwood
 	double functional_xylem_fraction;    ///< Fraction of funcitonal xylem in sapwood
 	double rooting_depth;                ///< Rooting depth, calculated from coarse root biomass
-	double tree_nirogen;                 ///< Tree nitrogen store
-
+	double nitrogen_tree;
+	double potential_nitrogen_leaf; 
+	
 	// ode-based calculations of sapwood and heartwood (for debug)
 	double sap_frac_ode = 1;
 	double sapwood_mass_ode = 0;
@@ -103,11 +104,6 @@ class PlantArchitecture{
 	double coarse_root_mass(const PlantTraits& traits) const;
 	double heartwood_mass(const PlantTraits& traits) const;
 	double total_mass(const PlantTraits& traits) const;
-	/// @}
-	
-	///@brief Nitrogen value of biomass
-	/// @{
-	double total_mass_nitrogen(const PlantTraits& traits) const;
 	/// @}
 
 

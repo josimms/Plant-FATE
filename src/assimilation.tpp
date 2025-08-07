@@ -16,7 +16,7 @@ inline void print_phydro(const phydro::PHydroResultNitrogen& res, std::string s)
 // ** Gross and Net Assimilation 
 // **
 template<class _Climate>
-phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double potential_leaf_nitrogen, double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G){
+phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G){
   phydro::ParCostNitrogen par_cost(par.alpha, par.gamma, par.infra_translation);
 	phydro::ParPlant par_plant(traits.K_leaf, traits.p50_leaf, traits.b_leaf);
 	phydro::ParControl par_control;
@@ -38,7 +38,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double potentia
 		C.clim_acclim.vpd,    // vpd [kPa]
 		C.clim_acclim.co2,	  // co2 [ppm]
 		C.clim_acclim.pa,     // surface pressure [Pa]
-		potential_leaf_nitrogen,  // nitorgen in leaf [TODO: units]
+		G->potential_nitrogen_leaf,  // nitorgen in leaf [TODO: units]
 		fapar,                // fraction of absorbed PAR
 		par.kphio,            // phi0 - quantum yield
 		C.clim_acclim.swp,    // soil water potential [MPa]
@@ -49,10 +49,6 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double potentia
 		par_cost,             // cost params
 		par_control           // configuration params for phydro
 	);
-	// TODO: scale problem here, should the nitrogen store be updated by leaf or by canopy?
-	out_phydro_acclim.nitrogen_tree = nitrogen_store - out_phydro_acclim.nitrogen_avg; // TODO: double check the definition of the nitrogen_avg
-	out_phydro_acclim.nitrogen_leaf_potential = potential_nitrogen_leaf;
-	// Note: the nitrogen optimal is given as an output from the model from the nitrogen leaf potential nitrogen content
 
 	// print_phydro(out_phydro_acclim, "acclim");
 
@@ -78,7 +74,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double potentia
 		C.clim_inst.vpd,           // vpd [kPa]
 		C.clim_inst.co2,	         // co2 [ppm]
 		C.clim_inst.pa,            // surface pressure [Pa]
-		potential_leaf_nitrogen,            // nitorgen in leaf [TODO: units]
+		G->potential_nitrogen_leaf,            // nitorgen in leaf [TODO: units]
 		0.2,    // zeta ratio
 		fapar,                     // fraction of absorbed PAR
 		par.kphio,                 // phi0 - quantum yield
@@ -90,8 +86,6 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double potentia
 		par_cost,                  // cost params
 		par_control                // configuration params for phydro
 	);
-	photo_leaf.nitrogen_leaf_potential = potential_nitrogen_leaf;
-	// Note: the nitrogen optimal is given as an output from the model from the nitrogen leaf potential nitrogen content
 	
 	// auto photo_leaf = phydro::phydro_instantaneous_analytical(
 	// 	out_phydro_acclim.vcmax25, // acclimated vcmax25
@@ -147,7 +141,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double potentia
 
 
 template<class Env>
-void  Assimilator::calc_plant_assimilation_rate(double potential_leaf_nitrogen, Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits){
+void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits){
 	//double GPP_plant = 0, Rl_plant = 0, dpsi_avg = 0;
 	double fapar = 1 - exp(-par.k_light * G->lai);
 	bool by_layer = false;
@@ -173,7 +167,7 @@ void  Assimilator::calc_plant_assimilation_rate(double potential_leaf_nitrogen, 
 		//std::cout << "h = " << G->height << ", z* = " << zst << ", I = " << env.canopy_openness[ilayer] << ", fapar = " << fapar << /*", A = " << (res.a + res.vcmax*par.rd) << " umol/m2/s x " <<*/ ", ca_layer = " << ca_layer << /*" m2 = " << (res.a + res.vcmax*par.rd) * ca_layer << ", vcmax = " << res.vcmax <<*/ "\n"; 
 
 		if (by_layer == true){
-			auto res = leaf_assimilation_rate(potential_leaf_nitrogen, env.canopy_openness[ilayer], fapar, env, par, traits, G, U);
+			auto res = leaf_assimilation_rate(env.canopy_openness[ilayer], fapar, env, par, traits, G);
 			plant_assim.gpp        += (res.a + res.vcmax * par.rd) * ca_layer;
 			plant_assim.rleaf      += (res.vcmax * par.rd) * ca_layer;
 			plant_assim.trans      += res.e * ca_layer;
@@ -206,7 +200,7 @@ void  Assimilator::calc_plant_assimilation_rate(double potential_leaf_nitrogen, 
 	}
 
 	if (by_layer == false){
-		auto res = leaf_assimilation_rate(potential_leaf_nitrogen, plant_assim.c_open_avg, fapar, env, par, traits, G, U);
+		auto res = leaf_assimilation_rate(plant_assim.c_open_avg, fapar, env, par, traits, G);
 		plant_assim.gpp        = (res.a + res.vcmax * par.rd) * ca_total;
 		plant_assim.rleaf      = (res.vcmax * par.rd) * ca_total;
 		plant_assim.trans      = res.e * ca_total;
@@ -230,10 +224,6 @@ void  Assimilator::calc_plant_assimilation_rate(double potential_leaf_nitrogen, 
 	plant_assim.rleaf *= (sec_per_unit_t * 1e-6 * par.cbio);        // umol co2/s ----> umol co2/unit_t --> mol co2/unit_t --> kg/unit_t 
 	plant_assim.trans *= (sec_per_unit_t * 18e-3);                  // mol h2o/s  ----> mol h2o/unit_t  --> kg h2o /unit_t
 	
-	// TODO: run this function twice, could optimise the code here
-	// TODO: how do I get the climate here? Probably have to get the result from the previous function...
-	plant_assim.nitrogen_tree = nitrogen_store(0.5, G, traits, U);
-	
 	// Traits updated with the zeta value
 	// traits.zeta = plant_assim.zeta;
 	// std::cout << " zeta " << traits.zeta;
@@ -243,11 +233,11 @@ void  Assimilator::calc_plant_assimilation_rate(double potential_leaf_nitrogen, 
 
 
 template<class Env>
-PlantAssimilationResult Assimilator::net_production(double potential_leaf_nitrogen, Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits){
+PlantAssimilationResult Assimilator::net_production(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits){
 	plant_assim = PlantAssimilationResult(); // reset plant_assim
 
   // calc_plant_assimilation_rate
-	calc_plant_assimilation_rate(potential_leaf_nitrogen, env, G, par, traits);
+	calc_plant_assimilation_rate(env, G, par, traits);
 	les_update_lifespans(G->lai, par, traits);
 
 	plant_assim.rleaf = leaf_respiration_rate(G, par, traits);      // kg unit_t-1  

@@ -37,7 +37,7 @@ public:
   
   // Process function
   template <class Env>
-  void nitrogen_based_root_optimisation(clim C, PlantArchitecture& G, PlantTraits& T);
+  void nitrogen_based_root_optimisation(PlantArchitecture& G, PlantTraits& T, Uptake& U);
 };
 
 } // end of namespace

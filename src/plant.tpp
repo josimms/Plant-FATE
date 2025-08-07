@@ -152,14 +152,7 @@ double Plant::fecundity_rate(double _dmass_dt_rep, Env& env){
 template<class Env>
 void Plant::calc_demographic_rates(Env& env, double t){
 
-  // calculate the uptake and nitrogen balance
-  if (t == 0) {
-    nitrogen_tree = G.total_mass_nitrogen(traits);
-  }
-  nitrogen_tree += U.nitrogen_plant(C.clim_assim.nitrogen, G, traits);
-	double potential_nitrogen_leaf = nitrogen_leaf(nitrogen_tree);
-
-	res = assimilator.net_production(potential_nitrogen_leaf, env, &geometry, par, traits);
+	res = assimilator.net_production(env, &geometry, par, traits);
 	
 	// Take a percentage of the total npp and allocate this to mycorrhiza
 	double res_all = std::max(res.npp, 0.0);
@@ -167,7 +160,7 @@ void Plant::calc_demographic_rates(Env& env, double t){
 	
 	// Ectomycorrhiza,
 	// Note, the res_all tree investment is applied in the function
-	get_ectomycorrhiza_mass(res_all, traits);
+	geometry.get_ectomycorrhiza_mass(res_all, traits);
 	
 	bp.dmass_dt_tot = std::max(res_after_myco, 0.0);  // No biomass growth if npp is negative
 	if (std::isnan(bp.dmass_dt_tot)) throw std::runtime_error("biomass production is nan");
@@ -186,9 +179,6 @@ void Plant::calc_demographic_rates(Env& env, double t){
 	// rates.dseeds_dt_pool =  -state.seed_pool/par.ll_seed  +  fec * p_survival_dispersal(env);  // seeds that survive dispersal enter seed pool
 	// rates.dseeds_dt_germ =   state.seed_pool/par.ll_seed;   // seeds that leave seed pool proceed for germincation
 	rates.dseeds_dt = fec;
-	
-	// uptake nitrogen pool based on tree growth
-	nitrogen_tree -=  G.total_mass_nitrogen(traits);
 	
 }
 

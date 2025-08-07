@@ -184,13 +184,6 @@ double PlantArchitecture::total_mass(const PlantTraits& traits) const{
 	return stem_mass(traits) * (1 + traits.fcr) + leaf_mass(traits) + fine_root_mass;
 }
 
-double PlantArchitecture::total_mass_nitrogen(const PlantTraits& traits) const{
-  
-  double fine_root_mass = root_mass(traits);
-  
-  return stem_mass(traits) * (1 + traits.fcr) * traits.nc_wood + leaf_mass(traits) * traits.nc_leaf + fine_root_mass * traits.nc_root;
-}
-
 // **
 // ** state manipulations
 // **	

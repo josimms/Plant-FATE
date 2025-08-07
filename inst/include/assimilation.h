@@ -54,17 +54,17 @@ class Assimilator{
 	/// @param traits  plant traits
 	/// @return        leaf assimilatio rate and a bunch of other leaf-level things
 	template<class _Climate>
-	phydro::PHydroResultNitrogen leaf_assimilation_rate(double potential_leaf_nitrogen, double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G);
+	phydro::PHydroResultNitrogen leaf_assimilation_rate(double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G);
 
 
 	/// @brief  Calculate whole-plant gross assimilation, transpiration, gs, etc. 
 	template<class Env>
-	void  calc_plant_assimilation_rate(double potential_leaf_nitrogen, Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
+	void  calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
 
 
 	/// @brief  Calculate whole-plant net assimilation 
 	template<class Env>
-	PlantAssimilationResult net_production(double potential_leaf_nitrogen, Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
+	PlantAssimilationResult net_production(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
 
 
 	/// @brief Leaf economics - calculate optimal leaf lifespan 

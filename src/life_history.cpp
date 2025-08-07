@@ -80,6 +80,8 @@ void LifeHistoryOptimizer::init(){
 
 	P.geometry.set_lai(P.par.lai0);
 	P.geometry.set_root(P.par.root_no0, P.par.root_length0);
+	P.nitrogen.nitrogen_tree = 0;
+	P.nitrogen.potential_nitrogen_leaf = 0;
 	P.set_size(0.01);
 	// Simulation below starts at seedling stage. So account for survival until seedling stage
 	P.state.mortality = -log(P.p_survival_dispersal(C) * P.p_survival_germination(C)); // p{fresh seed is still alive after germination} = p{it survives dispersal}*p{it survives germination}
@@ -118,6 +120,8 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
 		, "coarse_root_mass"
 		, "total_mass"
     , "tree_nitrogen"
+    , "potential leaf nitrogen"
+    , "optimal leaf nitrogen"
 		, "total_rep"
 		// , "seed_pool"
 		// , "germinated"
@@ -160,7 +164,7 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
 		, P.assimilator.plant_assim.vcmax_avg
 		, P.assimilator.plant_assim.trans
     , P.assimilator.plant_assim.nitrogen_avg
-    , P.assimilator.plant_assim.zeta
+    , P.assimilator.plant_assim.zeta // TODO: should probably be from the optimisation function in the end!
 		, P.geometry.height
 		, P.geometry.diameter
 		, P.geometry.crown_area
@@ -172,7 +176,9 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
 		, P.geometry.stem_mass(P.traits)
 		, P.geometry.coarse_root_mass(P.traits)
 		, P.get_biomass()
-    , P.assimilator.plant_assim.nitrogen_tree
+    , P.geometry.nitrogen_tree
+    , P.geometry.potential_nitrogen_leaf
+    , P.assimilator.plant_assim.n_leaf
 		, rep
 	//  , P.state.seed_pool
 	//  , germinated
@@ -250,9 +256,20 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 	  //C.Climate::print(t);
 		set_state(S.begin());
 		
-		U.nitrogen_based_root_optimisation(C, G, T);
+		// calculate the uptake and nitrogen balance
+		if (t == 0) {
+		  geometry.nitrogen_tree = total_mass_nitrogen(traits);
+		}
+		geometry.nitrogen_tree += uptake.nitrogen_plant(env.Climate.clim_assim.nitrogen, geometry, traits);
+		geometry.potential_nitrogen_leaf = nitrogen_leaf(geometry.nitrogen_tree, traits);
+		
+		U.nitrogen_based_root_optimisation(G, T);
 		
 	  P.calc_demographic_rates(C, t);
+	  
+	  // uptake nitrogen pool based on tree growth
+	  // TODO: is this line in the right place or should it be after the RK4?
+	  geometry.nitrogen_tree -=  total_mass_nitrogen(traits); 
 		
 		// Override Plant-FATE fecundity calculations 
 		// We need to explicitly include plant mortality here for fitness calcs
