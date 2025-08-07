@@ -250,8 +250,7 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 	  //C.Climate::print(t);
 		set_state(S.begin());
 		
-		// TODO: make this before the assimilation
-		// nitrogen_process(C, G);
+		U.nitrogen_based_root_optimisation(C, G, T);
 		
 	  P.calc_demographic_rates(C, t);
 		
