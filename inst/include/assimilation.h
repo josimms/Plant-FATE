@@ -1,9 +1,8 @@
 #ifndef PLANT_FATE_PLANT_ASSIMILATION_H_
 #define PLANT_FATE_PLANT_ASSIMILATION_H_
 
+#include "uptake.h"
 #include <phydro.h>
-
-#include "nitrogen.h"
 
 namespace plant{
 
@@ -30,9 +29,6 @@ struct PlantAssimilationResult{
 
 	double tleaf = 0;        ///< Leaf turnover rate [kg-biomass yr-1]
 	double troot = 0;        ///< Fine root turnover rate [kg-biomass yr-1]
-	
-	double nitrogen_tree = 0;             ///< The nitrogen balance in the tree
-	double nitrogen_leaf_potential = 0;   ///< The nitrogen leaf potential
 };
 
 
@@ -44,14 +40,9 @@ class Assimilator{
 	// ~~ These are defined here rather than in local scope for debugging purposes. 
 	PlantAssimilationResult plant_assim; ///< Plant assimilation result calculated by calc_plant_assimilation_rate()
 	// ~~
-	
-	// Define the uptake class here so the functions can be accessed
-	Uptake uptake;
 
 	double kappa_l;   ///< leaf turnover rate, updated by les functions
 	double kappa_r;   ///< fine root turnover rate, updated by les functions
-	
-	double nitrogen_tree; ///< nitrogen balence within the whole tree
 
 	public:
 
@@ -63,17 +54,17 @@ class Assimilator{
 	/// @param traits  plant traits
 	/// @return        leaf assimilatio rate and a bunch of other leaf-level things
 	template<class _Climate>
-	phydro::PHydroResultNitrogen leaf_assimilation_rate(double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G, Uptake& U);
+	phydro::PHydroResultNitrogen leaf_assimilation_rate(double potential_leaf_nitrogen, double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G);
 
 
 	/// @brief  Calculate whole-plant gross assimilation, transpiration, gs, etc. 
 	template<class Env>
-	void  calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits, Uptake& U);
+	void  calc_plant_assimilation_rate(double potential_leaf_nitrogen, Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
 
 
 	/// @brief  Calculate whole-plant net assimilation 
 	template<class Env>
-	PlantAssimilationResult net_production(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits, Uptake& U);
+	PlantAssimilationResult net_production(double potential_leaf_nitrogen, Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
 
 
 	/// @brief Leaf economics - calculate optimal leaf lifespan 
