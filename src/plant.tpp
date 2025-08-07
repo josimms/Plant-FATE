@@ -159,7 +159,7 @@ void Plant::calc_demographic_rates(Env& env, double t){
   nitrogen_tree += U.nitrogen_plant(C.clim_assim.nitrogen, G, traits);
 	double potential_nitrogen_leaf = nitrogen_leaf(nitrogen_tree);
 
-	res = assimilator.net_production(env, &geometry, par, traits, potential_nitrogen_leaf);
+	res = assimilator.net_production(potential_nitrogen_leaf, env, &geometry, par, traits);
 	
 	// Take a percentage of the total npp and allocate this to mycorrhiza
 	double res_all = std::max(res.npp, 0.0);
