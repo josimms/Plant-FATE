@@ -2,10 +2,9 @@ template<class Env>
 
 namespace nitrogen {
 
-root_optimisation(clim C, PlantArchitecture& G, PlantTraits& T) {
+nitrogen_based_root_optimisation(clim C, PlantArchitecture& G, PlantTraits& T) {
 
   double cost = 0.0;
-  
   double assimilation = 0.0;
 
   // Optimisation

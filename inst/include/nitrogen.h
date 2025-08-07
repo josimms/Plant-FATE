@@ -22,8 +22,8 @@ public:
   double q;
   
 public:
-  // Uptake equations
   
+  // Uptake equations
   /// @{brief Uptake Functions
   double uptake_myco(double N);
   double uptake_roots(double N, PlantArchitecture& G, PlantTraits& T);
@@ -32,10 +32,16 @@ public:
   double nitrogen_plant(double N, PlantArchitecture& G, PlantTraits& T);
   /// @}
   
+  // Initialisation function
   void init(io::Initializer& I);
+  
+  // Process function
+  template <class Env>
+  void nitrogen_based_root_optimisation(clim C, PlantArchitecture& G, PlantTraits& T);
 };
 
 } // end of namespace
 
-  
+#include "nitrogen.tpp"
+
 #endif // PLANT_UPTAKE_H
