@@ -42,6 +42,6 @@ public:
 
 } // end of namespace
 
-#include "nitrogen.tpp"
+#include "uptake.tpp"
 
 #endif // PLANT_UPTAKE_H

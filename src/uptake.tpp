@@ -1,6 +1,6 @@
 template<class Env>
 
-namespace nitrogen {
+namespace Uptake {
 
 nitrogen_based_root_optimisation(clim C, PlantArchitecture& G, PlantTraits& T) {
 
