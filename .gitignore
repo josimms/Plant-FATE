@@ -49,3 +49,6 @@ lib/
 bin/
 py_plantFATE.egg-info/
 .RDataTmp
+.RDataTmp3
+.RDataTmp1
+.RDataTmp2
