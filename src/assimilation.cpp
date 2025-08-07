@@ -1,5 +1,4 @@
 #include "assimilation.h"
-#include "nitrogen.h"
 
 #include <cmath>
 
