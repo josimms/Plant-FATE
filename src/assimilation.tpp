@@ -17,7 +17,7 @@ inline void print_phydro(const phydro::PHydroResultNitrogen& res, std::string s)
 // **
 template<class _Climate>
 phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G){
-  phydro::ParCostNitrogen par_cost(par.alpha, par.gamma, par.infra_translation);
+  phydro::ParCostNitrogen par_cost(par.alpha, par.gamma, G->nitrogen_uptake);
 	phydro::ParPlant par_plant(traits.K_leaf, traits.p50_leaf, traits.b_leaf);
 	phydro::ParControl par_control;
 
@@ -32,7 +32,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 	
 	double leaf_nitrogen = G->potential_nitrogen_leaf;
 	if (leaf_nitrogen <= 0) {
-	  leaf_nitrogen = 0.01;
+	  leaf_nitrogen = 0.0001;
 	}
 
 	auto out_phydro_acclim = phydro::phydro_nitrogen(
@@ -43,7 +43,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 		C.clim_acclim.vpd,    // vpd [kPa]
 		C.clim_acclim.co2,	  // co2 [ppm]
 		C.clim_acclim.pa,     // surface pressure [Pa]
-		G->potential_nitrogen_leaf,  // nitorgen in leaf [TODO: units]
+		G->potential_nitrogen_leaf,  // nitorgen in leaf [g g-1 dry leaf mass]
 		fapar,                // fraction of absorbed PAR
 		par.kphio,            // phi0 - quantum yield
 		C.clim_acclim.swp,    // soil water potential [MPa]
@@ -79,14 +79,13 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 		C.clim_inst.vpd,           // vpd [kPa]
 		C.clim_inst.co2,	         // co2 [ppm]
 		C.clim_inst.pa,            // surface pressure [Pa]
-		G->potential_nitrogen_leaf,            // nitorgen in leaf [TODO: units]
-		0.2,    // zeta ratio
+		G->potential_nitrogen_leaf,            // nitorgen in leaf [g g-1 dry leaf mass]
 		fapar,                     // fraction of absorbed PAR
 		par.kphio,                 // phi0 - quantum yield
 		C.clim_inst.swp,           // soil water potential [MPa]
 		par.rd,                    // ratio or dark respiration to vcmax
 		C.clim_inst.vwind,         // wind speed [m s-1], only used by PML, which we dont use, so set to global average of 3 m/s
-		// a_jmax,                 // TODO: a_jmax parameter // TODO: why is this commented?
+		par.a_jmax,                    // TODO: a_jmax parameter // TODO: why is this commented?
 		par_plant,                 // plant hydraulic traits
 		par_cost,                  // cost params
 		par_control                // configuration params for phydro
