@@ -96,6 +96,7 @@ class PlantParameters{
 	double root_no0;		        ///< Initial number of root tips
 	double root_length0;		    ///< Initial root length
 	double nitrogen_start0;     ///< Initial nitrogen
+	double nitrogen_uptake0;    ///< Initial uptake
 	
 	// Allocation and geometric paramaters  
 	double fg;		              ///< upper canopy gap fraction
