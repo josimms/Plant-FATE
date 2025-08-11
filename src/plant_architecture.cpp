@@ -192,7 +192,16 @@ double PlantArchitecture::total_mass_nitrogen(const PlantTraits& traits) const{
   
   double fine_root_mass = root_mass(traits);
   
-  return stem_mass(traits) * (1 + traits.fcr) * traits.nc_wood + leaf_mass(traits) * traits.nc_leaf + fine_root_mass * traits.nc_root;
+  // TODO: take the n average from the photosynthesis model and add this to this calculation
+  return stem_mass(traits) * (1 + traits.fcr) * traits.nc_wood / 2.0 + leaf_mass(traits) * traits.nc_leaf / 2.0 + fine_root_mass * traits.nc_root / 2.0;
+}
+
+double PlantArchitecture::nitrogen_leaf(double nitrogen_tree, PlantTraits& traits) {
+  
+  // Get the percentage of nitrogen that is allocated to the leaf
+  double nl = traits.k_10 * nitrogen_tree;
+  
+  return(nl);
 }
 
 // **
@@ -210,6 +219,11 @@ void PlantArchitecture::set_root(double _rn, double _rl){
   root_no = _rn;
   root_length = _rl;
 };
+
+void PlantArchitecture::set_nitrogen(double _nt, PlantTraits& traits) {
+  nitrogen_tree = _nt;
+  potential_nitrogen_leaf = nitrogen_leaf(nitrogen_tree, traits);
+}
 
 /// @details Sets the following properties: diameter, height, crown area, sapwood fraction 
 void PlantArchitecture::set_size(double _x, PlantTraits& traits){

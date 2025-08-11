@@ -109,6 +109,7 @@ class PlantArchitecture{
 	///@brief Nitrogen value of biomass
 	/// @{
 	double total_mass_nitrogen(const PlantTraits& traits) const;
+	double nitrogen_leaf(double nitrogen_tree, PlantTraits& traits);
 	/// @}
 
 	// These functions are used to get and set state variables
@@ -120,7 +121,9 @@ class PlantArchitecture{
 	/// Set plant size (diameter) and other variables that scale with size  
 	void set_root(double _rn, double _rl);
 	void set_size(double _x, PlantTraits& traits);
+	void set_nitrogen(double _nt, PlantTraits& traits);
 	/// Set size and lai, the two state variables that define plant geometry
+	/// And nor also size and nitrogen
 	std::vector<double>::iterator set_state(std::vector<double>::iterator S, PlantTraits& traits);
 	void get_ectomycorrhiza_mass(double exudates, PlantTraits& traits);
 	/// @}
