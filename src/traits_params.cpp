@@ -183,6 +183,7 @@ void PlantParameters::init(io::Initializer& I){
 	root_no0           = I.get<double>("root_no0");
 	root_length0       = I.get<double>("root_length0");
 	nitrogen_start0    = I.get<double>("nitrogen_start0");
+	nitrogen_uptake0   = I.get<double>("nitrogen_uptake0");
 
 	Cc                 = I.get<double>("Cc");
 	Chyd               = I.get<double>("Chyd");
@@ -247,9 +248,7 @@ void PlantParameters::print(){
 		<< "   kphio = " << kphio << '\n'
 		<< "   alpha = " << alpha << '\n'
 		<< "   gamma = " << gamma << '\n'
-    << "   infra_translation = " << infra_translation << '\n'
-    << "   infra_min = " << infra_min << '\n'
-		<< "   fg = " << fg << '\n'
+    << "   fg = " << fg << '\n'
     << "   root_no0 = " << root_no0 << '\n'
     << "   root_length0 = " << root_length0 << '\n'
 		<< "   Cc = " << Cc << '\n'
@@ -304,9 +303,7 @@ void PlantParameters::save(std::ostream& fout){
 		kphio
 		, alpha
 		, gamma
-    , infra_translation
-    , infra_min
-		, fg
+    , fg
     , root_no0
     , root_length0
 		, Cc
@@ -360,9 +357,7 @@ void PlantParameters::restore(std::istream& fin){
 	fin >> kphio
 		>> alpha
 		>> gamma
-    >> infra_translation
-    >> infra_min
-		>> fg
+    >> fg
     >> root_no0
     >> root_length0
 		>> Cc
