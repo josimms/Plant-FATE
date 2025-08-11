@@ -85,7 +85,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 		C.clim_inst.swp,           // soil water potential [MPa]
 		par.rd,                    // ratio or dark respiration to vcmax
 		C.clim_inst.vwind,         // wind speed [m s-1], only used by PML, which we dont use, so set to global average of 3 m/s
-		par.a_jmax,                    // TODO: a_jmax parameter // TODO: why is this commented?
+		par.a_jmax,                // ajmax made into parameters
 		par_plant,                 // plant hydraulic traits
 		par_cost,                  // cost params
 		par_control                // configuration params for phydro
