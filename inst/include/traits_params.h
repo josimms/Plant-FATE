@@ -87,16 +87,15 @@ class PlantTraits{
 class PlantParameters{
 	public:
 	// Photosynthesis paramaters  
-	double kphio;           ///< Quantum use efficiency
-	double alpha;           ///< Cost of maintaining photosynthetic capacity
-	double gamma;           ///< Cost of hydraulic risks
-	double infra_translation; ///< Translation for biomass to infrastructure
-	double infra_min;       ///< Minimal Ib value
-  double a_jmax;          ///< Conversion from nitrogen to Jmax
+	double kphio;             ///< Quantum use efficiency
+	double alpha;             ///< Cost of maintaining photosynthetic capacity
+	double gamma;             ///< Cost of hydraulic risks
+	double a_jmax;            ///< Conversion from nitrogen to Jmax
 		
 	// Root optimisation
 	double root_no0;		        ///< Initial number of root tips
 	double root_length0;		    ///< Initial root length
+	double nitrogen_start0;     ///< Initial nitrogen
 	
 	// Allocation and geometric paramaters  
 	double fg;		              ///< upper canopy gap fraction

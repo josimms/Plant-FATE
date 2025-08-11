@@ -175,14 +175,14 @@ void PlantParameters::init(io::Initializer& I){
 	kphio              = I.get<double>("kphio");
 	alpha              = I.get<double>("alpha");
 	gamma              = I.get<double>("gamma");
-	infra_translation  = I.get<double>("infra_translation");
-	infra_min          = I.get<double>("infra_min");
+	
 	fg                 = I.get<double>("fg");
 	
 	a_jmax             = I.get<double>("a_jmax");
 	
 	root_no0           = I.get<double>("root_no0");
 	root_length0       = I.get<double>("root_length0");
+	nitrogen_start0    = I.get<double>("nitrogen_start0");
 
 	Cc                 = I.get<double>("Cc");
 	Chyd               = I.get<double>("Chyd");

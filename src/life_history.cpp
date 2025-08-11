@@ -80,11 +80,9 @@ void LifeHistoryOptimizer::init(){
 
 	P.geometry.set_lai(P.par.lai0);
 	P.geometry.set_root(P.par.root_no0, P.par.root_length0);
-	P.geometry.nitrogen_tree = 0;
-	P.geometry.potential_nitrogen_leaf = 0;
+	P.geometry.set_nitrogen(P.par.nitrogen_start0, P.traits);
 	P.set_size(0.01);
 	// Simulation below starts at seedling stage. So account for survival until seedling stage
-	P.p_survival_dispersal(C) << " p_survival_germination " << P.p_survival_germination(C);
 	  
 	P.state.mortality = -log(P.p_survival_dispersal(C) * P.p_survival_germination(C)); // p{fresh seed is still alive after germination} = p{it survives dispersal}*p{it survives germination}
 
@@ -263,7 +261,7 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 		  P.geometry.nitrogen_tree = P.geometry.total_mass_nitrogen(P.traits);
 		}
 		P.geometry.nitrogen_tree += P.uptake.nitrogen_plant(C.clim_acclim.nitrogen, P.geometry, P.traits);
-		P.geometry.potential_nitrogen_leaf = P.nitrogen_leaf(P.geometry.nitrogen_tree, P.traits);
+		P.geometry.potential_nitrogen_leaf = P.geometry.nitrogen_leaf(P.geometry.nitrogen_tree, P.traits);
 		
 		P.uptake.nitrogen_based_root_optimisation(P.geometry, P.traits, P.uptake);
 		

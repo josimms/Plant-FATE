@@ -29,6 +29,11 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 	double Iabs_acclim = fipar * C.clim_acclim.ppfd;
 	double Iabs_day    = fipar * C.clim_inst.ppfd / f_day_length;
 	double Iabs_24hr   = fipar * C.clim_inst.ppfd;
+	
+	double leaf_nitrogen = G->potential_nitrogen_leaf;
+	if (leaf_nitrogen <= 0) {
+	  leaf_nitrogen = 0.01;
+	}
 
 	auto out_phydro_acclim = phydro::phydro_nitrogen(
 		C.clim_acclim.tc,     // current temperature
@@ -193,7 +198,7 @@ void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, 
 		plant_assim.gs_avg     /= ca_total;                // mol CO2/m2/s
 		plant_assim.vcmax25_avg /= ca_total;               // umol CO2/m2/s
 		plant_assim.mc_avg     /= ca_total;                // unitless
-		plant_assim.nitrogen_avg     /= ca_total;          // TODO: add units
+		plant_assim.nitrogen_avg     /= ca_total;          // g g-1 per leaf biomass
 		//plant_assim.zeta       /= ca_total;                // Ratio between leaf area and root biomass
 		//std::cout << "--- total (by layer) \n";
 		//std::cout << "h = " << G->height << ", nz* = " << env.n_layers << ", I = " << plant_assim.c_open_avg << ", fapar = " << fapar << ", A = " << plant_assim.gpp/ca_total << " umol/m2/s x " << ca_total << " = " << plant_assim.gpp << ", vcmax_avg = " << plant_assim.vcmax_avg << "\n"; 
