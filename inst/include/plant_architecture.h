@@ -105,7 +105,11 @@ class PlantArchitecture{
 	double heartwood_mass(const PlantTraits& traits) const;
 	double total_mass(const PlantTraits& traits) const;
 	/// @}
-
+	
+	///@brief Nitrogen value of biomass
+	/// @{
+	double total_mass_nitrogen(const PlantTraits& traits) const;
+	/// @}
 
 	// These functions are used to get and set state variables
 	/// @{

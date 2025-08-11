@@ -106,11 +106,6 @@ class Plant{
 	/// @param dm_dt_lai  Biomass that goes into LAI increment
 	template <class Env>
 	void partition_biomass(double dm_dt_tot, double dm_dt_lai, Env& env);
-	
-	///@brief Nitrogen value of biomass
-	/// @{
-	double total_mass_nitrogen(const PlantTraits& traits) const;
-	/// @}
 
 	// Core demographic rates
 	/// @addtogroup libpspm_interface

@@ -185,6 +185,17 @@ double PlantArchitecture::total_mass(const PlantTraits& traits) const{
 }
 
 // **
+// ** nitrogen used in growth
+// **
+
+double PlantArchitecture::total_mass_nitrogen(const PlantTraits& traits) const{
+  
+  double fine_root_mass = root_mass(traits);
+  
+  return stem_mass(traits) * (1 + traits.fcr) * traits.nc_wood + leaf_mass(traits) * traits.nc_leaf + fine_root_mass * traits.nc_root;
+}
+
+// **
 // ** state manipulations
 // **	
 double PlantArchitecture::get_size() const{
