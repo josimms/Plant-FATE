@@ -220,8 +220,9 @@ void PlantArchitecture::set_root(double _rn, double _rl){
   root_length = _rl;
 };
 
-void PlantArchitecture::set_nitrogen(double _nt, PlantTraits& traits) {
+void PlantArchitecture::set_nitrogen(double _nt, double _nu, PlantTraits& traits) {
   nitrogen_tree = _nt;
+  nitrogen_uptake = _nu;
   potential_nitrogen_leaf = nitrogen_leaf(nitrogen_tree, traits);
 }
 
