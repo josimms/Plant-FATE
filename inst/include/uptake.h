@@ -15,7 +15,7 @@ public:
   double k_12;
   double k_13;
   double mycorrhized;
-  double investment_myco;
+  double investment_from_myco;
   double u_c_B;
   double e_u_root;
   double e_u_myco;
@@ -36,12 +36,9 @@ public:
   void init(io::Initializer& I);
   
   // Process function
-  template <class Env>
   void nitrogen_based_root_optimisation(PlantArchitecture& G, PlantTraits& T, Uptake& U);
 };
 
 } // end of namespace
-
-#include "uptake.tpp"
 
 #endif // PLANT_UPTAKE_H

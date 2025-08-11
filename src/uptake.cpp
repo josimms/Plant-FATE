@@ -52,7 +52,7 @@ namespace plant {
     double age_effect = uptake_age(G, T);
     
     double uptake_roots_term = (1 - mycorrhized) * uptake_roots(N, G, T); 
-    double uptake_mycorrhiza_term = mycorrhized * nitrogen_gate(G, T) * investment_myco * uptake_myco(N);
+    double uptake_mycorrhiza_term = mycorrhized * nitrogen_gate(G, T) * investment_from_myco * uptake_myco(N);
     
     return age_effect * (uptake_roots_term + uptake_mycorrhiza_term);
   }
@@ -60,18 +60,33 @@ namespace plant {
   void Uptake::init(io::Initializer& I){
     
     // Nitrogen parameters
-    k_8                 = I.get<double>("k_8");
-    k_9                 = I.get<double>("k_9");
-    k_11                = I.get<double>("k_11");
-    k_12                = I.get<double>("k_12");
-    k_13                = I.get<double>("k_13");
-    mycorrhized         = I.get<double>("mycorrhized");
-    investment_myco     = I.get<double>("investment_myco");
-    u_c_B               = I.get<double>("u_c_B");
-    e_u_root            = I.get<double>("e_u_root");
-    e_u_myco            = I.get<double>("e_u_myco");
-    q                   = I.get<double>("q");
+    k_8                   = I.get<double>("k_8");
+    k_9                   = I.get<double>("k_9");
+    k_11                  = I.get<double>("k_11");
+    k_12                  = I.get<double>("k_12");
+    k_13                  = I.get<double>("k_13");
+    mycorrhized           = I.get<double>("mycorrhized");
+    investment_from_myco  = I.get<double>("investment_from_myco");
+    u_c_B                 = I.get<double>("u_c_B");
+    e_u_root              = I.get<double>("e_u_root");
+    e_u_myco              = I.get<double>("e_u_myco");
+    q                     = I.get<double>("q");
     
+  }
+
+  void Uptake::nitrogen_based_root_optimisation(PlantArchitecture& G, PlantTraits& T, Uptake& U) {
+    
+    double cost = 0.0;
+    double assimilation = 0.0;
+    
+    // Optimisation
+    double optimisation = assimilation - U.q * cost;
+    
+    // TODO: calculate the zeta term and feed that to the outputs
+    
+    G.root_length = 0.0;
+    G.root_no = 0.0;
+    // G.zeta = 0.0; // TODO: is this from the assimilation file?
   }
 
 } // End namespace

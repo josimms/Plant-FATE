@@ -9,7 +9,7 @@ template<class Env>
 double Plant::lai_model(PlantAssimilationResult& res, double _dmass_dt_tot, Env& env){
 	double lai_curr = geometry.lai;
 	geometry.set_lai(lai_curr + par.dl);
-	auto res_plus = assimilator.net_production(env, &geometry, par, traits, uptake);
+	auto res_plus = assimilator.net_production(env, &geometry, par, traits);
 	geometry.set_lai(lai_curr);
 
 	double dnpp_dL = (res_plus.npp - res.npp) / geometry.crown_area / par.dl;
@@ -35,7 +35,7 @@ double Plant::lai_model(PlantAssimilationResult& res, double _dmass_dt_tot, Env&
 // adjusted for time unit
 template<class Env>
 double Plant::p_survival_germination(Env& env){
-	auto res = assimilator.net_production(env, &geometry, par, traits, uptake); // FIXME: Does this need to be recalculated?
+	auto res = assimilator.net_production(env, &geometry, par, traits); // FIXME: Does this need to be recalculated?
 
 	double npp_annual_avg = res.npp / par.years_per_tunit_avg; // convert NPP from kg unit_t-1 --> kg yr-1, then calculate per m2 crown
 	double P = std::max(npp_annual_avg, 0.0) / geometry.crown_area;
