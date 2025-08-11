@@ -262,6 +262,7 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 		}
 		P.geometry.nitrogen_tree += P.uptake.nitrogen_plant(C.clim_acclim.nitrogen, P.geometry, P.traits);
 		P.geometry.potential_nitrogen_leaf = P.geometry.nitrogen_leaf(P.geometry.nitrogen_tree, P.traits);
+		P.geometry.nitrogen_uptake = P.uptake.nitrogen_plant(C.clim_acclim.nitrogen, P.geometry, P.traits);
 		
 		P.uptake.nitrogen_based_root_optimisation(P.geometry, P.traits, P.uptake);
 		
