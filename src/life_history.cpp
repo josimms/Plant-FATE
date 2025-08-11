@@ -80,10 +80,12 @@ void LifeHistoryOptimizer::init(){
 
 	P.geometry.set_lai(P.par.lai0);
 	P.geometry.set_root(P.par.root_no0, P.par.root_length0);
-	P.nitrogen.nitrogen_tree = 0;
-	P.nitrogen.potential_nitrogen_leaf = 0;
+	P.geometry.nitrogen_tree = 0;
+	P.geometry.potential_nitrogen_leaf = 0;
 	P.set_size(0.01);
 	// Simulation below starts at seedling stage. So account for survival until seedling stage
+	P.p_survival_dispersal(C) << " p_survival_germination " << P.p_survival_germination(C);
+	  
 	P.state.mortality = -log(P.p_survival_dispersal(C) * P.p_survival_germination(C)); // p{fresh seed is still alive after germination} = p{it survives dispersal}*p{it survives germination}
 
 	// double total_prod = P.get_biomass();
@@ -178,7 +180,7 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
 		, P.get_biomass()
     , P.geometry.nitrogen_tree
     , P.geometry.potential_nitrogen_leaf
-    , P.assimilator.plant_assim.n_leaf
+    , P.assimilator.plant_assim.nitrogen_avg
 		, rep
 	//  , P.state.seed_pool
 	//  , germinated
@@ -258,18 +260,18 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 		
 		// calculate the uptake and nitrogen balance
 		if (t == 0) {
-		  geometry.nitrogen_tree = total_mass_nitrogen(traits);
+		  P.geometry.nitrogen_tree = P.geometry.total_mass_nitrogen(P.traits);
 		}
-		geometry.nitrogen_tree += uptake.nitrogen_plant(env.Climate.clim_assim.nitrogen, geometry, traits);
-		geometry.potential_nitrogen_leaf = nitrogen_leaf(geometry.nitrogen_tree, traits);
+		P.geometry.nitrogen_tree += P.uptake.nitrogen_plant(C.clim_acclim.nitrogen, P.geometry, P.traits);
+		P.geometry.potential_nitrogen_leaf = P.nitrogen_leaf(P.geometry.nitrogen_tree, P.traits);
 		
-		U.nitrogen_based_root_optimisation(G, T);
+		P.uptake.nitrogen_based_root_optimisation(P.geometry, P.traits, P.uptake);
 		
 	  P.calc_demographic_rates(C, t);
 	  
 	  // uptake nitrogen pool based on tree growth
 	  // TODO: is this line in the right place or should it be after the RK4?
-	  geometry.nitrogen_tree -=  total_mass_nitrogen(traits); 
+	  P.geometry.nitrogen_tree -=  P.geometry.total_mass_nitrogen(P.traits); 
 		
 		// Override Plant-FATE fecundity calculations 
 		// We need to explicitly include plant mortality here for fitness calcs
