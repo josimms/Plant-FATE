@@ -257,12 +257,9 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 		set_state(S.begin());
 		
 		// calculate the uptake and nitrogen balance
-		if (t == 0) {
-		  P.geometry.nitrogen_tree = P.geometry.total_mass_nitrogen(P.traits);
-		}
-		P.geometry.nitrogen_tree += P.uptake.nitrogen_plant(C.clim_acclim.nitrogen, P.geometry, P.traits);
-		P.geometry.potential_nitrogen_leaf = P.geometry.nitrogen_leaf(P.geometry.nitrogen_tree, P.traits);
 		P.geometry.nitrogen_uptake = P.uptake.nitrogen_plant(C.clim_acclim.nitrogen, P.geometry, P.traits);
+		P.geometry.nitrogen_tree += P.geometry.nitrogen_uptake;
+		P.geometry.potential_nitrogen_leaf = P.geometry.nitrogen_leaf(P.geometry.nitrogen_tree, P.traits);
 		
 		P.uptake.nitrogen_based_root_optimisation(P.geometry, P.traits, P.uptake);
 		
@@ -270,7 +267,7 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 	  
 	  // uptake nitrogen pool based on tree growth
 	  // TODO: is this line in the right place or should it be after the RK4?
-	  P.geometry.nitrogen_tree -=  P.geometry.total_mass_nitrogen(P.traits); 
+	  P.geometry.nitrogen_tree -= P.geometry.total_mass_nitrogen(P.traits); 
 		
 		// Override Plant-FATE fecundity calculations 
 		// We need to explicitly include plant mortality here for fitness calcs
