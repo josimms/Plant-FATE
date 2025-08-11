@@ -47,8 +47,10 @@ class PlantArchitecture{
 	double sapwood_fraction;             ///< Fraction of stem cross sectional area that is sapwood
 	double functional_xylem_fraction;    ///< Fraction of funcitonal xylem in sapwood
 	double rooting_depth;                ///< Rooting depth, calculated from coarse root biomass
-	double nitrogen_tree;
-	double potential_nitrogen_leaf; 
+	
+	double nitrogen_tree;                ///< Nitrogen in the tree
+	double potential_nitrogen_leaf;      ///< Potential nitrogen in the leaf for the optimisation
+	double nitrogen_uptake;              ///< Nitrogen uptake
 	
 	// ode-based calculations of sapwood and heartwood (for debug)
 	double sap_frac_ode = 1;
