@@ -263,11 +263,17 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 		
 		P.uptake.nitrogen_based_root_optimisation(P.geometry, P.traits, P.uptake);
 		
-	  P.calc_demographic_rates(C, t);
+		double dN_dt_growth = 0.0;
+	  P.calc_demographic_rates(C, t, dN_dt_growth);
 	  
 	  // uptake nitrogen pool based on tree growth
 	  // TODO: is this line in the right place or should it be after the RK4?
-	  P.geometry.nitrogen_tree -= P.geometry.total_mass_nitrogen(P.traits); 
+	  // TODO: take the n average from the photosynthesis model and add this to this calculation
+	  // 0.5 is retranslocation, so some of the biomass used to make the organs is retranslocated from previously fixed nitrogen
+	  // TODO: as I have the turnover rates I guess I could calculate this from there to be more accurate within the model
+	  P.geometry.nitrogen_tree -= (1 - 0.5) * dN_dt_growth * 1000; // grams of nitrogen used in growth, with a fixed discount for retranslocation at the moment
+	  
+	  std::cout << " P.geometry.nitrogen_uptake " << P.geometry.nitrogen_uptake << " dN_dt_growth " << dN_dt_growth;
 		
 		// Override Plant-FATE fecundity calculations 
 		// We need to explicitly include plant mortality here for fitness calcs

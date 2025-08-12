@@ -50,7 +50,7 @@ class PlantArchitecture{
 	
 	double nitrogen_tree;                ///< Nitrogen in the tree [g]
 	double potential_nitrogen_leaf;      ///< Potential nitrogen in the leaf for the optimisation [g]
-	double nitrogen_uptake;              ///< Nitrogen uptake [gN]
+	double nitrogen_uptake;              ///< Nitrogen uptake [gN per mounth]
 	
 	// ode-based calculations of sapwood and heartwood (for debug)
 	double sap_frac_ode = 1;
@@ -79,7 +79,7 @@ class PlantArchitecture{
 
 	/// @brief Derivatives required for biomass partitioning
 	/// @{  
-	double dsize_dmass(PlantTraits& traits) const;
+	double dsize_dmass(PlantTraits& traits, double& dN_dd) const;
 	double dreproduction_dmass(PlantParameters& par, PlantTraits& traits);
 	/// @}
 

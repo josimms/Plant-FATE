@@ -85,13 +85,22 @@ double PlantArchitecture::diameter_at_height(double z, PlantTraits& traits){
 // **
 // ** Biomass partitioning
 // **
-double PlantArchitecture::dsize_dmass(PlantTraits& traits) const{
+double PlantArchitecture::dsize_dmass(PlantTraits& traits, double& dN_dd) const{
+	// Carbon
 	double dh_dd = geom.a * exp(-geom.a * diameter / traits.hmat);
 	double dmleaf_dd = traits.lma * lai * geom.pic_4a * (height + diameter * dh_dd);	// LAI variation is accounted for in biomass production rate
 	double dmtrunk_dd = (geom.eta_c * M_PI * traits.wood_density / 4) * (2 * height + diameter * dh_dd) * diameter;
 	double dmbranches_dd = (sqrt(geom.c / geom.a) * M_PI * traits.wood_density / 12) * (2.5 * height + 0.5 * diameter * dh_dd) * diameter * sqrt(diameter / height);
-	double dmroot_dd = (traits.zeta / traits.lma) * dmleaf_dd;
 	double dmcroot_dd = (dmbranches_dd + dmtrunk_dd) * traits.fcr;
+	
+	// TODO: how do I limit my root number and root length within this biomass?
+	double dmroot_dd = (traits.zeta / traits.lma) * dmleaf_dd;
+	
+	// Nitrogen
+	double dNleaf_dd = dmleaf_dd/2.0 * traits.nc_leaf; // kg N
+	double dNwood_dd = (dmtrunk_dd + dmbranches_dd + dmcroot_dd)/2.0 * traits.nc_wood; // kg N
+	double dNroot_dd = (traits.zeta / traits.lma) * dmleaf_dd/2. * traits.nc_root; // TODO: should be my root construction here!
+	dN_dd = dNleaf_dd + dNwood_dd + dNroot_dd;
 
 	double dmass_dd = dmleaf_dd + dmtrunk_dd + dmbranches_dd + dmroot_dd + dmcroot_dd;
 	return 1 / dmass_dd;
@@ -113,6 +122,17 @@ double PlantArchitecture::dmass_dt_lai(double& dL_dt, double dmass_dt_max, Plant
 	double dm_dt_lai = std::min(dL_dt * l2m, dmass_dt_max);  // biomass change resulting from LAI change. 
 	dL_dt = dm_dt_lai / l2m;   // Revise dL_dt, in case dm_lai_dt was capped at the maximum
 	return dm_dt_lai;
+}
+
+// **
+// ** nitrogen storage functions
+// **
+
+double PlantArchitecture::nitrogen_leaf(double nitrogen_tree, PlantTraits& traits) {
+  
+  // Get the percentage of nitrogen that is allocated to the leaf
+  // g N
+  return traits.k_10 * nitrogen_tree;
 }
 
 // **
@@ -191,27 +211,6 @@ double PlantArchitecture::total_mass(const PlantTraits& traits) const{
 }
 
 // **
-// ** nitrogen used in growth
-// **
-
-double PlantArchitecture::total_mass_nitrogen(const PlantTraits& traits) const{
-  
-  double fine_root_mass = root_mass(traits);
-  
-  double kg_N_in_biomass = stem_mass(traits) * (1 + traits.fcr) * traits.nc_wood / 2.0 + leaf_mass(traits) * traits.nc_leaf / 2.0 + fine_root_mass * traits.nc_root / 2.0;
-  
-  // TODO: take the n average from the photosynthesis model and add this to this calculation
-  return kg_N_in_biomass * 1000; // grams of nitrogen
-}
-
-double PlantArchitecture::nitrogen_leaf(double nitrogen_tree, PlantTraits& traits) {
-  
-  // Get the percentage of nitrogen that is allocated to the leaf
-  // g N
-  return traits.k_10 * nitrogen_tree;
-}
-
-// **
 // ** state manipulations
 // **	
 double PlantArchitecture::get_size() const{
@@ -272,7 +271,8 @@ void PlantArchitecture::grow_for_dt(double t, double dt, double& prod, double& l
 		double dLA_dt = dmass_dt_lai(dL_dt, dB_dt, traits);  // biomass going into leaf area increment
 		double dLit_dt = std::max(-dLA_dt, 0.0);  // biomass going into litter (through leaf loss)
 		double dG_dt = dB_dt - std::max(dLA_dt, 0.0); // biomass going into geometric growth
-		double dD_dt = dsize_dmass(traits) * dG_dt;	// size (diameter) growth rate
+		double dN_dd = 0; // NOTE: not relevant in this function! Used for the nitrogen balance calculated in the Life History
+		double dD_dt = dsize_dmass(traits, dN_dd) * dG_dt;	// size (diameter) growth rate
 
 		dSdt[0] = dB_dt;	// biomass that goes into allometric increments
 		dSdt[1] = dD_dt;

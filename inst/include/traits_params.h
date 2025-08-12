@@ -50,6 +50,7 @@ class PlantTraits{
 	double k_7;             ///< Fitted parameter root lifespan [years] (Ding)
 	double k_8;             ///< Years (Ilvonen)
 	double k_10;            ///< Conversion from uptake to leaf N allocation
+	double k_14;            ///< Retranslocation (Korhonen, 2013) [percentage of nitrogen used for growth]
 	
 	// Nitrogen carbon ratio
 	double nc_leaf;         ///< Korhonen 2013
