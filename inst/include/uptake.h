@@ -25,7 +25,7 @@ public:
   
   // Uptake equations
   /// @{brief Uptake Functions
-  double uptake_myco(double N);
+  double uptake_myco(double N, PlantArchitecture& G);
   double uptake_roots(double N, PlantArchitecture& G, PlantTraits& T);
   double uptake_age(const PlantArchitecture& G, PlantTraits& T);
   double nitrogen_gate(const PlantArchitecture& G, PlantTraits& T);
