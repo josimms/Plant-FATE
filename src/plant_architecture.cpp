@@ -120,11 +120,13 @@ double PlantArchitecture::dmass_dt_lai(double& dL_dt, double dmass_dt_max, Plant
 // **
 
 double PlantArchitecture::root_diameter(const PlantTraits& traits) const {
+  // mm length gives mm of diameter
   return traits.k_1 / pow(root_length, 0.5);
 }
 
 double PlantArchitecture::root_density(const PlantTraits& traits) const {
   double percentage_root_cortex = pow(traits.k_2 + traits.k_3 / root_diameter(traits), 2.0);
+  // density kg m-3
   return traits.k_4 * percentage_root_cortex + traits.k_5;
 }
 
@@ -143,9 +145,10 @@ double PlantArchitecture::root_mass(const PlantTraits& traits) const {
 	double diamater = root_diameter(traits);
   double density = root_density(traits);
   
-  double root_tip_to_root_structure = 2e8; // YiYang Data -- assume this is constant and that the number of root tips per root can compensate for the differenece in total number of roots
+  double root_tip_to_root_structure = 2e8; // YiYang Data -- assume this is constant and that the number of root tips per root can compensate for the difference in total number of roots
   
-  return root_tip_to_root_structure * density * pow(diamater/2.0, 2.0) * root_length * M_PI * root_no * 1e-12;
+  // no * kg / m3 * mm2 * mm * no * 1e-9 = kg C
+  return root_tip_to_root_structure * density * pow(diamater/2.0, 2.0) * root_length * M_PI * root_no * 1e-9;
 }
 
 void PlantArchitecture::get_ectomycorrhiza_mass(double exudates, PlantTraits& traits) {
@@ -202,9 +205,8 @@ double PlantArchitecture::total_mass_nitrogen(const PlantTraits& traits) const{
 double PlantArchitecture::nitrogen_leaf(double nitrogen_tree, PlantTraits& traits) {
   
   // Get the percentage of nitrogen that is allocated to the leaf
-  double nl = traits.k_10 * nitrogen_tree;
-  
-  return(nl);
+  // g N
+  return traits.k_10 * nitrogen_tree;
 }
 
 // **
