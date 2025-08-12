@@ -142,7 +142,10 @@ double PlantArchitecture::leaf_mass(const PlantTraits& traits) const{
 double PlantArchitecture::root_mass(const PlantTraits& traits) const {
 	double diamater = root_diameter(traits);
   double density = root_density(traits);
-  return density * pow(diamater/2.0, 2.0) * root_length * M_PI * root_no * 1e-12;
+  
+  double root_tip_to_root_structure = 2e8; // YiYang Data -- assume this is constant and that the number of root tips per root can compensate for the differenece in total number of roots
+  
+  return root_tip_to_root_structure * density * pow(diamater/2.0, 2.0) * root_length * M_PI * root_no * 1e-12;
 }
 
 void PlantArchitecture::get_ectomycorrhiza_mass(double exudates, PlantTraits& traits) {
