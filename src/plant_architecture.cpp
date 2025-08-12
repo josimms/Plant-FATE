@@ -198,8 +198,10 @@ double PlantArchitecture::total_mass_nitrogen(const PlantTraits& traits) const{
   
   double fine_root_mass = root_mass(traits);
   
+  double kg_N_in_biomass = stem_mass(traits) * (1 + traits.fcr) * traits.nc_wood / 2.0 + leaf_mass(traits) * traits.nc_leaf / 2.0 + fine_root_mass * traits.nc_root / 2.0;
+  
   // TODO: take the n average from the photosynthesis model and add this to this calculation
-  return stem_mass(traits) * (1 + traits.fcr) * traits.nc_wood / 2.0 + leaf_mass(traits) * traits.nc_leaf / 2.0 + fine_root_mass * traits.nc_root / 2.0;
+  return kg_N_in_biomass * 1000; // grams of nitrogen
 }
 
 double PlantArchitecture::nitrogen_leaf(double nitrogen_tree, PlantTraits& traits) {
