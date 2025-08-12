@@ -43,6 +43,8 @@ double Assimilator::root_respiration_rate(PlantArchitecture* G, PlantParameters&
 double Assimilator::root_cost(PlantArchitecture* G, PlantParameters& par, PlantTraits& traits) {
   double biomass_cost = 1e-12/2.0 * G->root_mass(traits) / G->root_lifespan(traits); // carbon not biomass
   double respiration = root_respiration_rate(G, par, traits);
+  // TODO: shouldn't there also be exudate cost here?
+  // TODO: should this function be here?
   return biomass_cost + respiration;
 }
 
