@@ -17,7 +17,9 @@ inline void print_phydro(const phydro::PHydroResultNitrogen& res, std::string s)
 // **
 template<class _Climate>
 phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G){
-  phydro::ParCostNitrogen par_cost(par.alpha, par.gamma, G->nitrogen_uptake);
+  double infrastructure = G->nitrogen_uptake;
+  std::cout << " infrastructure " << infrastructure;
+  phydro::ParCostNitrogen par_cost(par.alpha, par.gamma, infrastructure);
 	phydro::ParPlant par_plant(traits.K_leaf, traits.p50_leaf, traits.b_leaf);
 	phydro::ParControl par_control;
 
@@ -31,7 +33,8 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 	double Iabs_24hr   = fipar * C.clim_inst.ppfd;
 	
 	double leaf_nitrogen = G->potential_nitrogen_leaf;
-	if (leaf_nitrogen <= 0) {
+	std::cout << " leaf_nitrogen " << leaf_nitrogen << "\n";
+	if (leaf_nitrogen == 0) {
 	  leaf_nitrogen = 0.0001;
 	}
 
@@ -253,6 +256,7 @@ PlantAssimilationResult Assimilator::net_production(Env& env, PlantArchitecture*
 
 	double A = plant_assim.gpp;
 	double R = plant_assim.rleaf + plant_assim.rroot + plant_assim.rstem;
+	std::cout << " plant_assim.rleaf " << plant_assim.rleaf << " plant_assim.rroot " << plant_assim.rroot << " plant_assim.rstem " << plant_assim.rstem << "\n";
 	double T = plant_assim.tleaf + plant_assim.troot;
 
 	plant_assim.npp = par.y * (A - R) - T; // net biomass growth rate (kg unit_t-1)
