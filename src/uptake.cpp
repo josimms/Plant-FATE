@@ -84,8 +84,10 @@ namespace plant {
     
     // TODO: calculate the zeta term and feed that to the outputs
     
-    G.root_length = 0.0;
-    G.root_no = 0.0;
+    
+    // These are the initial conditions, whilst this isn't working just have constant roots
+    G.root_length = 1.5;
+    G.root_no = 20;
     // G.zeta = 0.0; // TODO: is this from the assimilation file?
   }
 
