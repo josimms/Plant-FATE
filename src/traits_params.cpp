@@ -50,6 +50,7 @@ void PlantTraits::init(io::Initializer& I){
 	k_6 = I.get<double>("k_6");
 	k_7 = I.get<double>("k_7");
 	k_10 = I.get<double>("k_10");
+	k_14 = I.get<double>("k_14");
 	nc_leaf = I.get<double>("nc_leaf");
 	nc_root = I.get<double>("nc_root");
 	nc_wood = I.get<double>("nc_wood");
