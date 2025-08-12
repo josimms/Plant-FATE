@@ -37,9 +37,9 @@ class PlantArchitecture{
 	// current state
 	double lai;                  ///< Crown leaf area index 
 	double diameter;             ///< basal diameter (diameter at ground level)
-	double root_no;              ///< Number of root tips
-	double root_length;          ///< Root length
-	double ectomycorrhiza_mass;  ///< Mycorrhizal biomass
+	double root_no;              ///< Number of root tips [no]
+	double root_length;          ///< Root length, [mm]
+	double ectomycorrhiza_mass;  ///< Mycorrhizal biomass [kg]
 
 	// variables calculated from state variables
 	double height;                       ///< Plant height
@@ -48,9 +48,9 @@ class PlantArchitecture{
 	double functional_xylem_fraction;    ///< Fraction of funcitonal xylem in sapwood
 	double rooting_depth;                ///< Rooting depth, calculated from coarse root biomass
 	
-	double nitrogen_tree;                ///< Nitrogen in the tree
-	double potential_nitrogen_leaf;      ///< Potential nitrogen in the leaf for the optimisation
-	double nitrogen_uptake;              ///< Nitrogen uptake
+	double nitrogen_tree;                ///< Nitrogen in the tree [g]
+	double potential_nitrogen_leaf;      ///< Potential nitrogen in the leaf for the optimisation [g]
+	double nitrogen_uptake;              ///< Nitrogen uptake [gN]
 	
 	// ode-based calculations of sapwood and heartwood (for debug)
 	double sap_frac_ode = 1;
