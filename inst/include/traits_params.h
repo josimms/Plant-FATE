@@ -94,10 +94,10 @@ class PlantParameters{
 	double a_jmax;            ///< Conversion from nitrogen to Jmax
 		
 	// Root optimisation
-	double root_no0;		        ///< Initial number of root tips
-	double root_length0;		    ///< Initial root length
-	double nitrogen_start0;     ///< Initial nitrogen
-	double nitrogen_uptake0;    ///< Initial uptake
+	double root_no0;		            ///< Initial number of root tips
+	double root_length0;		        ///< Initial root length
+	double nitrogen_start0;         ///< Initial nitrogen
+	double nitrogen_uptake0;        ///< Initial uptake
 	double ectomycorrhizal_mass0;   ///< Ectomycorrhizal mass
 	
 	// Allocation and geometric paramaters  
@@ -130,7 +130,7 @@ class PlantParameters{
 	double cbio;            ///< Biomass expansion factor: kg biomass per mol CO2 
 	double y;               ///< Growth respiration factor [-]
 
-	double k_light;		    ///< light extincttion coefficient
+	double k_light;		      ///< light extincttion coefficient
 
 	// Demographics
 	double a_f1;            ///< max fractional allocation to reproduction
