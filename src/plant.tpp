@@ -57,7 +57,7 @@ double Plant::p_survival_dispersal(Env& env){
 // Demographics
 template<class Env>
 double Plant::size_growth_rate(double _dmass_dt_growth, double& _dN_dt_growth, Env& env){
-	double dsize_dt = geometry.dsize_dmass(traits, _dN_dt_growth) * _dmass_dt_growth;
+  double dsize_dt = geometry.dsize_dmass(traits, _dN_dt_growth) * _dmass_dt_growth;
 	_dN_dt_growth = _dN_dt_growth * _dmass_dt_growth;
 	rates.rgr = dsize_dt / geometry.get_size();
 	return dsize_dt;
