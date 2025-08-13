@@ -92,14 +92,16 @@ double PlantArchitecture::dsize_dmass(PlantTraits& traits, double& dN_dd) const{
 	double dmtrunk_dd = (geom.eta_c * M_PI * traits.wood_density / 4) * (2 * height + diameter * dh_dd) * diameter;
 	double dmbranches_dd = (sqrt(geom.c / geom.a) * M_PI * traits.wood_density / 12) * (2.5 * height + 0.5 * diameter * dh_dd) * diameter * sqrt(diameter / height);
 	double dmcroot_dd = (dmbranches_dd + dmtrunk_dd) * traits.fcr;
+	// Roots
+	double m_root = root_density(traits) * pow(root_diameter(traits)/2.0, 2.0) * root_length * M_PI * root_no * 1e-9;
+	double dNroots_dD = (traits.zeta / traits.lma) * dmleaf_dd; // roots per D
+	double dmroot_dd = m_root * dNroots_dD;
 	
-	// TODO: how do I limit my root number and root length within this biomass?
-	double dmroot_dd = (traits.zeta / traits.lma) * dmleaf_dd;
 	
 	// Nitrogen
 	double dNleaf_dd = dmleaf_dd/2.0 * traits.nc_leaf; // kg N
 	double dNwood_dd = (dmtrunk_dd + dmbranches_dd + dmcroot_dd)/2.0 * traits.nc_wood; // kg N
-	double dNroot_dd = (traits.zeta / traits.lma) * dmleaf_dd/2. * traits.nc_root; // TODO: should be my root construction here!
+	double dNroot_dd = dmroot_dd/2.0 * traits.nc_root; // kg N
 	dN_dd = dNleaf_dd + dNwood_dd + dNroot_dd;
 
 	double dmass_dd = dmleaf_dd + dmtrunk_dd + dmbranches_dd + dmroot_dd + dmcroot_dd;
@@ -165,10 +167,9 @@ double PlantArchitecture::root_mass(const PlantTraits& traits) const {
 	double diamater = root_diameter(traits);
   double density = root_density(traits);
   
-  double root_tip_to_root_structure = 2e8; // YiYang Data -- assume this is constant and that the number of root tips per root can compensate for the difference in total number of roots
-  
-  // no * kg / m3 * mm2 * mm * no * 1e-9 = kg C
-  return root_tip_to_root_structure * density * pow(diamater/2.0, 2.0) * root_length * M_PI * root_no * 1e-9;
+  // kg / m3 * mm2 * mm * no * 1e-9 * no = kg C
+  // Note:  trait.zeta * trait.lma is a number
+  return density * pow(diamater/2.0, 2.0) * root_length * M_PI * root_no * 1e-9 * traits.zeta * traits.lma;
 }
 
 void PlantArchitecture::get_ectomycorrhiza_mass(double exudates, PlantTraits& traits) {
