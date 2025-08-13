@@ -9,6 +9,7 @@ namespace plant {
     
     double nitrogen_capacity = G.ectomycorrhiza_mass * biomass_limitation * nitrogen_uptake; 
     
+    // NOTE this is for all of the ectomycorrhizal biomass.
     // gN per kg C
     return nitrogen_capacity * N / (nitrogen_capacity + N);
   }
@@ -17,9 +18,12 @@ namespace plant {
     double root_length = G.root_length;
     double root_no = G.root_no;
     
+    // kg / m3 * mm2 * mm * no * 1e-9 * no = kg C
+    double one_root_mass = G.root_density(T) * pow(G.root_diameter(T)/2.0, 2.0) * root_length * M_PI * root_no * 1e-9;
     double surface_area = root_no * M_PI * (root_length * 1e-3) * (G.root_diameter(T) * 1e-3); // m
       
-    double biomass_conversion = 4 * G.root_mass(T) / (G.root_density(T) * G.root_diameter(T) * 1e-3); // kg / (kg-1/m3 * mm * 1e-3) = m2
+    // TODO: I think that this doesn't make sense with the units as the G.root_mass is for the whole root system, but the surface area transformation is for the surface area
+    double biomass_conversion = 4 * one_root_mass / (G.root_density(T) * G.root_diameter(T) * 1e-3); // kg / (kg-1/m3 * mm * 1e-3) = m2
     double biomass_limitation = surface_area / (surface_area + 2.0 * k_13);
     double nitrogen_uptake = (u_c_B * N * e_u_root) / (u_c_B + N * e_u_root);
     
@@ -85,7 +89,6 @@ namespace plant {
     // These are the initial conditions, whilst this isn't working just have constant roots
     G.root_length = 1.5;
     G.root_no = 20;
-    // G.zeta = 0.0; // TODO: is this from the assimilation file?
   }
 
 } // End namespace
