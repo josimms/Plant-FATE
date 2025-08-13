@@ -45,7 +45,7 @@ class PlantArchitecture{
 	double height;                       ///< Plant height
 	double crown_area;                   ///< Crown area
 	double sapwood_fraction;             ///< Fraction of stem cross sectional area that is sapwood
-	double functional_xylem_fraction;    ///< Fraction of funcitonal xylem in sapwood
+	double functional_xylem_fraction;    ///< Fraction of functional xylem in sapwood
 	double rooting_depth;                ///< Rooting depth, calculated from coarse root biomass
 	
 	double nitrogen_tree;                ///< Nitrogen in the tree [g]
