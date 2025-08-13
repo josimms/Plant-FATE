@@ -98,6 +98,7 @@ class PlantParameters{
 	double root_length0;		    ///< Initial root length
 	double nitrogen_start0;     ///< Initial nitrogen
 	double nitrogen_uptake0;    ///< Initial uptake
+	double ectomycorrhizal_mass0;   ///< Ectomycorrhizal mass
 	
 	// Allocation and geometric paramaters  
 	double fg;		              ///< upper canopy gap fraction

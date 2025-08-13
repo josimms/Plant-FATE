@@ -175,6 +175,7 @@ void PlantArchitecture::get_ectomycorrhiza_mass(double exudates, PlantTraits& tr
   // Update the ectomycorrhizal mass
   double input = exudates * traits.investment_from_tree;
   ectomycorrhiza_mass = (1 - traits.mycorrhizal_turnover) * ectomycorrhiza_mass + input * traits.mycorrhizal_biomass_conversion;
+  std::cout << " ectomycorrhiza_mass " << ectomycorrhiza_mass;
 }
 
 double PlantArchitecture::coarse_root_mass(const PlantTraits& traits) const{
@@ -226,10 +227,11 @@ void PlantArchitecture::set_root(double _rn, double _rl){
   root_length = _rl;
 };
 
-void PlantArchitecture::set_nitrogen(double _nt, double _nu, PlantTraits& traits) {
+void PlantArchitecture::set_nitrogen(double _nt, double _nu, double _em, PlantTraits& traits) {
   nitrogen_tree = _nt;
   nitrogen_uptake = _nu;
   potential_nitrogen_leaf = nitrogen_leaf(nitrogen_tree, traits);
+  ectomycorrhiza_mass = _em;
 }
 
 /// @details Sets the following properties: diameter, height, crown area, sapwood fraction 

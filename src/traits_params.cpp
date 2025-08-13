@@ -185,6 +185,7 @@ void PlantParameters::init(io::Initializer& I){
 	root_length0       = I.get<double>("root_length0");
 	nitrogen_start0    = I.get<double>("nitrogen_start0");
 	nitrogen_uptake0   = I.get<double>("nitrogen_uptake0");
+	ectomycorrhizal_mass0 = I.get<double>("ectomycorrhizal_mass0");
 
 	Cc                 = I.get<double>("Cc");
 	Chyd               = I.get<double>("Chyd");

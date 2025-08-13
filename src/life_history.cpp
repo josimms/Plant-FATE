@@ -80,7 +80,7 @@ void LifeHistoryOptimizer::init(){
 
 	P.geometry.set_lai(P.par.lai0);
 	P.geometry.set_root(P.par.root_no0, P.par.root_length0);
-	P.geometry.set_nitrogen(P.par.nitrogen_start0, P.par.nitrogen_uptake0, P.traits);
+	P.geometry.set_nitrogen(P.par.nitrogen_start0, P.par.nitrogen_uptake0, P.par.ectomycorrhizal_mass0, P.traits);
 	P.set_size(0.01);
 	// Simulation below starts at seedling stage. So account for survival until seedling stage
 	  
