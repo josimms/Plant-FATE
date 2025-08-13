@@ -106,9 +106,7 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
 		, "dpsi"
 		, "vcmax"
 		, "transpiration"
-    , "nitrogen" // leaf_canopy_average
-    , "zeta"
-		, "height"
+    , "height"
 		, "diameter"
 		, "crown_area"
 		, "lai"
@@ -120,8 +118,8 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
 		, "coarse_root_mass"
 		, "total_mass"
     , "tree_nitrogen"
-    , "potential leaf nitrogen"
-    , "optimal leaf nitrogen"
+    , "potential_leaf_nitrogen"
+    , "optimal_leaf_nitrogen"
 		, "total_rep"
 		// , "seed_pool"
 		// , "germinated"
@@ -138,7 +136,7 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
 		, "fineroot_lifespan"
     , "root_no"
     , "root_length"
-    // , "nitrogen_tree"
+    , "nitrogen_uptake"
     // , "ectomycorrhiza_mass"
 	};
 }
@@ -163,9 +161,7 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
 		, P.assimilator.plant_assim.dpsi_avg
 		, P.assimilator.plant_assim.vcmax_avg
 		, P.assimilator.plant_assim.trans
-    , P.assimilator.plant_assim.nitrogen_avg
-    , P.assimilator.plant_assim.zeta // TODO: should probably be from the optimisation function in the end!
-		, P.geometry.height
+    , P.geometry.height
 		, P.geometry.diameter
 		, P.geometry.crown_area
 		, P.geometry.lai
@@ -195,6 +191,7 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
 		, P.geometry.root_lifespan(P.traits)
     , P.geometry.root_no
     , P.geometry.root_length
+    , P.geometry.nitrogen_uptake
 	};
 }
 
@@ -257,8 +254,9 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 		set_state(S.begin());
 		
 		// calculate the uptake and nitrogen balance
+		// TODO: this is for one root not the whole root system!
 		P.geometry.nitrogen_uptake = P.uptake.nitrogen_plant(C.clim_acclim.nitrogen, P.geometry, P.traits);
-		P.geometry.nitrogen_tree += P.geometry.nitrogen_uptake;
+		P.geometry.nitrogen_tree += P.geometry.nitrogen_uptake; 
 		P.geometry.potential_nitrogen_leaf = P.geometry.nitrogen_leaf(P.geometry.nitrogen_tree, P.traits);
 		
 		P.uptake.nitrogen_based_root_optimisation(P.geometry, P.traits, P.uptake);
