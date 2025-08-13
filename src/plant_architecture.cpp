@@ -97,7 +97,6 @@ double PlantArchitecture::dsize_dmass(PlantTraits& traits, double& dN_dd) const{
 	double dNroots_dD = (traits.zeta / traits.lma) * dmleaf_dd; // roots per D
 	double dmroot_dd = m_root * dNroots_dD;
 	
-	
 	// Nitrogen
 	double dNleaf_dd = dmleaf_dd/2.0 * traits.nc_leaf; // kg N
 	double dNwood_dd = (dmtrunk_dd + dmbranches_dd + dmcroot_dd)/2.0 * traits.nc_wood; // kg N
@@ -176,7 +175,6 @@ void PlantArchitecture::get_ectomycorrhiza_mass(double exudates, PlantTraits& tr
   // Update the ectomycorrhizal mass
   double input = exudates * traits.investment_from_tree;
   ectomycorrhiza_mass = (1 - traits.mycorrhizal_turnover) * ectomycorrhiza_mass + input * traits.mycorrhizal_biomass_conversion;
-  std::cout << " ectomycorrhiza_mass " << ectomycorrhiza_mass;
 }
 
 double PlantArchitecture::coarse_root_mass(const PlantTraits& traits) const{
@@ -215,19 +213,23 @@ double PlantArchitecture::total_mass(const PlantTraits& traits) const{
 // **
 // ** state manipulations
 // **	
+/// @details Sets the following properties: diameter
 double PlantArchitecture::get_size() const{
 	return diameter;
 }
 
+/// @details Sets the following properties: lai
 void PlantArchitecture::set_lai(double _l){
 	lai = _l;
 }
 
+/// @details Sets the following properties: root_no, root_length
 void PlantArchitecture::set_root(double _rn, double _rl){
   root_no = _rn;
   root_length = _rl;
 };
 
+/// @details Sets the following properties: nitrogen_tree, nitrogen_uptake, potential_nitrogen_leaf, ectomycorrhiza_mass 
 void PlantArchitecture::set_nitrogen(double _nt, double _nu, double _em, PlantTraits& traits) {
   nitrogen_tree = _nt;
   nitrogen_uptake = _nu;
@@ -245,7 +247,6 @@ void PlantArchitecture::set_size(double _x, PlantTraits& traits){
 
 std::vector<double>::iterator PlantArchitecture::set_state(std::vector<double>::iterator S, PlantTraits& traits){
 	set_lai(*S++);             // must be set first as it is used bt set_size() - not required any more
-  set_root(*S++, *S++);
 	set_size(*S++, traits);
 //	litter_pool = *S++;
 	return S;
