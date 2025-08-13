@@ -34,7 +34,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 	
 	double leaf_nitrogen = G->potential_nitrogen_leaf;
 	std::cout << " leaf_nitrogen " << leaf_nitrogen << "\n";
-	if (leaf_nitrogen == 0) {
+	if (leaf_nitrogen <= 0) {
 	  leaf_nitrogen = 0.0001;
 	}
 
