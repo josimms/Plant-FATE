@@ -261,7 +261,7 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt) {
     P.calc_demographic_rates(C, t, dN_dt_growth);
     
     // Deduct nitrogen used in growth (with 50% retranslocation)
-    P.geometry.nitrogen_tree -= (1 - 0.5) * dN_dt_growth * 1000;
+    P.geometry.nitrogen_tree -= dN_dt_growth;
     
     // 4. Fecundity override
     double fec = P.fecundity_rate(P.bp.dmass_dt_rep, C);
