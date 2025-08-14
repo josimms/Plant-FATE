@@ -11,7 +11,6 @@ blank <- function() {
   lho$init() # Note the diameter and the height are correct here
   
   # Now not even the initialisation works!
-  
   dt <- 1/12
   
   df <- data.frame(matrix(ncol = length(lho$get_header()), nrow = 0))
@@ -27,12 +26,14 @@ blank <- function() {
     results[[i]] <- tryCatch({
       lho$grow_for_dt(t, dt)
       state <- lho$get_state(t + dt)
-      as.data.frame(t(state), col.names = col_names)  # ensure names match
+      df_row <- as.data.frame(t(state), stringsAsFactors = FALSE)
+      names(df_row) <- col_names   # force the names here
+      df_row
     },
     error = function(e) {
       message("Error at t = ", t, ": ", conditionMessage(e))
-      na_row <- as.data.frame(t(rep(NA, length(col_names))))
-      colnames(na_row) <- col_names
+      na_row <- as.data.frame(as.list(rep(NA, length(col_names))), stringsAsFactors = FALSE)
+      names(na_row) <- col_names
       na_row
     })
     i <- i + 1
@@ -40,6 +41,7 @@ blank <- function() {
   
   df <- do.call(rbind, results)
   names(df) <- col_names
+  
   
   df$date <- seq(
     as.Date(paste0(start_year, "-01-01")),
