@@ -254,8 +254,8 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt) {
     
     // 3. Nitrogen uptake & balance calculations
     P.geometry.nitrogen_uptake = P.uptake.nitrogen_plant(C.clim_acclim.nitrogen, P.geometry, P.traits);
-    P.geometry.nitrogen_tree  += P.geometry.nitrogen_uptake; 
-    P.geometry.potential_nitrogen_leaf = P.geometry.nitrogen_leaf(P.geometry.nitrogen_tree, P.traits);
+    P.geometry.nitrogen_tree  += P.geometry.nitrogen_uptake * P.traits.zeta; 
+    P.geometry.potential_nitrogen_leaf = P.geometry.nitrogen_leaf(P.geometry.nitrogen_tree, P.traits);  // TODO: divide to get the leaf value
     
     double dN_dt_growth = 0.0;
     P.calc_demographic_rates(C, t, dN_dt_growth);
