@@ -15,26 +15,31 @@ blank <- function() {
   dt <- 1/12
   
   df <- data.frame(matrix(ncol = length(lho$get_header()), nrow = 0))
-  colnames(df) <- lho$get_header()
+  col_names <- lho$get_header()
   
   start_year <- 2000
   end_year <- 2015
 
+  results <- vector("list", length(seq(start_year, end_year, dt)))
+  i <- 1
+  
   for (t in seq(start_year, end_year, dt)) {
-    
-    result <- tryCatch({
+    results[[i]] <- tryCatch({
       lho$grow_for_dt(t, dt)
-      lho$get_state(t + dt)  # return the state if successful
+      state <- lho$get_state(t + dt)
+      as.data.frame(t(state), col.names = col_names)  # ensure names match
     },
     error = function(e) {
       message("Error at t = ", t, ": ", conditionMessage(e))
-      return(rep(NA, ncol(df)))  # return NA row with correct length
+      na_row <- as.data.frame(t(rep(NA, length(col_names))))
+      colnames(na_row) <- col_names
+      na_row
     })
-    
-    # Always append, whether result is valid or NA
-    df <- rbind(df, result)
+    i <- i + 1
   }
   
+  df <- do.call(rbind, results)
+  names(df) <- col_names
   
   df$date <- seq(
     as.Date(paste0(start_year, "-01-01")),
@@ -50,8 +55,8 @@ blank <- function() {
   plot(df$assim_net, main = "Net Assimilation", xlab = "timestep", ylab = "assim_net")
   plot(df$tree_nitrogen, main = "Tree Nitrogen", xlab = "timestep", ylab = "gN")
   plot(df$potential_leaf_nitrogen, main = "Leaf Nitrogen", xlab = "timestep", ylab = "gN", ylim = c(min(df$optimal_leaf_nitrogen), max(df$potential_leaf_nitrogen)))
-  points(df$optimal_leaf_nitrogen, xlab = "timestep", pch = "x")
-  legend("left", c("Optimisation Maximum", "Optimal Value"), pch = c("o", "x"), bty = "n")
+  points(df$optimal_leaf_nitrogen, xlab = "timestep", pch = "x", col = "red")
+  legend("left", c("Optimisation Maximum", "Optimal Value"), pch = c("o", "x"), bty = "n", col = c("black", "red"))
   plot(df$nitrogen_uptake, main = "Nitrogen Uptake", xlab = "timestep", ylab = "gN per biomass per timestep")
   
   plot(df$ectomycorrhiza_mass, main = "Ectomycorrhiza Mass", xlab = "timestep", ylab = "kg")
