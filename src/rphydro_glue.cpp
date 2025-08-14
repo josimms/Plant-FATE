@@ -200,17 +200,17 @@ inline Rcpp::List rphydro_instantaneous_numerical(double vcmax25, double jmax25,
 inline Rcpp::List rphydro_nitrogen(double tc, double tg, double ppfd, double netrad, double vpd, double co2, double pa, double nitrogen_uptaken, double fapar, double kphio, double psi_soil, double rdark, double vwind, double a_jmax, Rcpp::List par_plant, Rcpp::List par_cost, Rcpp::List options) {
   ParControl par_control = listToParControl(options);
   ParPlant par_plant_cpp = listToParPlant(par_plant);
-  ParCostNitrogen par_cost_cpp_nitrogen(par_cost["alpha"], par_cost["gamma"], par_cost["nitrogen_store_conversion"]); // par_cost["root_biomass"]
+  ParCostNitrogen par_cost_cpp_nitrogen(par_cost["alpha"], par_cost["gamma"], par_cost["nitrogen_store_conversion"]);
   
   return PHydroResult_to_List_Nitrogen(phydro_nitrogen(tc, tg, ppfd, netrad, vpd, co2, pa, nitrogen_uptaken, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant_cpp, par_cost_cpp_nitrogen, par_control));
 }
 
-inline Rcpp::List rphydro_instantaneous_nitrogen(double vcmax25, double jmax25, double tc, double tg, double ppfd, double netrad, double vpd, double co2, double pa, double nitrogen_uptaken, double fapar, double kphio, double psi_soil, double rdark, double vwind, double a_jmax, Rcpp::List par_plant, Rcpp::List par_cost, Rcpp::List options){
+inline Rcpp::List rphydro_instantaneous_nitrogen(double vcmax25, double jmax25, double tc, double tg, double ppfd, double netrad, double vpd, double co2, double pa, double fapar, double kphio, double psi_soil, double rdark, double vwind, double a_jmax, Rcpp::List par_plant, Rcpp::List par_cost, Rcpp::List options) {
   ParControl par_control = listToParControl(options);
   ParPlant par_plant_cpp = listToParPlant(par_plant);
-  ParCostNitrogen  par_cost_cpp_nitrogen(par_cost["alpha"], par_cost["gamma"], par_cost["nitrogen_store_conversion"]); // par_cost["root_biomass"]
+  ParCostNitrogen  par_cost_cpp_nitrogen(par_cost["alpha"], par_cost["gamma"], par_cost["nitrogen_store_conversion"]);
   
-  return PHydroResult_to_List_Nitrogen(phydro_instantaneous_nitrogen(vcmax25, jmax25, tc, tg, ppfd, netrad, vpd, co2, pa, nitrogen_uptaken, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant_cpp, par_cost_cpp_nitrogen, par_control));
+  return PHydroResult_to_List_Nitrogen(phydro_instantaneous_nitrogen(vcmax25, jmax25, tc, tg, ppfd, netrad, vpd, co2, pa, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant_cpp, par_cost_cpp_nitrogen, par_control));
 }
 
 #endif

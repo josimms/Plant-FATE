@@ -20,7 +20,7 @@ namespace phydro{
   class PHydro_Profit_Nitrogen{
   private:
     
-    int n = 3;
+    int n = 2;
     
     double psi_soil;
     double nitrogen_store;
@@ -44,7 +44,6 @@ namespace phydro{
     inline double value(const VectorXd &x) {
       double n_leaf = exp(x[0]);
       double dpsi = x[1];
-      // double zeta = x[2];
       
       double Q = calc_sapflux(dpsi, psi_soil, par_plant, par_env);
       double gs = calc_gs_from_Q(Q, psi_soil, par_plant, par_env);
@@ -52,7 +51,7 @@ namespace phydro{
       
       double jmax = n_leaf * par_photosynth.a_jmax;
       // NOTE: Format chosen as it is as close to the equations as possible
-      double costs = (par_cost.alpha / (par_cost.nitrogen_store_conversion * nitrogen_store)) * jmax + par_cost.gamma * dpsi * dpsi; // + par_cost.root_cost_per_zeta * zeta / par_cost.root_biomass;
+      double costs = (par_cost.alpha / (par_cost.nitrogen_store_conversion)) * jmax + par_cost.gamma * dpsi * dpsi;
       
       double profit = aj.a - costs;
       

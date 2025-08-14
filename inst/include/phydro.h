@@ -282,7 +282,7 @@ inline PHydroResultNitrogen phydro_nitrogen(double tc, double tg, double ppfd, d
   
   // double pa = calc_patm(elv);
   
-  ParPhotosynthNitrogen par_photosynth(tc, pa, kphio, co2, ppfd, nitrogen_store, fapar, rdark, tg, par_plant.tchome, a_jmax,
+  ParPhotosynthNitrogen par_photosynth(tc, pa, kphio, co2, ppfd, fapar, rdark, tg, par_plant.tchome, a_jmax,
                                        par_control.ftemp_vj_method, par_control.ftemp_rd_method, par_control.ftemp_br_method);
   ParEnv                par_env(tc, pa, vpd, netrad, vwind);
   if (par_control.scale_alpha) par_cost.alpha /= par_photosynth.fT_jmax; // convert alpha from cost of jmax to cost of jmax25
@@ -324,12 +324,12 @@ inline PHydroResultNitrogen phydro_nitrogen(double tc, double tg, double ppfd, d
   return res;
 }
 
-inline PHydroResultNitrogen phydro_instantaneous_nitrogen(double vcmax25, double jmax25, double tc, double tg, double ppfd, double netrad, double vpd, double co2, double pa, double nitrogen_store, double fapar, 
+inline PHydroResultNitrogen phydro_instantaneous_nitrogen(double vcmax25, double jmax25, double tc, double tg, double ppfd, double netrad, double vpd, double co2, double pa, double fapar, 
                                                           double kphio, double psi_soil, double rdark, double vwind, double a_jmax, ParPlant par_plant, ParCostNitrogen par_cost, ParControl par_control = ParControl()){
   
   // double pa = calc_patm(elv);
   
-  ParPhotosynthNitrogen par_photosynth(tc, pa, kphio, co2, ppfd, nitrogen_store, fapar, rdark, tg, par_plant.tchome, a_jmax,
+  ParPhotosynthNitrogen par_photosynth(tc, pa, kphio, co2, ppfd, fapar, rdark, tg, par_plant.tchome, a_jmax,
                                        par_control.ftemp_vj_method, par_control.ftemp_rd_method, par_control.ftemp_br_method);
   ParEnv                par_env(tc, pa, vpd, netrad, vwind);
   if (par_control.scale_alpha) par_cost.alpha /= par_photosynth.fT_jmax; // convert alpha from cost of jmax to cost of jmax25
