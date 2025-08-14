@@ -36,6 +36,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 	std::cout << " leaf_nitrogen " << leaf_nitrogen << "\n";
 	if (leaf_nitrogen <= 0) {
 	  leaf_nitrogen = 0.0001;
+	  std::cout << "Leaf nitrogen was zero or less!"; // TODO: make into a proper warning
 	}
 
 	auto out_phydro_acclim = phydro::phydro_nitrogen(
@@ -82,7 +83,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 		C.clim_inst.vpd,           // vpd [kPa]
 		C.clim_inst.co2,	         // co2 [ppm]
 		C.clim_inst.pa,            // surface pressure [Pa]
-		G->potential_nitrogen_leaf,            // nitorgen in leaf [g g-1 dry leaf mass]
+		G->potential_nitrogen_leaf,            // nitorgen in leaf [g g-1 dry leaf mass] // TODO: should this be a constant?, the optimisation value?
 		fapar,                     // fraction of absorbed PAR
 		par.kphio,                 // phi0 - quantum yield
 		C.clim_inst.swp,           // soil water potential [MPa]
@@ -163,8 +164,6 @@ void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, 
 	plant_assim.gs_avg     = 0;
 	plant_assim.c_open_avg = 0;
 	plant_assim.nitrogen_avg  = 0;
-	//plant_assim.zeta       = 0;
-	
 
 	double ca_cumm = 0;
 	//std::cout << "--- PPA Assim begin ---" << "\n";
