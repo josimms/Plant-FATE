@@ -17,7 +17,10 @@ inline void print_phydro(const phydro::PHydroResultNitrogen& res, std::string s)
 // **
 template<class _Climate>
 phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G){
-  double infrastructure = G->nitrogen_uptake;
+  double infrastructure = G->potential_nitrogen_leaf;
+  if (infrastructure < 1) {
+    infrastructure = 1;
+  }
   std::cout << " infrastructure " << infrastructure;
   phydro::ParCostNitrogen par_cost(par.alpha, par.gamma, infrastructure);
 	phydro::ParPlant par_plant(traits.K_leaf, traits.p50_leaf, traits.b_leaf);
@@ -34,9 +37,9 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 	
 	double leaf_nitrogen = G->potential_nitrogen_leaf;
 	std::cout << " leaf_nitrogen " << leaf_nitrogen << "\n";
-	if (leaf_nitrogen <= 0) {
-	  leaf_nitrogen = 0.0001;
-	  std::cout << "Leaf nitrogen was zero or less!"; // TODO: make into a proper warning
+	if (leaf_nitrogen <= 0.001) {
+	  leaf_nitrogen = 0.001;
+	  std::cout << "Leaf nitrogen was 0.001 or less!"; // TODO: make into a proper warning
 	}
 
 	auto out_phydro_acclim = phydro::phydro_nitrogen(
@@ -83,7 +86,6 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 		C.clim_inst.vpd,           // vpd [kPa]
 		C.clim_inst.co2,	         // co2 [ppm]
 		C.clim_inst.pa,            // surface pressure [Pa]
-		G->potential_nitrogen_leaf,            // nitorgen in leaf [g g-1 dry leaf mass] // TODO: should this be a constant?, the optimisation value?
 		fapar,                     // fraction of absorbed PAR
 		par.kphio,                 // phi0 - quantum yield
 		C.clim_inst.swp,           // soil water potential [MPa]
@@ -255,7 +257,6 @@ PlantAssimilationResult Assimilator::net_production(Env& env, PlantArchitecture*
 
 	double A = plant_assim.gpp;
 	double R = plant_assim.rleaf + plant_assim.rroot + plant_assim.rstem;
-	std::cout << " plant_assim.rleaf " << plant_assim.rleaf << " plant_assim.rroot " << plant_assim.rroot << " plant_assim.rstem " << plant_assim.rstem << "\n";
 	double T = plant_assim.tleaf + plant_assim.troot;
 
 	plant_assim.npp = par.y * (A - R) - T; // net biomass growth rate (kg unit_t-1)
