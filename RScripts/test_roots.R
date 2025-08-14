@@ -10,7 +10,7 @@ blank <- function() {
   lho$set_soil_nitrogen(0.5)
   lho$init() # Note the diameter and the height are correct here
   
-  # After this initialisiation the diameter appears to be correct
+  # Now not even the initialisation works!
   
   dt <- 1/12
   
@@ -21,17 +21,20 @@ blank <- function() {
   end_year <- 2015
 
   for (t in seq(start_year, end_year, dt)) {
-    # Attempt to grow model; skip to next iteration if it errors
-    tryCatch({
+    
+    result <- tryCatch({
       lho$grow_for_dt(t, dt)
-      df[nrow(df) + 1, ] <- lho$get_state(t + dt)
+      lho$get_state(t + dt)  # return the state if successful
     },
     error = function(e) {
       message("Error at t = ", t, ": ", conditionMessage(e))
-      # Optionally store NA row so you keep timeline intact
-      df[nrow(df) + 1, ] <- NA
+      return(rep(NA, ncol(df)))  # return NA row with correct length
     })
+    
+    # Always append, whether result is valid or NA
+    df <- rbind(df, result)
   }
+  
   
   df$date <- seq(
     as.Date(paste0(start_year, "-01-01")),
@@ -52,14 +55,14 @@ blank <- function() {
   plot(df$nitrogen_uptake, main = "Nitrogen Uptake", xlab = "timestep", ylab = "gN per biomass per timestep")
   
   plot(df$ectomycorrhiza_mass, main = "Ectomycorrhiza Mass", xlab = "timestep", ylab = "kg")
-  plot(df$root_mass, main = "Root Mass", xlab = "timestep", ylab = "kg")
+  plot(df$root_mass, main = "Root Mass", xlab = "timestep", ylab = "tonne")
   plot(df$root_length, main = "Root Length", xlab = "timestep", ylab = "mm")
   plot(df$root_no, main = "Root No", xlab = "timestep", ylab = "no")
   
   plot(df$height, main = "Height", xlab = "timestep", ylab = "m")
-  plot(df$diameter, main = "Diameter", xlab = "timestep", ylab = "cm")
-  plot(df$leaf_mass, main = "Leaf Mass", xlab = "timestep", ylab = "kg")
-  plot(df$coarse_root_mass, main = "Coarse Root Mass", xlab = "timestep", ylab = "kg")
+  plot(df$diameter, main = "Diameter", xlab = "timestep", ylab = "m")
+  plot(df$leaf_mass, main = "Leaf Mass", xlab = "timestep", ylab = "tonne")
+  plot(df$coarse_root_mass, main = "Coarse Root Mass", xlab = "timestep", ylab = "tonne")
 }
 
 
