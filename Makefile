@@ -3,8 +3,7 @@
 TARGET := libpfate
 
 # files
-SRCFILES  :=  $(filter-out src/RcppExports.cpp src/r_interface.cpp $(wildcard src/pybind*.cpp), $(wildcard src/*.cpp))
-PYBINDFILES := $(wildcard src/pybind*.cpp)
+SRCFILES  :=  $(filter-out src/RcppExports.cpp src/r_interface.cpp, $(wildcard src/*.cpp))
 HEADERS := $(wildcard src/*.tpp) $(wildcard include/*.h) $(wildcard tests/*.h)
 # ------------------------------------------------------------------------------
 
@@ -13,23 +12,26 @@ HEADERS := $(wildcard src/*.tpp) $(wildcard include/*.h) $(wildcard tests/*.h)
 
 #ROOT_DIR := /home/jjoshi/codes
 
-# ROOT_DIR := ${shell dirname ${shell pwd}}
-EXTERNAL_DIR := external
+EXTERNAL_DIR := ./external
 # ^ Do NOT put trailing whitespaces or comments after the above line
 
 # include and lib dirs (esp for cuda)
 INC_PATH :=  -I./inst/include #-I./CppNumericalSolvers-1.0.0
-INC_PATH +=  -I./src # This is to allow inclusion of .tpp files in headers
+INC_PATH +=  -I./src  # This is to allow inclusion of .tpp files in headers
+INC_PATH += -I/usr/include/eigen3		
 INC_PATH += -I$(EXTERNAL_DIR)/phydro/inst/include \
-            -I$(EXTERNAL_DIR)/libpspm/include \
-			-I$(EXTERNAL_DIR)/flare/include 
+            -I$(EXTERNAL_DIR)/phydro/inst/LBFGSpp/include \
+			-I$(EXTERNAL_DIR)/libpspm/include \
+			-I$(EXTERNAL_DIR)/flare/include
+	
+			
 LIB_PATH := -L$(EXTERNAL_DIR)/libpspm/lib -L./lib
-PTH_PATH := $(shell python3 -m pybind11 --includes)
 
 # flags
 PROFILING_FLAGS = -g -pg
-CPPFLAGS = -O3 -std=c++17 -Wall -Wextra -DPHYDRO_ANALYTICAL_ONLY $(PROFILING_FLAGS)
+CPPFLAGS = -O3 -std=c++17 -Wall -Wextra $(PROFILING_FLAGS)
 LDFLAGS =  $(PROFILING_FLAGS)
+## -Weffc++
 
 CPPFLAGS +=    \
 -pedantic-errors  -Wcast-align \
@@ -50,15 +52,6 @@ CPPFLAGS +=    \
 -Wunreachable-code \
 -Wvariadic-macros \
 -Wwrite-strings \
-# -Wswitch-default \
-# -Wunused \
-# -Wunused-parameter \
-# -Waggregate-return -Wpadded -Wfloat-equal \
-# -Wlong-long \
-# -Wshadow \
-# -Winline \
-# -Wconversion \
-# -Weffc++ \
 
 
 CPPFLAGS += -Wno-sign-compare -Wno-unused-variable \
@@ -73,17 +66,11 @@ LIBS = 	 -lpspm	# additional libs
 # files
 OBJECTS = $(patsubst src/%.cpp, build/%.o, $(SRCFILES))
 
-all: dir external_libs $(TARGET) apps
 
-# $(PYBINDFILES): build/%.o : src/%.cpp
-# 	g++ -c $(CPPFLAGS) $(PTH_PATH) $(INC_PATH) $< -o $@
+all: dir external_libs $(TARGET) apps
 
 external_libs:
 	(cd $(EXTERNAL_DIR)/libpspm && $(MAKE))
-
-
-python: dir $(TARGET) # $(PYBINDFILES)
-	pip3 install .
 
 dir:
 	mkdir -p lib build tests/build bin

@@ -35,16 +35,23 @@ class PlantArchitecture{
 
 	public:
 	// current state
-	double lai;          ///< Crown leaf area index 
-	double diameter;     ///< basal diameter (diameter at ground level)
+	double lai;                  ///< Crown leaf area index 
+	double diameter;             ///< basal diameter (diameter at ground level)
+	double root_no;              ///< Number of root tips [no]
+	double root_length;          ///< Root length, [mm]
+	double ectomycorrhiza_mass;  ///< Mycorrhizal biomass [kg]
 
 	// variables calculated from state variables
 	double height;                       ///< Plant height
 	double crown_area;                   ///< Crown area
 	double sapwood_fraction;             ///< Fraction of stem cross sectional area that is sapwood
-	double functional_xylem_fraction;    ///< Fraction of funcitonal xylem in sapwood
+	double functional_xylem_fraction;    ///< Fraction of functional xylem in sapwood
 	double rooting_depth;                ///< Rooting depth, calculated from coarse root biomass
-
+	
+	double nitrogen_tree;                ///< Nitrogen in the tree [g]
+	double potential_nitrogen_leaf;      ///< Potential nitrogen in the leaf for the optimisation [g]
+	double nitrogen_uptake;              ///< Nitrogen uptake [gN per mounth]
+	
 	// ode-based calculations of sapwood and heartwood (for debug)
 	double sap_frac_ode = 1;
 	double sapwood_mass_ode = 0;
@@ -56,10 +63,8 @@ class PlantArchitecture{
 	/// @brief  Initialize geometry from traits, precompute any necessary variables
 	void init(PlantParameters& par, PlantTraits& traits);
 
-
 	/// @brief  The height at which crown radius is maximum.
 	double zm();
-
 
 	/// @brief Vertical profiles of crown and stem  
 	/// @{
@@ -74,19 +79,27 @@ class PlantArchitecture{
 
 	/// @brief Derivatives required for biomass partitioning
 	/// @{  
-	double dsize_dmass(PlantTraits& traits) const;
+	double dsize_dmass(PlantTraits& traits, double& dN_dd) const;
 	double dreproduction_dmass(PlantParameters& par, PlantTraits& traits);
 	/// @}
 
 
 	/// Rate of change of leaf mass due to change in LAI
 	double dmass_dt_lai(double& dL_dt, double dmass_dt_max, PlantTraits& traits);
-
+	
+	
+	/// @brief Root allometry equations
+	/// @{
+	double root_diameter(const PlantTraits& traits) const;
+	double root_density(const PlantTraits& traits) const;
+	double root_lifespan(const PlantTraits& traits) const;
+	double root_mass(const PlantTraits& traits) const;
+	/// @}
+	
 
 	/// @brief Get biomass in various carbon pools.
 	/// @{
 	double leaf_mass(const PlantTraits& traits) const;
-	double root_mass(const PlantTraits& traits) const;
 	double sapwood_mass(const PlantTraits& traits) const;
 	double sapwood_mass_real(const PlantTraits& traits) const;
 	double stem_mass(const PlantTraits& traits) const;
@@ -94,7 +107,12 @@ class PlantArchitecture{
 	double heartwood_mass(const PlantTraits& traits) const;
 	double total_mass(const PlantTraits& traits) const;
 	/// @}
-
+	
+	///@brief Nitrogen value of biomass
+	/// @{
+	double total_mass_nitrogen(const PlantTraits& traits) const;
+	double nitrogen_leaf(double nitrogen_tree, PlantTraits& traits);
+	/// @}
 
 	// These functions are used to get and set state variables
 	/// @{
@@ -103,9 +121,13 @@ class PlantArchitecture{
 	/// Set the crown LAI and properties that change with LAI
 	void set_lai(double _l);
 	/// Set plant size (diameter) and other variables that scale with size  
+	void set_root(double _rn, double _rl);
 	void set_size(double _x, PlantTraits& traits);
+	void set_nitrogen(double _nt, double _nu, double _em, PlantTraits& traits);
 	/// Set size and lai, the two state variables that define plant geometry
+	/// And nor also size and nitrogen
 	std::vector<double>::iterator set_state(std::vector<double>::iterator S, PlantTraits& traits);
+	void get_ectomycorrhiza_mass(double exudates, PlantTraits& traits);
 	/// @}
 
 

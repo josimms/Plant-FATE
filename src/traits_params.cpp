@@ -23,6 +23,7 @@ std::unordered_map<std::string, double PlantTraits::*> PlantTraits::members{
 };
 
 void PlantTraits::init(io::Initializer& I){
+  // TODO: should I add the 
 	lma = I.get<double>("lma");
 	zeta = I.get<double>("zeta");
 	fcr = I.get<double>("fcr");
@@ -41,6 +42,21 @@ void PlantTraits::init(io::Initializer& I){
 	a = I.get<double>("a");
 	c = I.get<double>("c");
 	// p50_leaf = // set by coordination
+	k_1 = I.get<double>("k_1");
+	k_2 = I.get<double>("k_2");
+	k_3 = I.get<double>("k_3");
+	k_4 = I.get<double>("k_4");
+	k_5 = I.get<double>("k_5");
+	k_6 = I.get<double>("k_6");
+	k_7 = I.get<double>("k_7");
+	k_10 = I.get<double>("k_10");
+	k_14 = I.get<double>("k_14");
+	nc_leaf = I.get<double>("nc_leaf");
+	nc_root = I.get<double>("nc_root");
+	nc_wood = I.get<double>("nc_wood");
+	mycorrhizal_biomass_conversion = I.get<double>("mycorrhizal_biomass_conversion");
+	mycorrhizal_turnover           = I.get<double>("mycorrhizal_turnover");
+	investment_from_tree           = I.get<double>("investment_from_tree");
 }
 
 void PlantTraits::initFromFile(std::string fname){
@@ -57,7 +73,7 @@ double& PlantTraits::operator[](const std::string& s){
 bool PlantTraits::operator == (const PlantTraits& rhs) const{
 	return
 		(this->lma == rhs.lma &&
-			this->zeta == rhs.zeta &&
+		  this->zeta == rhs.zeta &&
 			this->fcr == rhs.fcr &&
 			this->hmat == rhs.hmat &&
 			this->fhmat == rhs.fhmat &&
@@ -160,7 +176,16 @@ void PlantParameters::init(io::Initializer& I){
 	kphio              = I.get<double>("kphio");
 	alpha              = I.get<double>("alpha");
 	gamma              = I.get<double>("gamma");
+	
 	fg                 = I.get<double>("fg");
+	
+	a_jmax             = I.get<double>("a_jmax");
+	
+	root_no0           = I.get<double>("root_no0");
+	root_length0       = I.get<double>("root_length0");
+	nitrogen_start0    = I.get<double>("nitrogen_start0");
+	nitrogen_uptake0   = I.get<double>("nitrogen_uptake0");
+	ectomycorrhizal_mass0 = I.get<double>("ectomycorrhizal_mass0");
 
 	Cc                 = I.get<double>("Cc");
 	Chyd               = I.get<double>("Chyd");
@@ -225,7 +250,9 @@ void PlantParameters::print(){
 		<< "   kphio = " << kphio << '\n'
 		<< "   alpha = " << alpha << '\n'
 		<< "   gamma = " << gamma << '\n'
-		<< "   fg = " << fg << '\n'
+    << "   fg = " << fg << '\n'
+    << "   root_no0 = " << root_no0 << '\n'
+    << "   root_length0 = " << root_length0 << '\n'
 		<< "   Cc = " << Cc << '\n'
 		<< "   Chyd = " << Chyd << '\n'
 		<< "   response_intensity = " << response_intensity << '\n'
@@ -278,7 +305,9 @@ void PlantParameters::save(std::ostream& fout){
 		kphio
 		, alpha
 		, gamma
-		, fg
+    , fg
+    , root_no0
+    , root_length0
 		, Cc
 		, Chyd
 		, response_intensity
@@ -330,7 +359,9 @@ void PlantParameters::restore(std::istream& fin){
 	fin >> kphio
 		>> alpha
 		>> gamma
-		>> fg
+    >> fg
+    >> root_no0
+    >> root_length0
 		>> Cc
 		>> Chyd
 		>> response_intensity

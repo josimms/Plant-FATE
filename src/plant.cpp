@@ -5,9 +5,10 @@ namespace plant{
 
 /// TODO: Should init() functions be made constructors, to prevent risk of creating a plant without
 /// @brief  This function initializes the plant (traits, par, and geometry) from an Initialzer object
-void Plant::init(const PlantParameters& _par, const PlantTraits& _traits){
+void Plant::init(const PlantParameters& _par, const PlantTraits& _traits, const Uptake& _uptake){
 	par = _par;
 	traits = _traits;
+	uptake = _uptake;
 	coordinateTraits();
 }
 
@@ -16,7 +17,8 @@ void Plant::init(const PlantParameters& _par, const PlantTraits& _traits){
 void Plant::init(io::Initializer& I){
 	par.init(I);
 	traits.init(I);
-	init(par, traits);
+	uptake.init(I);
+	init(par, traits, uptake);
 }
 
 void Plant::initFromFile(std::string file){
@@ -58,7 +60,7 @@ void Plant::set_evolvableTraits(const std::vector<std::string>& tnames, const st
 	for (int i=0; i < tnames.size(); ++i){
 		traits[tnames[i]] = tvalues[i];
 	}
-	init(par, traits);
+	init(par, traits, uptake);
 }
 
 std::vector<double> Plant::get_evolvableTraits(const std::vector<std::string>& tnames){

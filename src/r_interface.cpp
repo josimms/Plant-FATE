@@ -54,12 +54,14 @@ RCPP_MODULE(plantfate_module){
 		.field("n", &plant::PlantTraits::n)
 		.field("a", &plant::PlantTraits::a)
 		.field("c", &plant::PlantTraits::c)
-
+	
 		.constructor()
 		.method("print", &plant::PlantTraits::print)
 		;
 
 	class_ <plant::PlantParameters>("PlantParameters")
+		.field("rs", &plant::PlantParameters::rs)
+    .field("rr", &plant::PlantParameters::rr)
 		.field("cD0", &plant::PlantParameters::cD0)
 		.field("eD0", &plant::PlantParameters::eD0)
 		.field("cD1", &plant::PlantParameters::cD1)
@@ -71,6 +73,10 @@ RCPP_MODULE(plantfate_module){
 		.field("cWD0", &plant::PlantParameters::cWD0)
 		.field("eWD", &plant::PlantParameters::eWD)
 		.field("m_hydraulic", &plant::PlantParameters::m_hydraulic)
+    .field("fg", &plant::PlantParameters::fg)
+    .field("lai0", &plant::PlantParameters::lai0)
+    .field("kphio", &plant::PlantParameters::kphio)
+    .field("gamma", &plant::PlantParameters::gamma)
 
 		.constructor()
 		.method("print", &plant::PlantParameters::print)
@@ -149,6 +155,7 @@ RCPP_MODULE(plantfate_module){
 		.method("set_a_metFile", &pfate::LifeHistoryOptimizer::set_a_metFile)
 		.method("set_co2File", &pfate::LifeHistoryOptimizer::set_co2File)
 		.method("init_co2", &pfate::LifeHistoryOptimizer::init_co2)
+    .method("set_soil_nitrogen", &pfate::LifeHistoryOptimizer::set_soil_nitrogen)
 
 		.method("get_header", &pfate::LifeHistoryOptimizer::get_header)
 		.method("get_state", &pfate::LifeHistoryOptimizer::get_state)

@@ -135,7 +135,9 @@ The code first initializes parameters and environmental conditions for simulatin
 - Finally, it plots the trajectory of the simulated plant's growth using the previously defined plot_plant_trajectory function.
 
 ```{r}
-params_file = "tests/params/p_test_v2.ini"
+params_file = "./tests/params/p_test_v2.ini"
+
+list.files(params_file)
 
 lho = new(LifeHistoryOptimizer, params_file)
 lho$set_i_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")

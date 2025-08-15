@@ -36,12 +36,36 @@ class PlantTraits{
 	double sm_xylem;        ///< Xylem safety margin (P50x - Pg88) [MPa]
 	double m;               ///< Crown shape flatness at the top
 	double n;               ///< Crown top-heaviness 
-
+	
+	// roots
+	double root_no;         ///< root number [Number, average per root tip]
+	double root_length;     ///< root length [mm, average root tip length]
+	
+	double k_1;             ///< Fitting parameter for root length (Ding)
+	double k_2;             ///< Fitted parameter for woody plants (Kong, 2019)
+	double k_3;             ///< Fitted parameter for woody plants (Kong, 2019)
+	double k_4;             ///< Fitted parameter root density (Ding)
+	double k_5;             ///< Fitted parameter root density (Ding)
+	double k_6;             ///< Fitted parameter root lifespan [mm-1] (Ding)
+	double k_7;             ///< Fitted parameter root lifespan [years] (Ding)
+	double k_8;             ///< Years (Ilvonen)
+	double k_10;            ///< Conversion from uptake to leaf N allocation
+	double k_14;            ///< Retranslocation (Korhonen, 2013) [percentage of nitrogen used for growth]
+	
+	// Nitrogen carbon ratio
+	double nc_leaf;         ///< Korhonen 2013
+	double nc_root;         ///< Ding data, root order 1-3
+	double nc_wood;         ///< Korhonen 2013
+	
+	// Ectomycorrhizal parameters
+	double mycorrhizal_biomass_conversion;  ///< The biomass created per carbon unit from photosynthesis
+	double mycorrhizal_turnover;            ///< The ectomycorrhizal turnover
+	double investment_from_tree;            ///< The constant ratio of allocation from assimilation to ectomycorrhiza
+	
 	// traits set by coordination
 	double a;               ///< Initial height to diameter ratio 
 	double c;               ///< Crown area to sapwood area ratio
 	double p50_leaf;        ///< Leaf or whole-plant hydraulic vulnerability [MPa] (calculated from Xylem P50 and Safety margin)
-
 
 	public:
 	void init(io::Initializer& I);
@@ -64,12 +88,20 @@ class PlantTraits{
 class PlantParameters{
 	public:
 	// Photosynthesis paramaters  
-	double kphio;           ///< Quantum use efficiency
-	double alpha;           ///< Cost of maintaining photosynthetic capacity
-	double gamma;           ///< Cost of hydraulic risks
-
+	double kphio;             ///< Quantum use efficiency
+	double alpha;             ///< Cost of maintaining photosynthetic capacity
+	double gamma;             ///< Cost of hydraulic risks
+	double a_jmax;            ///< Conversion from nitrogen to Jmax
+		
+	// Root optimisation
+	double root_no0;		            ///< Initial number of root tips
+	double root_length0;		        ///< Initial root length
+	double nitrogen_start0;         ///< Initial nitrogen
+	double nitrogen_uptake0;        ///< Initial uptake
+	double ectomycorrhizal_mass0;   ///< Ectomycorrhiza mass
+	
 	// Allocation and geometric paramaters  
-	double fg;		        ///< upper canopy gap fraction
+	double fg;		              ///< upper canopy gap fraction
 
 	// LAI optimization
 	double Cc;                  ///< leaf construction costs
@@ -98,7 +130,7 @@ class PlantParameters{
 	double cbio;            ///< Biomass expansion factor: kg biomass per mol CO2 
 	double y;               ///< Growth respiration factor [-]
 
-	double k_light;		    ///< light extincttion coefficient
+	double k_light;		      ///< light extincttion coefficient
 
 	// Demographics
 	double a_f1;            ///< max fractional allocation to reproduction
@@ -131,8 +163,6 @@ class PlantParameters{
 	void restore(std::istream& fin);
 
 };
-
-
 
 } // namespace plant
 

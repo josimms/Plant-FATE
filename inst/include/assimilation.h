@@ -1,10 +1,8 @@
 #ifndef PLANT_FATE_PLANT_ASSIMILATION_H_
 #define PLANT_FATE_PLANT_ASSIMILATION_H_
 
+#include "uptake.h"
 #include <phydro.h>
-
-#include "traits_params.h"
-#include "plant_architecture.h"
 
 namespace plant{
 
@@ -21,6 +19,8 @@ struct PlantAssimilationResult{
 	double mc_avg = 0;       ///< \f$m_c = (\chi c_a - \Gamma^*)/(\chi c_a + K_M) \f$
 	double gs_avg = 0;       ///< Crown-area weighted average stomatal conductance across canopy layers
 	double c_open_avg = 0;   ///< Crown-area weighted average canopy opennness experience by the plant
+	
+	double nitrogen_avg = 0;       ///< Crown-area weighted average of Nitrogen across canopy layers 
 
 	double rleaf = 0;        ///< Leaf dark respiration rate [kg-biomass yr-1]
 	double rroot = 0;        ///< Fine root respiration rate [kg-biomass yr-1]
@@ -53,7 +53,7 @@ class Assimilator{
 	/// @param traits  plant traits
 	/// @return        leaf assimilatio rate and a bunch of other leaf-level things
 	template<class _Climate>
-	phydro::PHydroResult leaf_assimilation_rate(double fipar, double fapar, _Climate& clim, PlantParameters& par, PlantTraits& traits);
+	phydro::PHydroResultNitrogen leaf_assimilation_rate(double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G);
 
 
 	/// @brief  Calculate whole-plant gross assimilation, transpiration, gs, etc. 
@@ -69,7 +69,7 @@ class Assimilator{
 	/// @brief Leaf economics - calculate optimal leaf lifespan 
 	/// @{
 	void   les_update_lifespans(double lai, PlantParameters& par, PlantTraits& traits);
-	double les_assim_reduction_factor(phydro::PHydroResult& res, PlantParameters& par);
+	double les_assim_reduction_factor(phydro::PHydroResultNitrogen& res, PlantParameters& par);
 	/// @}
 
 
@@ -81,11 +81,16 @@ class Assimilator{
 	double sapwood_respiration_rate(PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
 	/// @}
 
+	
+	/// @brief Calculate leaf and fine-root respiration rates 
+	/// @{
+	double root_cost(PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
+	///@
 
 	/// @brief Calculate leaf and fine-root turnover rates 
 	/// @{
 	double leaf_turnover_rate(double _kappa_l, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
-	double root_turnover_rate(double _kappa_r, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
+	double root_turnover_rate(PlantArchitecture* G, const PlantTraits& traits);
 	/// @}
 
 };

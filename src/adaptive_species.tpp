@@ -159,7 +159,7 @@ void AdaptiveSpecies<Model>::restore(std::istream& fin){
 	auto& C = this->getCohort(-1);
 	C.par.restore(fin);
 	C.traits.restore(fin);
-	C.init(C.par, C.traits);
+	C.init(C.par, C.traits, C.uptake);
 
 	C.traits.print();
 	C.par.print();

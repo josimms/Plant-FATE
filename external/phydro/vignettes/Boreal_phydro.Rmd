@@ -1,0 +1,108 @@
+---
+title: "Boreal_phydro"
+output: html_document
+---
+
+## Testing the weekly function for errors
+
+```{r}
+ERA5_phydro <- data.table::fread("~/Documents/CASSIA/data/ERA5_CASSIA_phydro.csv")
+ERA5_preles <- data.table::fread("~/Documents/CASSIA/data/ERA5_CASSIA_preles.csv")
+
+rphydro_nitrogen_longterm <- function(ERA5_phydro, ERA5_preles) {
+  pa = calc_patm(150)
+  nitrogen = 1
+  fapar = 0.7
+  
+  kphio = 0.087         # quantum yield efficiency
+  psi_soil = -0.05
+  rdark = 0.015
+  vwind = 3 # TODO: is this right?
+  a_jmax = 800
+  # par_cost = list(alpha=0.1, gamma=1, nitrogen_store_conversion = 1)
+  par_cost = list(alpha=0.1, gamma=1)
+  par_plant = list(conductivity=3e-17, psi50=-2, b=2)
+  nitrogen_store_conversion = 0.1
+  
+  options = list(gs_method = "GS_IGF", 
+               et_method = "ET_DIFFUSION",
+               ftemp_vj_method = "FV_kumarathunge19",
+               ftemp_rd_method = "FR_heskel16",
+               ftemp_br_method = "FB_atkin15",
+               scale_alpha = F)
+  
+  out <- list()
+  for (i in 1:nrow(ERA5_phydro)) {
+    out[[i]] <- rphydro_numerical(ERA5_phydro$T[i],         # 'C
+                               # TODO: should this be a different temperature? Accumulated temperature?
+                               ERA5_phydro$T[i],         # 'C 
+                               ERA5_phydro$PPFD[i],      # umol/m2/s
+                               ERA5_phydro$PPFD_max[i],  # max umol/m2/s
+                               100 * ERA5_phydro$VPD[i], # Pa
+                               ERA5_phydro$CO2[i],       # ppm
+                               pa,                       # Pa
+                               1,
+                               fapar,                    # fraction
+                               kphio,
+                               psi_soil, 
+                               rdark,
+                               vwind, 
+                               a_jmax,
+                               par_plant,
+                               par_cost,
+                               options)
+    cat("Day: ", i)
+  }
+  
+  return(out)
+}
+
+boreal_result <- rphydro_nitrogen_longterm(ERA5_phydro, ERA5_preles)
+
+
+```
+
+
+## Testing the instant function for errors
+
+```{r}
+ERA5_phydro <- data.table::fread("~/Documents/CASSIA/data/ERA5_CASSIA_phydro.csv")
+ERA5_preles <- data.table::fread("~/Documents/CASSIA/data/ERA5_CASSIA_preles.csv")
+
+rphydro_nitrogen_longterm <- function(ERA5_phydro, ERA5_preles) {
+  pa = calc_patm(150)
+  nitrogen = 1
+  fapar = 0.7
+  
+  kphio = 0.087         # quantum yield efficiency
+  psi_soil
+  rdark
+  vwind
+  a_jmax
+  par_cost = list(biomass=0.01, gamma=1, nitrogen_store_conversion = 1)
+  par_plant = list(conductivity=3e-17, psi50=-2, b=2)
+  nitrogen_store_conversion = 0.1
+  options = list(gs_method = "GS_IGF", 
+               et_method = "ET_DIFFUSION",
+               ftemp_vj_method = "FV_kumarathunge19",
+               ftemp_rd_method = "FR_heskel16",
+               ftemp_br_method = "FB_atkin15",
+               scale_alpha = F)
+  
+  for (i in 1:nrow(ERA5_phydro)) {
+    out[i] <- rphydro_instantaneous_nitrogen(ERA5_phydro$T[i],         # 'C
+                                             # TODO: should this be a different temperature? Accumulated temperature?
+                                             ERA5_phydro$T[i],         # 'C 
+                                             ERA5_phydro$PPFD[i],      # umol/m2/s
+                                             ERA5_phydro$PPFD_max[i],  # max umol/m2/s
+                                             100 * ERA5_phydro$VPD[i], # Pa
+                                             ERA5_phydro$CO2[i],       # ppm
+                                             pa,                       # Pa
+                                             nitrogen,                 # Store
+                                             fapar,                    # fraction
+                                             kphio, psi_soil, rdark, vwind, a_jmax, par_plant, par_cost, options)  
+  }
+}
+
+
+```

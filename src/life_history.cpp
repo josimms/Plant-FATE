@@ -20,7 +20,6 @@ void ErgodicEnvironment::computeEnv(double t, Solver* sol, std::vector<double>::
 	// do nothing
 }
 
-
 LifeHistoryOptimizer::LifeHistoryOptimizer(std::string params_file){
 	//paramsFile = params_file; // = "tests/params/p.ini";
 	I.parse(params_file);
@@ -29,6 +28,7 @@ LifeHistoryOptimizer::LifeHistoryOptimizer(std::string params_file){
 
 	traits0.init(I);
 	par0.init(I);
+	uptake0.init(I);
 
 	par0.set_tscale(ts.get_tscale()); // default time unit is year
 
@@ -57,6 +57,10 @@ void LifeHistoryOptimizer::init_co2(double _co2){
 	C.init_co2(_co2);
 }
 
+void LifeHistoryOptimizer::set_soil_nitrogen(double _N){
+  C.set_soil_nitrogen(_N);
+}
+
 void LifeHistoryOptimizer::init(){
 	rep = 0;
 	litter_pool = 0;
@@ -72,17 +76,19 @@ void LifeHistoryOptimizer::init(){
 	// We are tracking the life-cycle of a seed: how many seeds does a single seed produce (having gone through dispersal, germination, and plant life stages)
 	P = plant::Plant();
 	// P.initFromFile(params_file);
-	P.init(par0, traits0);
+	P.init(par0, traits0, uptake0);
 
 	P.geometry.set_lai(P.par.lai0);
+	P.geometry.set_root(P.par.root_no0, P.par.root_length0);
+	P.geometry.set_nitrogen(P.par.nitrogen_start0, P.par.nitrogen_uptake0, P.par.ectomycorrhizal_mass0, P.traits);
 	P.set_size(0.01);
 	// Simulation below starts at seedling stage. So account for survival until seedling stage
+	  
 	P.state.mortality = -log(P.p_survival_dispersal(C) * P.p_survival_germination(C)); // p{fresh seed is still alive after germination} = p{it survives dispersal}*p{it survives germination}
 
 	// double total_prod = P.get_biomass();
 	// cout << "Starting biomass = " << total_prod << "\n";
 	// cout << "Mortality until seedling stage = " << P.state.mortality << "\n";
-
 }
 
 vector<std::string> LifeHistoryOptimizer::get_header(){
@@ -99,16 +105,20 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
 		, "dpsi"
 		, "vcmax"
 		, "transpiration"
-		, "height"
+    , "height"
 		, "diameter"
 		, "crown_area"
 		, "lai"
 		, "sapwood_fraction"
 		, "leaf_mass"
 		, "root_mass"
+    , "ectomycorrhiza_mass"
 		, "stem_mass"
 		, "coarse_root_mass"
 		, "total_mass"
+    , "tree_nitrogen"
+    , "potential_leaf_nitrogen"
+    , "optimal_leaf_nitrogen"
 		, "total_rep"
 		// , "seed_pool"
 		// , "germinated"
@@ -123,6 +133,9 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
 		, "mortrate_hyd"
 		, "leaf_lifespan"
 		, "fineroot_lifespan"
+    , "root_no"
+    , "root_length"
+    , "nitrogen_uptake"
 	};
 }
 
@@ -146,16 +159,20 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
 		, P.assimilator.plant_assim.dpsi_avg
 		, P.assimilator.plant_assim.vcmax_avg
 		, P.assimilator.plant_assim.trans
-		, P.geometry.height
+    , P.geometry.height
 		, P.geometry.diameter
 		, P.geometry.crown_area
 		, P.geometry.lai
 		, P.geometry.sapwood_fraction
 		, P.geometry.leaf_mass(P.traits)
 		, P.geometry.root_mass(P.traits)
+    , P.geometry.ectomycorrhiza_mass
 		, P.geometry.stem_mass(P.traits)
 		, P.geometry.coarse_root_mass(P.traits)
 		, P.get_biomass()
+    , P.geometry.nitrogen_tree
+    , P.geometry.potential_nitrogen_leaf
+    , P.assimilator.plant_assim.nitrogen_avg
 		, rep
 	//  , P.state.seed_pool
 	//  , germinated
@@ -169,7 +186,10 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
 		, P.mort.mu_d
 		, P.mort.mu_hyd
 		, 1 / P.assimilator.kappa_l
-		, 1 / P.assimilator.kappa_r
+		, P.geometry.root_lifespan(P.traits)
+    , P.geometry.root_no
+    , P.geometry.root_length
+    , P.geometry.nitrogen_uptake
 	};
 }
 
@@ -208,10 +228,10 @@ void LifeHistoryOptimizer::set_state(vector<double>::iterator it){
 
 void LifeHistoryOptimizer::get_rates(vector<double>::iterator it){
 	*it++ = P.rates.dlai_dt;       // lai growth rate
-	*it++ = P.rates.dsize_dt;    // size (diameter) growth rate
+	*it++ = P.rates.dsize_dt;      // size (diameter) growth rate
 	*it++ = P.bp.dmass_dt_tot;	   // biomass production rate
-	*it++ = P.bp.dmass_dt_lit;  // litter biomass growth rate
-	*it++ = P.bp.dmass_dt_rep; //(1-fg)dBdt;  // reproduction biomass growth rate
+	*it++ = P.bp.dmass_dt_lit;     // litter biomass growth rate
+	*it++ = P.bp.dmass_dt_rep;     //(1-fg)dBdt;  // reproduction biomass growth rate
 //		*it++ = P.rates.dseeds_dt_pool;
 	*it++ = P.rates.dseeds_dt;
 	*it++ = P.rates.dmort_dt;
@@ -222,29 +242,60 @@ void LifeHistoryOptimizer::update_climate(double julian_time){
 	c_stream.updateClimate(julian_time, C);
 }
 
-void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
-
-	auto derivs = [this](double t, std::vector<double>& S, std::vector<double>& dSdt){
-		//if (fabs(t - 2050) < 1e-5) 
-		update_climate(ts.to_julian(t));
-		// C.Climate::print(t);
-		set_state(S.begin());
-		P.calc_demographic_rates(C, t);
-
-		// Override Plant-FATE fecundity calculations 
-		// We need to explicitly include plant mortality here for fitness calcs
-		double fec = P.fecundity_rate(P.bp.dmass_dt_rep, C);
-		P.rates.dseeds_dt =  fec * exp(-P.state.mortality);  // Fresh seeds produced = fecundity rate * p{plant is alive}
-		// P.rates.dseeds_dt_germ =   P.state.seed_pool/P.par.ll_seed;   // seeds that leave seed pool proceed for germincation
-
-		get_rates(dSdt.begin());
-		};
-
-	std::vector<double> S = {P.geometry.lai, P.geometry.get_size(), prod, litter_pool, rep, seeds, P.state.mortality};
-	RK4(t, dt, S, derivs);
-	//Euler(t, dt, S, derivs);
-	set_state(S.begin());
+void LifeHistoryOptimizer::grow_for_dt(double t, double dt) {
+  auto derivs = [this](double t, std::vector<double>& S, std::vector<double>& dSdt) {
+    // 1. Update climate
+    update_climate(ts.to_julian(t));
+    
+    // 2. Unpack the integration vector into plant state
+    set_state(S.begin()); 
+    // Now P.geometry.lai, P.geometry.size (diameter), prod, litter_pool, rep, seeds, mortality 
+    // are all set to the intermediate RK4 state.
+    
+    // 3. Nitrogen uptake & balance calculations
+    P.geometry.nitrogen_uptake = P.uptake.nitrogen_plant(C.clim_acclim.nitrogen, P.geometry, P.traits);
+    P.geometry.nitrogen_tree  += P.geometry.nitrogen_uptake * P.traits.zeta; 
+    P.geometry.potential_nitrogen_leaf = P.geometry.nitrogen_leaf(P.geometry.nitrogen_tree, P.traits);  // TODO: divide to get the leaf value
+    
+    double dN_dt_growth = 0.0;
+    double dN_dt_litter = 0.0;
+    P.calc_demographic_rates(C, t, dN_dt_growth);
+    
+    // Deduct nitrogen used in growth
+    // dN_dt_litter = P.assimilation.;
+    P.geometry.nitrogen_tree -= dN_dt_growth + (1 - K_14) * dN_dt_litter;
+    
+    // 4. Fecundity override
+    double fec = P.fecundity_rate(P.bp.dmass_dt_rep, C);
+    P.rates.dseeds_dt = fec * exp(-P.state.mortality);
+    
+    // 5. Fill derivatives
+    get_rates(dSdt.begin()); 
+    // IMPORTANT: get_rates() must write in the order:
+    // lai, root_no, root_length, size, prod, litter_pool, rep, seeds, mortality
+  };
+  
+  // State vector now includes root_no & root_length
+  std::vector<double> S = {
+    P.geometry.lai,
+    P.geometry.get_size(), // diameter
+    prod,
+    litter_pool,
+    rep,
+    seeds,
+    P.state.mortality
+  };
+  
+  // Integrate
+  RK4(t, dt, S, derivs);
+  
+  // Commit final integrated state back to the plant
+  set_state(S.begin());
+  
+  // Update roots independently
+  // P.uptake.nitrogen_based_root_optimisation(P.geometry, P.traits, P.uptake);   // modify root_no and root_length here
 }
+
 
 
 double LifeHistoryOptimizer::calcFitness(){

@@ -56,8 +56,9 @@ double Plant::p_survival_dispersal(Env& env){
 
 // Demographics
 template<class Env>
-double Plant::size_growth_rate(double _dmass_dt_growth, Env& env){
-	double dsize_dt = geometry.dsize_dmass(traits) * _dmass_dt_growth;
+double Plant::size_growth_rate(double _dmass_dt_growth, double& _dN_dt_growth, Env& env){
+  double dsize_dt = geometry.dsize_dmass(traits, _dN_dt_growth) * _dmass_dt_growth;
+	_dN_dt_growth = _dN_dt_growth * _dmass_dt_growth;
 	rates.rgr = dsize_dt / geometry.get_size();
 	return dsize_dt;
 }
@@ -150,10 +151,19 @@ double Plant::fecundity_rate(double _dmass_dt_rep, Env& env){
 }
 
 template<class Env>
-void Plant::calc_demographic_rates(Env& env, double t){
+void Plant::calc_demographic_rates(Env& env, double t, double& dN_dt_growth){
 
 	res = assimilator.net_production(env, &geometry, par, traits);
-	bp.dmass_dt_tot = std::max(res.npp, 0.0);  // No biomass growth if npp is negative
+	
+	// Take a percentage of the total npp and allocate this to mycorrhiza
+	double res_all = std::max(res.npp, 0.0);
+	double res_after_myco = res_all * (1 - traits.investment_from_tree);
+	
+	// Ectomycorrhiza,
+	// Note, the res_all tree investment is applied in the function
+	geometry.get_ectomycorrhiza_mass(res_all, traits);
+	
+	bp.dmass_dt_tot = std::max(res_after_myco, 0.0);  // No biomass growth if npp is negative
 	if (std::isnan(bp.dmass_dt_tot)) throw std::runtime_error("biomass production is nan");
 
 	// set rates.dlai_dt and bp.dmass_dt_lai
@@ -161,15 +171,18 @@ void Plant::calc_demographic_rates(Env& env, double t){
 
 	// set all of bp.dmass_dt_xxx
 	partition_biomass(bp.dmass_dt_tot, bp.dmass_dt_lai, env);
+	
+	// TODO: some litter is caluclated in the partition_biomass should add the nitrogen balance
 
 	// set core rates
-	rates.dsize_dt  = size_growth_rate(bp.dmass_dt_growth, env); // also sets rates.rgr
+	rates.dsize_dt  = size_growth_rate(bp.dmass_dt_growth, dN_dt_growth, env); // also sets rates.rgr
 	rates.dmort_dt  = mortality_rate(env, t);
 
 	double fec = fecundity_rate(bp.dmass_dt_rep, env);
 	// rates.dseeds_dt_pool =  -state.seed_pool/par.ll_seed  +  fec * p_survival_dispersal(env);  // seeds that survive dispersal enter seed pool
 	// rates.dseeds_dt_germ =   state.seed_pool/par.ll_seed;   // seeds that leave seed pool proceed for germincation
 	rates.dseeds_dt = fec;
+	
 }
 
 
@@ -198,14 +211,17 @@ void Plant::partition_biomass(double dm_dt_tot, double dm_dt_lai, Env& env){
 	// if lai is decreasing, lost biomass goes into litter
 	double dmass_dt_nonlai = dm_dt_tot - std::max(dm_dt_lai, 0.0);
 	bp.dmass_dt_lit = std::max(-dm_dt_lai, 0.0);
+	// TODO: can I get the nitrogen from this litter? Where is the litter from?
 
 	// fraction of biomass going into reproduction and biomass allocation to reproduction
 	double fR = geometry.dreproduction_dmass(par, traits);
 	bp.dmass_dt_rep = fR * dmass_dt_nonlai;
+	// TODO: does this need nitrogen?
 
 	//  fraction of biomass going into growth and size growth rate
 	double dmass_growth_dmass = (1 - fR);
 	bp.dmass_dt_growth = dmass_growth_dmass * dmass_dt_nonlai;
+	// TODO: should it have nitrogen?
 
 	// consistency check - see that all biomass allocations add up as expected
 	double dmass_dt_allocated = bp.dmass_dt_lai + bp.dmass_dt_lit + bp.dmass_dt_rep + bp.dmass_dt_growth;
@@ -213,8 +229,6 @@ void Plant::partition_biomass(double dm_dt_tot, double dm_dt_lai, Env& env){
 
 	//return {rates.dmass_dt_tot, rates.dlai_dt, rates.dsize_dt, rates.dmass_dt_lit, rates.dmass_dt_rep};
 }
-
-
 
 }	// namespace plant
 

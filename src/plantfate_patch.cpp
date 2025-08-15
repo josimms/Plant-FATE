@@ -287,7 +287,7 @@ void Patch::addSpeciesAndProbes(double t, const plant::PlantTraits& traits){
 	PSPM_Plant p1;
 	//p1.initFromFile(paramsFile);
 
-	p1.init(par0, traits);
+	p1.init(par0, traits, uptake0);
 
 	((plant::Plant*)&p1)->print();
 

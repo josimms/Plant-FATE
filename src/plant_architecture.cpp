@@ -85,13 +85,23 @@ double PlantArchitecture::diameter_at_height(double z, PlantTraits& traits){
 // **
 // ** Biomass partitioning
 // **
-double PlantArchitecture::dsize_dmass(PlantTraits& traits) const{
+double PlantArchitecture::dsize_dmass(PlantTraits& traits, double& dN_dd) const{
+	// Carbon
 	double dh_dd = geom.a * exp(-geom.a * diameter / traits.hmat);
 	double dmleaf_dd = traits.lma * lai * geom.pic_4a * (height + diameter * dh_dd);	// LAI variation is accounted for in biomass production rate
 	double dmtrunk_dd = (geom.eta_c * M_PI * traits.wood_density / 4) * (2 * height + diameter * dh_dd) * diameter;
 	double dmbranches_dd = (sqrt(geom.c / geom.a) * M_PI * traits.wood_density / 12) * (2.5 * height + 0.5 * diameter * dh_dd) * diameter * sqrt(diameter / height);
-	double dmroot_dd = (traits.zeta / traits.lma) * dmleaf_dd;
 	double dmcroot_dd = (dmbranches_dd + dmtrunk_dd) * traits.fcr;
+	// Roots
+	double m_root = root_density(traits) * pow(root_diameter(traits)/2.0, 2.0) * root_length * M_PI * root_no * 1e-9;
+	double dNroots_dD = (traits.zeta / traits.lma) * dmleaf_dd; // roots per D
+	double dmroot_dd = m_root * dNroots_dD;
+	
+	// Nitrogen
+	double dNleaf_dd = dmleaf_dd/2.0 * traits.nc_leaf; // kg N
+	double dNwood_dd = (dmtrunk_dd + dmbranches_dd + dmcroot_dd)/2.0 * traits.nc_wood; // kg N
+	double dNroot_dd = dmroot_dd/2.0 * traits.nc_root; // kg N
+	dN_dd = dNleaf_dd + dNwood_dd + dNroot_dd;
 
 	double dmass_dd = dmleaf_dd + dmtrunk_dd + dmbranches_dd + dmroot_dd + dmcroot_dd;
 	return 1 / dmass_dd;
@@ -115,7 +125,35 @@ double PlantArchitecture::dmass_dt_lai(double& dL_dt, double dmass_dt_max, Plant
 	return dm_dt_lai;
 }
 
+// **
+// ** nitrogen storage functions
+// **
 
+double PlantArchitecture::nitrogen_leaf(double nitrogen_tree, PlantTraits& traits) {
+  
+  // Get the percentage of nitrogen that is allocated to the leaf
+  // g N
+  return traits.k_10 * nitrogen_tree;
+}
+
+// **
+// ** root allometry
+// **
+
+double PlantArchitecture::root_diameter(const PlantTraits& traits) const {
+  // mm length gives mm of diameter
+  return traits.k_1 / pow(root_length, 0.5);
+}
+
+double PlantArchitecture::root_density(const PlantTraits& traits) const {
+  double percentage_root_cortex = pow(traits.k_2 + traits.k_3 / root_diameter(traits), 2.0);
+  // density kg m-3
+  return traits.k_4 * percentage_root_cortex + traits.k_5;
+}
+
+double PlantArchitecture::root_lifespan(const PlantTraits& traits) const {
+  return traits.k_6 * (1 - exp(- traits.k_7 * root_diameter(traits)));
+}
 
 // **
 // ** Carbon pools
@@ -124,8 +162,19 @@ double PlantArchitecture::leaf_mass(const PlantTraits& traits) const{
 	return crown_area * lai * traits.lma;
 }
 
-double PlantArchitecture::root_mass(const PlantTraits& traits) const{
-	return crown_area * lai * traits.zeta;
+double PlantArchitecture::root_mass(const PlantTraits& traits) const {
+	double diamater = root_diameter(traits);
+  double density = root_density(traits);
+  
+  // kg / m3 * mm2 * mm * no * 1e-9 * no = kg C
+  // Note:  trait.zeta * trait.lma is a number
+  return density * pow(diamater/2.0, 2.0) * root_length * M_PI * root_no * 1e-9 * traits.zeta * traits.lma;
+}
+
+void PlantArchitecture::get_ectomycorrhiza_mass(double exudates, PlantTraits& traits) {
+  // Update the ectomycorrhizal mass
+  double input = exudates * traits.investment_from_tree;
+  ectomycorrhiza_mass = (1 - traits.mycorrhizal_turnover) * ectomycorrhiza_mass + input * traits.mycorrhizal_biomass_conversion;
 }
 
 double PlantArchitecture::coarse_root_mass(const PlantTraits& traits) const{
@@ -155,18 +204,37 @@ double PlantArchitecture::heartwood_mass(const PlantTraits& traits) const{
 }
 
 double PlantArchitecture::total_mass(const PlantTraits& traits) const{
-	return stem_mass(traits) * (1 + traits.fcr) + leaf_mass(traits) + root_mass(traits);
+  
+  double fine_root_mass = root_mass(traits);
+  
+	return stem_mass(traits) * (1 + traits.fcr) + leaf_mass(traits) + fine_root_mass;
 }
 
 // **
 // ** state manipulations
 // **	
+/// @details Sets the following properties: diameter
 double PlantArchitecture::get_size() const{
 	return diameter;
 }
 
+/// @details Sets the following properties: lai
 void PlantArchitecture::set_lai(double _l){
 	lai = _l;
+}
+
+/// @details Sets the following properties: root_no, root_length
+void PlantArchitecture::set_root(double _rn, double _rl){
+  root_no = _rn;
+  root_length = _rl;
+};
+
+/// @details Sets the following properties: nitrogen_tree, nitrogen_uptake, potential_nitrogen_leaf, ectomycorrhiza_mass 
+void PlantArchitecture::set_nitrogen(double _nt, double _nu, double _em, PlantTraits& traits) {
+  nitrogen_tree = _nt;
+  nitrogen_uptake = _nu;
+  potential_nitrogen_leaf = nitrogen_leaf(nitrogen_tree, traits);
+  ectomycorrhiza_mass = _em;
 }
 
 /// @details Sets the following properties: diameter, height, crown area, sapwood fraction 
@@ -189,6 +257,7 @@ std::vector<double>::iterator PlantArchitecture::set_state(std::vector<double>::
 // ** Simple growth simulator for testing purposes
 // ** - simulates growth over dt with constant assimilation rate A
 // ** 
+
 void PlantArchitecture::grow_for_dt(double t, double dt, double& prod, double& litter_pool, double A, PlantTraits& traits){
 
 	auto derivs = [A, &traits, &litter_pool, this](double t, std::vector<double>& S, std::vector<double>& dSdt){
@@ -206,7 +275,8 @@ void PlantArchitecture::grow_for_dt(double t, double dt, double& prod, double& l
 		double dLA_dt = dmass_dt_lai(dL_dt, dB_dt, traits);  // biomass going into leaf area increment
 		double dLit_dt = std::max(-dLA_dt, 0.0);  // biomass going into litter (through leaf loss)
 		double dG_dt = dB_dt - std::max(dLA_dt, 0.0); // biomass going into geometric growth
-		double dD_dt = dsize_dmass(traits) * dG_dt;	// size (diameter) growth rate
+		double dN_dd = 0; // NOTE: not relevant in this function! Used for the nitrogen balance calculated in the Life History
+		double dD_dt = dsize_dmass(traits, dN_dd) * dG_dt;	// size (diameter) growth rate
 
 		dSdt[0] = dB_dt;	// biomass that goes into allometric increments
 		dSdt[1] = dD_dt;

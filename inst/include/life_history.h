@@ -4,9 +4,7 @@
 #include <vector>
 #include <ostream>
 
-#include "traits_params.h"
-#include "plant_architecture.h"
-#include "assimilation.h"
+#include "assimilation.h" // This already has the plant_traits and plant_architecture headers included
 #include "plant.h"
 
 #include "climate.h"
@@ -40,6 +38,7 @@ class LifeHistoryOptimizer{
 
 	plant::PlantParameters par0;
 	plant::PlantTraits traits0;
+	plant::Uptake uptake0;
 
 	io::Initializer I;
 
@@ -58,6 +57,7 @@ class LifeHistoryOptimizer{
 	void set_a_metFile(std::string file);
 	void set_co2File(std::string co2file);
 	void init_co2(double _co2);
+	void set_soil_nitrogen(double _N);
 
 	void init();
 
