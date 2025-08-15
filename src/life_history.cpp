@@ -263,7 +263,7 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt) {
     
     // Deduct nitrogen used in growth
     // dN_dt_litter = P.assimilation.;
-    P.geometry.nitrogen_tree -= dN_dt_growth + (1 - K_14) * dN_dt_litter;
+    P.geometry.nitrogen_tree -= dN_dt_growth + K_14 * dN_dt_litter;
     
     // 4. Fecundity override
     double fec = P.fecundity_rate(P.bp.dmass_dt_rep, C);
