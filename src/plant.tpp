@@ -211,7 +211,7 @@ void Plant::partition_biomass(double dm_dt_tot, double dm_dt_lai, Env& env){
 	// if lai is decreasing, lost biomass goes into litter
 	double dmass_dt_nonlai = dm_dt_tot - std::max(dm_dt_lai, 0.0);
 	bp.dmass_dt_lit = std::max(-dm_dt_lai, 0.0);
-	// TODO: can I get the nitrogen from this litter? Where is the litter from?
+	// TODO: can I get the nitrogen from this litter?
 
 	// fraction of biomass going into reproduction and biomass allocation to reproduction
 	double fR = geometry.dreproduction_dmass(par, traits);
