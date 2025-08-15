@@ -171,6 +171,8 @@ void Plant::calc_demographic_rates(Env& env, double t, double& dN_dt_growth){
 
 	// set all of bp.dmass_dt_xxx
 	partition_biomass(bp.dmass_dt_tot, bp.dmass_dt_lai, env);
+	
+	// TODO: some litter is caluclated in the partition_biomass should add the nitrogen balance
 
 	// set core rates
 	rates.dsize_dt  = size_growth_rate(bp.dmass_dt_growth, dN_dt_growth, env); // also sets rates.rgr
