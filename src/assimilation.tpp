@@ -185,7 +185,6 @@ void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, 
 			plant_assim.vcmax25_avg += res.vcmax25 * ca_layer;
 			plant_assim.mc_avg     += res.mc * ca_layer;
 			plant_assim.nitrogen_avg     += res.n_leaf * ca_layer;
-			//plant_assim.zeta       += res.zeta * ca_layer;
 		}
 
 		plant_assim.c_open_avg += env.canopy_openness[ilayer] * ca_layer;
@@ -202,7 +201,6 @@ void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, 
 		plant_assim.vcmax25_avg /= ca_total;               // umol CO2/m2/s
 		plant_assim.mc_avg     /= ca_total;                // unitless
 		plant_assim.nitrogen_avg     /= ca_total;          // g g-1 per leaf biomass
-		//plant_assim.zeta       /= ca_total;                // Ratio between leaf area and root biomass
 		//std::cout << "--- total (by layer) \n";
 		//std::cout << "h = " << G->height << ", nz* = " << env.n_layers << ", I = " << plant_assim.c_open_avg << ", fapar = " << fapar << ", A = " << plant_assim.gpp/ca_total << " umol/m2/s x " << ca_total << " = " << plant_assim.gpp << ", vcmax_avg = " << plant_assim.vcmax_avg << "\n"; 
 	}
@@ -218,7 +216,6 @@ void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, 
 		plant_assim.vcmax25_avg = res.vcmax25;
 		plant_assim.mc_avg     = res.mc;
 		plant_assim.nitrogen_avg     = res.n_leaf;
-		// plant_assim.zeta       = res.zeta;
 
 		//std::cout << "--- total (by avg light)\n";
 		//std::cout << "h = " << G->height << ", nz* = " << env.n_layers << ", I = " << plant_assim.c_open_avg << ", fapar = " << fapar << ", A = " << plant_assim.gpp/ca_total << " umol/m2/s x " << ca_total << " = " << plant_assim.gpp << ", vcmax_avg = " << plant_assim.vcmax_avg << "\n"; 
@@ -231,10 +228,6 @@ void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, 
 	plant_assim.gpp   *= (sec_per_unit_t * 1e-6 * par.cbio);        // umol co2/s ----> umol co2/unit_t --> mol co2/unit_t --> kg/unit_t 
 	plant_assim.rleaf *= (sec_per_unit_t * 1e-6 * par.cbio);        // umol co2/s ----> umol co2/unit_t --> mol co2/unit_t --> kg/unit_t 
 	plant_assim.trans *= (sec_per_unit_t * 18e-3);                  // mol h2o/s  ----> mol h2o/unit_t  --> kg h2o /unit_t
-	
-	// Traits updated with the zeta value
-	// traits.zeta = plant_assim.zeta;
-	// std::cout << " zeta " << traits.zeta;
 
 	// TODO: other traits (vcmax, jmax, gs) etc could also be converted but they are only used in output and not in dynamics
 }
