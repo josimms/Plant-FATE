@@ -132,8 +132,10 @@ double PlantArchitecture::dmass_dt_lai(double& dL_dt, double dmass_dt_max, Plant
 double PlantArchitecture::nitrogen_leaf(double nitrogen_tree, PlantTraits& traits) {
   
   // Get the percentage of nitrogen that is allocated to the leaf
+  // Then divide by the 
   // g N
-  return traits.k_10 * nitrogen_tree;
+  
+  return traits.k_10 * nitrogen_tree / traits.lai;
 }
 
 // **
