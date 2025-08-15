@@ -18,8 +18,10 @@ inline void print_phydro(const phydro::PHydroResultNitrogen& res, std::string s)
 template<class _Climate>
 phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G){
   double infrastructure = G->potential_nitrogen_leaf;
-  if (infrastructure < 1) {
-    infrastructure = 1;
+  if (infrastructure < 0.5) {
+    infrastructure = 0.5;
+  } else if (infrastructure > 1.5) {
+    infrastructure = 1.5;
   }
   std::cout << " infrastructure " << infrastructure;
   phydro::ParCostNitrogen par_cost(par.alpha, par.gamma, infrastructure);
@@ -37,9 +39,9 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 	
 	double leaf_nitrogen = G->potential_nitrogen_leaf;
 	std::cout << " leaf_nitrogen " << leaf_nitrogen << "\n";
-	if (leaf_nitrogen <= 0.001) {
-	  leaf_nitrogen = 0.001;
-	  std::cout << "Leaf nitrogen was 0.001 or less!"; // TODO: make into a proper warning
+	if (leaf_nitrogen <= 0.1) {
+	  leaf_nitrogen = 0.1;
+	  std::cout << "Leaf nitrogen was 0.1 or less!"; // TODO: make into a proper warning
 	}
 
 	auto out_phydro_acclim = phydro::phydro_nitrogen(
