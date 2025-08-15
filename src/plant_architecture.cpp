@@ -135,7 +135,7 @@ double PlantArchitecture::nitrogen_leaf(double nitrogen_tree, PlantTraits& trait
   // Then divide by the 
   // g N
   
-  return traits.k_10 * nitrogen_tree / traits.lai;
+  return traits.k_10 * nitrogen_tree / crown_area;
 }
 
 // **
@@ -169,8 +169,8 @@ double PlantArchitecture::root_mass(const PlantTraits& traits) const {
   double density = root_density(traits);
   
   // kg / m3 * mm2 * mm * no * 1e-9 * no = kg C
-  // Note:  trait.zeta * trait.lma is a number
-  return density * pow(diamater/2.0, 2.0) * root_length * M_PI * root_no * 1e-9 * traits.zeta * traits.lma;
+  // Note:  trait.zeta * crown_area is a number
+  return density * pow(diamater/2.0, 2.0) * root_length * M_PI * root_no * 1e-9 * traits.zeta * crown_area;
 }
 
 void PlantArchitecture::get_ectomycorrhiza_mass(double exudates, PlantTraits& traits) {
