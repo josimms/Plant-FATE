@@ -98,9 +98,9 @@ double PlantArchitecture::dsize_dmass(PlantTraits& traits, double& dN_dd) const{
 	double dmroot_dd = m_root * dNroots_dD;
 	
 	// Nitrogen
-	double dNleaf_dd = dmleaf_dd/2.0 * traits.nc_leaf; // kg N
-	double dNwood_dd = (dmtrunk_dd + dmbranches_dd + dmcroot_dd)/2.0 * traits.nc_wood; // kg N
-	double dNroot_dd = dmroot_dd/2.0 * traits.nc_root; // kg N
+	double dNleaf_dd = dmleaf_dd/2.0 * traits.nc_leaf; // tonne N
+	double dNwood_dd = (dmtrunk_dd + dmbranches_dd + dmcroot_dd)/2.0 * traits.nc_wood; // tonne N
+	double dNroot_dd = dmroot_dd/2.0 * traits.nc_root; // tonne N
 	dN_dd = dNleaf_dd + dNwood_dd + dNroot_dd;
 
 	double dmass_dd = dmleaf_dd + dmtrunk_dd + dmbranches_dd + dmroot_dd + dmcroot_dd;
@@ -119,6 +119,7 @@ double PlantArchitecture::dreproduction_dmass(PlantParameters& par, PlantTraits&
 ///          Complete coordination between fine roots and leaves is assumed. Thus, both leaves and fine roots need to increase for increasing LAI, 
 ///          and both are simultaneously shed if LAI decreases.
 double PlantArchitecture::dmass_dt_lai(double& dL_dt, double dmass_dt_max, PlantTraits& traits){
+  // TODO: I think this needs to be updated with the new zeta definition
 	double l2m = crown_area * (traits.lma + traits.zeta);    // biomass required to support a unit LAI
 	double dm_dt_lai = std::min(dL_dt * l2m, dmass_dt_max);  // biomass change resulting from LAI change. 
 	dL_dt = dm_dt_lai / l2m;   // Revise dL_dt, in case dm_lai_dt was capped at the maximum
@@ -170,6 +171,7 @@ double PlantArchitecture::root_mass(const PlantTraits& traits) const {
   
   // kg / m3 * mm2 * mm * no * 1e-9 * no = kg C
   // Note:  trait.zeta * crown_area is a number
+  
   return density * pow(diamater/2.0, 2.0) * root_length * M_PI * root_no * 1e-9 * traits.zeta * crown_area;
 }
 
