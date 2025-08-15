@@ -1,5 +1,6 @@
 #include "plantfate_patch.h"
 #include <filesystem>
+#include <algorithm>
 #include <csvrow.h>
 using namespace std;
 
@@ -80,6 +81,32 @@ void Patch::set_co2File(std::string co2file){
 }
 
 
+// Just a wrapper for R exposing
+void Patch::init_co2(double co2){
+	E.init_co2(co2);
+}
+
+Structure Patch::get_props_structure(){
+	return props.structure;
+}
+
+Fluxes Patch::get_props_fluxes(){
+	return props.fluxes;
+}
+
+CommunitySpecies Patch::get_props_species(){
+	return props.species;
+}
+
+Misc Patch::get_props_misc(){
+	return props.misc;
+}
+
+Acc_traits Patch::get_props_acc_traits(){
+	return props.acc_traits;
+}
+
+
 std::vector<plant::PlantTraits> Patch::readTraitsFromFile(std::string fname){
 
 	std::ifstream fin(fname.c_str());
@@ -139,17 +166,9 @@ void Patch::init(double tstart, double tend){
 	// sysresult = system(command.c_str());
 	// sysresult = system(command2.c_str());
 
-	// ~~~~~~~ Set up time-points ~~~~~~~~~~~~~~~
-	config.y0 = tstart; //I.get<double>("year0");
-	config.yf = tend;   //I.get<double>("yearf");
-	config.ye = config.y0 + config.T_r0_avg + 20;  // year in which trait evolution starts (need to allow this period because r0 is averaged over previous time)
+	// ~~~~~~ Set up time units ~~~~~~~~~~~~~~~~~
 	ts.set_units(config.time_unit);
 	par0.set_tscale(ts.get_tscale());
-
-	t_next_disturbance = config.y0 + config.T_return;
-	t_next_invasion    = config.y0 + config.T_invasion;
-	t_next_savestate   = config.y0; // this will write state once at the beginning too, which is probably unnecessary
-	t_next_writestate  = config.y0; // this will write state once at the beginning too, which is probably unnecessary
 
 	// ~~~~~~~ Translate durations (specified in years) to simulation units ~~~~~~~~~~~~~~~
 	double tpy = 1 / par0.years_per_tunit_avg;  // time units per year
@@ -159,6 +178,16 @@ void Patch::init(double tstart, double tend){
 	config.T_return           *= tpy;
 	config.T_seed_rain_avg    *= tpy;
 	config.saveStateInterval  *= tpy;
+
+	// ~~~~~~~ Set up time-points ~~~~~~~~~~~~~~~
+	config.y0 = tstart; //I.get<double>("year0");
+	config.yf = tend;   //I.get<double>("yearf");
+	config.ye = config.y0 + config.T_r0_avg + 20*tpy;  // year in which trait evolution starts (need to allow this period because r0 is averaged over previous time)
+
+	t_next_disturbance = config.y0 + config.T_return;
+	t_next_invasion    = config.y0 + config.T_invasion;
+	t_next_savestate   = config.y0; // this will write state once at the beginning too, which is probably unnecessary
+	t_next_writestate  = config.y0; // this will write state once at the beginning too, which is probably unnecessary
 
 	// ~~~~~~~ Set up environment ~~~~~~~~~~~~~~~
 	E.use_ppa = true;
@@ -211,6 +240,7 @@ void Patch::init(double tstart, double tend){
 	S.print();
 
 	// sio.S = &S;
+	props.b_output_cohort_props = true;
 	props.openStreams(config.out_dir);
 }
 
@@ -292,10 +322,10 @@ void Patch::addSpeciesAndProbes(double t, const plant::PlantTraits& traits){
 
 
 void Patch::shuffleSpecies(){
-	// Shuffle species in the species vector -- just for debugging
-	cout << "shuffling...\n";
-	std::random_shuffle(S.species_vec.begin(), S.species_vec.end());
-	S.copyCohortsToState();
+	// // Shuffle species in the species vector -- just for debugging
+	// cout << "shuffling...\n";
+	// std::random_shuffle(S.species_vec.begin(), S.species_vec.end());
+	// S.copyCohortsToState();
 }
 
 
@@ -455,6 +485,7 @@ void Patch::simulate_to(double t){
 
 	// update output metrics - needed before removeDeadSpecies()
 	props.update(t, *this);
+	props.writeOut_inst(t, *this);
 
 	// write outputs - must be done before species list is altered
 	if (t > t_next_writestate || fabs(t - t_next_writestate) < 1e-6){
