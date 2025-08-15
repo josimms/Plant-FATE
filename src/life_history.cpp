@@ -80,9 +80,10 @@ void LifeHistoryOptimizer::init(){
 
 	P.geometry.set_lai(P.par.lai0);
 	P.geometry.set_root(P.par.root_no0, P.par.root_length0);
-	P.geometry.set_nitrogen(P.par.nitrogen_start0, P.par.nitrogen_uptake0, P.par.ectomycorrhizal_mass0, P.traits);
 	P.set_size(0.01);
 	// Simulation below starts at seedling stage. So account for survival until seedling stage
+	P.geometry.set_nitrogen(P.par.nitrogen_start0, P.par.nitrogen_uptake0, P.par.ectomycorrhizal_mass0, P.traits);
+	// set_nitrogen after set_size as crown area is defined in set_size
 	  
 	P.state.mortality = -log(P.p_survival_dispersal(C) * P.p_survival_germination(C)); // p{fresh seed is still alive after germination} = p{it survives dispersal}*p{it survives germination}
 
@@ -255,13 +256,14 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt) {
     // 3. Nitrogen uptake & balance calculations
     P.geometry.nitrogen_uptake = P.uptake.nitrogen_plant(C.clim_acclim.nitrogen, P.geometry, P.traits);
     P.geometry.nitrogen_tree  += P.geometry.nitrogen_uptake * P.traits.zeta * P.geometry.crown_area;
+    std::cout << " Uptake " << P.geometry.nitrogen_uptake * P.traits.zeta * P.geometry.crown_area;
     P.geometry.potential_nitrogen_leaf = P.geometry.nitrogen_leaf(P.geometry.nitrogen_tree, P.traits);
     
     double dN_dt_growth = 0.0;
     P.calc_demographic_rates(C, t, dN_dt_growth);
     
     // Deduct nitrogen used in growth
-    P.geometry.nitrogen_tree -= dN_dt_growth + P.traits.k_14 * (P.res.tleaf * P.traits.nc_leaf + P.res.troot * P.traits.nc_root);
+    P.geometry.nitrogen_tree -= (dN_dt_growth + P.traits.k_14 * (P.res.tleaf * P.traits.nc_leaf + P.res.troot * P.traits.nc_root)) * 1000;
     
     // 4. Fecundity override
     double fec = P.fecundity_rate(P.bp.dmass_dt_rep, C);
