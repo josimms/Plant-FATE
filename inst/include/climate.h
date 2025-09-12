@@ -14,6 +14,7 @@ namespace env{
 
 class Clim{
 	public:
+  double decimal_year;      ///< Decimal year in order to work out the day of the year for the day length
 	double tc = 25.5;         ///< Temperature [C]
 	double ppfd = 500;        ///< PAR (daily 24-hr mean) [umol m-2 s-1]
 	double rn = 250;          ///< Net radiation at surface [W m-2]

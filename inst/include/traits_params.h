@@ -153,6 +153,7 @@ class PlantParameters{
 	// below parameter is not explicitly specified in ini file. It is set bythe time stepper for PlantFATE and manually in TreeLife
 	double days_per_tunit;      ///< Days in time unit used (e.g., if the unit of time is years, this will be 365.2425)
 	double years_per_tunit_avg; ///< Average number of years per time unit, assuming 1 year = 365.2425 days
+	std::string time_unit;           ///< The time unit as a string so the climate stream can be initalised as well
 
 	public:
 	void init(io::Initializer& I);
