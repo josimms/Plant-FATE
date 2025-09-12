@@ -193,7 +193,7 @@ void Patch::init(double tstart, double tend){
 	E.use_ppa = true;
 	E.set_elevation(0);
 	E.set_acclim_timescale(7);
-	climate_stream.init();
+	climate_stream.init(par0.time_unit);
 
 	// ~~~~~~~~~~ Create solver ~~~~~~~~~~~~~~~~~~~~~~~~~
 	S = Solver(config.solver_method, "rk45ck");

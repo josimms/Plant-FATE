@@ -24,13 +24,15 @@ LifeHistoryOptimizer::LifeHistoryOptimizer(std::string params_file){
 	//paramsFile = params_file; // = "tests/params/p.ini";
 	I.parse(params_file);
 
+  // NOTE: PlantFATE seems to work off confif.time_unit
 	ts.set_units(I.get_verbatim("time_unit"));
 
 	traits0.init(I);
 	par0.init(I);
 	uptake0.init(I);
-
-	par0.set_tscale(ts.get_tscale()); // default time unit is year
+	
+	par0.set_tscale(ts.get_tscale()); // default time unit is year or month
+	std::cout << " ts.get_tscale() " << ts.get_tscale();
 
 	c_stream.i_metFile = ""; //"tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE.csv";
 	c_stream.a_metFile = ""; //"tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE.csv";
@@ -71,7 +73,7 @@ void LifeHistoryOptimizer::init(){
 
 	C.set_elevation(0);
 	C.set_acclim_timescale(7);
-	c_stream.init();
+	c_stream.init(par0.time_unit);
 
 	// We are tracking the life-cycle of a seed: how many seeds does a single seed produce (having gone through dispersal, germination, and plant life stages)
 	P = plant::Plant();
@@ -256,7 +258,6 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt) {
     // 3. Nitrogen uptake & balance calculations
     P.geometry.nitrogen_uptake = P.uptake.nitrogen_plant(C.clim_acclim.nitrogen, P.geometry, P.traits);
     P.geometry.nitrogen_tree  += P.geometry.nitrogen_uptake * P.traits.zeta * P.geometry.crown_area;
-    std::cout << " Uptake " << P.geometry.nitrogen_uptake * P.traits.zeta * P.geometry.crown_area;
     P.geometry.potential_nitrogen_leaf = P.geometry.nitrogen_leaf(P.geometry.nitrogen_tree, P.traits);
     
     double dN_dt_growth = 0.0;

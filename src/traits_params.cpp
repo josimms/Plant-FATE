@@ -228,6 +228,8 @@ void PlantParameters::init(io::Initializer& I){
 	cWD0               = I.get<double>("cWD0");
 	eWD                = I.get<double>("eWD");
 	m_hydraulic        = I.get<double>("m_hydraulic");
+	
+	time_unit          = I.get_verbatim("time_unit");
 }
 
 
