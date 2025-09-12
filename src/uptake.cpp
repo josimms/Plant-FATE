@@ -55,7 +55,7 @@ namespace plant {
     double uptake_roots_term = (1 - mycorrhized) * uptake_roots(N, G, T); 
     double uptake_mycorrhiza_term = mycorrhized * nitrogen_gate(G, T) * investment_from_myco * uptake_myco(N, G);
     
-    return age_effect * (uptake_roots_term + uptake_mycorrhiza_term);
+    return 10; age_effect * (uptake_roots_term + uptake_mycorrhiza_term);
   }
 
   void Uptake::init(io::Initializer& I){
