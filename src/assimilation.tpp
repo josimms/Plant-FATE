@@ -23,15 +23,16 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
   } else if (infrastructure > 1.5) {
     infrastructure = 1.5;
   }
-  std::cout << " infrastructure " << infrastructure;
   phydro::ParCostNitrogen par_cost(par.alpha, par.gamma, infrastructure);
 	phydro::ParPlant par_plant(traits.K_leaf, traits.p50_leaf, traits.b_leaf);
 	phydro::ParControl par_control;
 
 	par_control.gs_method = phydro::GS_APX;
 	par_control.et_method = phydro::ET_DIFFUSION;
+	
+	double day_of_year = decimal_year_to_day_of_year(C.clim_inst.decimal_year);
 
-	double f_day_length = 0.5;
+	double f_day_length = day_length_fraction(60.0, day_of_year); // TODO: make the latitude a parameter rather than a fixed value and sort out the days of year
 	
 	double Iabs_acclim = fipar * C.clim_acclim.ppfd;
 	double Iabs_day    = fipar * C.clim_inst.ppfd / f_day_length;
@@ -39,9 +40,9 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 	
 	double leaf_nitrogen = G->potential_nitrogen_leaf;
 	std::cout << " leaf_nitrogen " << leaf_nitrogen << "\n";
-	if (leaf_nitrogen <= 0.1) {
-	  leaf_nitrogen = 0.1;
-	  std::cout << "Leaf nitrogen was 0.1 or less!"; // TODO: make into a proper warning
+	if (leaf_nitrogen <= 1.0) {
+	  leaf_nitrogen = 1.0;
+	  std::cout << "Leaf nitrogen was 1 or less!"; // TODO: make into a proper warning
 	}
 
 	auto out_phydro_acclim = phydro::phydro_nitrogen(
@@ -107,7 +108,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 	// 	Iabs_day,                  // daytime mean incident PAR [umol m-2 s-1]
 	// 	C.clim_inst.rn,            // mean net radiation [W m-2] (only used for LE calculations which we dont use)
 	// 	C.clim_inst.vpd,           // vpd [kPa]
-	// 	C.clim_inst.co2,	       // co2 [ppm]
+	// 	C.clim_inst.co2,	         // co2 [ppm]
 	// 	C.clim_inst.pa,            // surface pressure [Pa]
 	// 	fapar,                     // fraction of absorbed PAR
 	// 	par.kphio,                 // phi0 - quantum yield

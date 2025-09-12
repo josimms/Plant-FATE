@@ -92,7 +92,13 @@ class Assimilator{
 	double leaf_turnover_rate(double _kappa_l, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
 	double root_turnover_rate(PlantArchitecture* G, const PlantTraits& traits);
 	/// @}
-
+	
+	/// @brief Calculate the day length
+  /// @{
+  double day_length_fraction(double lat_deg, double day_of_year);
+  bool is_leap_year(int year);
+  int decimal_year_to_day_of_year(double dec_year);
+  /// @}
 };
 
 } // namespace plant

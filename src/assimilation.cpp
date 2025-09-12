@@ -65,6 +65,56 @@ double Assimilator::root_turnover_rate(PlantArchitecture* G, const PlantTraits& 
   return G->root_mass(traits) / G->root_lifespan(traits); // / par.lr;
 }
 
+double Assimilator::day_length_fraction(double lat_deg, double day_of_year) {
+  const double pi = M_PI;  // from <cmath>
+  double lat = lat_deg * pi / 180.0;
+  double z0 = 90.833 * pi / 180.0; // Zenith angle (sunrise/sunset)
+  
+  int N = day_of_year;
+  
+  // Solar declination (radians)
+  double delta = -asin(0.39779 * cos(0.98565 * pi / 180.0 * (N + 10) +
+                       1.914 * pi / 180.0 * sin(0.98565 * pi / 180.0 * (N - 2))));
+  
+  // Cosine of hour angle at sunrise/sunset
+  double cos_h0 = (cos(z0) - sin(lat) * sin(delta)) / (cos(lat) * cos(delta));
+  
+  double D; // day length in hours
+  
+  if (cos_h0 <= -1.0) {
+    D = 24.0; // Sun never sets
+  } else if (cos_h0 >= 1.0) {
+    D = 0.0; // Sun never rises
+  } else {
+    double H0 = acos(cos_h0);   // hour angle in radians
+    D = (24.0 / pi) * H0;      // convert to hours
+  }
+  
+  double L = D / 24.0;  // Fractional day length
+
+  return L;
+}
+
+bool Assimilator::is_leap_year(int year) {
+  return (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0));
+}
+
+int Assimilator::decimal_year_to_day_of_year(double dec_year) {
+  int year = static_cast<int>(std::floor(dec_year));
+  double fraction = dec_year - year;
+  
+  int days_in_year = is_leap_year(year) ? 366 : 365;
+  
+  // Convert fraction of year to day-of-year (1-based)
+  int day_of_year = static_cast<int>(std::round(fraction * days_in_year)) + 1;
+  
+  // Cap to days in year (just in case rounding pushed it to 0 or > days_in_year)
+  if (day_of_year < 1) day_of_year = 1;
+  if (day_of_year > days_in_year) day_of_year = days_in_year;
+  
+  return day_of_year;
+}
+
 } // namespace plant
 
 
