@@ -220,6 +220,7 @@ reading_nc <- function() {
   plantfate_daily_dataset$co2 <- 380
   plantfate_daily_dataset$SWP <- - 0.001 * rep(soil_water_potential_daily$HYY_META.wpsoil_B, 
                                                length.out = nrow(plantfate_daily_dataset)) # Soil water potential kPa to - MPa
+  # TODO: check this decimal year
   plantfate_daily_dataset$Decimal_year <- seq(plantfate_daily_dataset$Year[1],
                                               plantfate_daily_dataset$Year[nrow(plantfate_daily_dataset)],
                                                length.out = nrow(plantfate_daily_dataset))
