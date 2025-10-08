@@ -67,6 +67,7 @@ class TimeStepper{
 		//       perhaps because over 2000 years (0001-2000) all leap days cancel out, 
 		//       but 0000 is a leap year so adds an extra day
 		if (tunit_str == "years CE") tunit_str = "years since 0000-01-00 0:0:0";
+		if (tunit_str == "months CE") tunit_str = "months since 0000-01-00 0:0:0";
 
 		// parse time units
 		std::string since;
