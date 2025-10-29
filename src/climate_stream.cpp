@@ -47,7 +47,7 @@ void ClimateStream::updateClimate(double julian_time, Climate& C){
 		C.clim_acclim.co2 = as<double>(co2_stream.current_row[1]); // co2 is in index 1
 	}
 	if (update_i_met){
-		i_met_stream.advance_to_time(julian_time);
+	  i_met_stream.advance_to_time(julian_time);
 		// std::cout << i_met_stream.current_row << std::endl;
 		C.clim_inst.decimal_year = as<double>(i_met_stream.current_row[2]);
 		C.clim_inst.tc   = as<double>(i_met_stream.current_row[3]);

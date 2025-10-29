@@ -90,7 +90,8 @@ class Assimilator{
 	/// @brief Calculate leaf and fine-root turnover rates 
 	/// @{
 	double leaf_turnover_rate(double _kappa_l, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
-	double root_turnover_rate(PlantArchitecture* G, const PlantTraits& traits);
+	double root_turnover_rate(double _kappa_r, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
+	// double root_turnover_rate(PlantArchitecture* G, const PlantTraits& traits);
 	/// @}
 	
 	/// @brief Calculate the day length

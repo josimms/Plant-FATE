@@ -171,7 +171,6 @@ void Plant::calc_demographic_rates(Env& env, double t, double& dN_dt_growth){
 
 	// set all of bp.dmass_dt_xxx
 	partition_biomass(bp.dmass_dt_tot, bp.dmass_dt_lai, env);
-	
 	// TODO: some litter is caluclated in the partition_biomass should add the nitrogen balance
 
 	// set core rates
@@ -221,7 +220,6 @@ void Plant::partition_biomass(double dm_dt_tot, double dm_dt_lai, Env& env){
 	//  fraction of biomass going into growth and size growth rate
 	double dmass_growth_dmass = (1 - fR);
 	bp.dmass_dt_growth = dmass_growth_dmass * dmass_dt_nonlai;
-	// TODO: should it have nitrogen?
 
 	// consistency check - see that all biomass allocations add up as expected
 	double dmass_dt_allocated = bp.dmass_dt_lai + bp.dmass_dt_lit + bp.dmass_dt_rep + bp.dmass_dt_growth;

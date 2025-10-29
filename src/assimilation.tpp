@@ -18,11 +18,13 @@ inline void print_phydro(const phydro::PHydroResultNitrogen& res, std::string s)
 template<class _Climate>
 phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G){
   double infrastructure = G->potential_nitrogen_leaf;
-  if (infrastructure < 0.5) {
-    infrastructure = 0.5;
-  } else if (infrastructure > 1.5) {
-    infrastructure = 1.5;
-  }
+  infrastructure = 1.0;
+  // if (infrastructure < 0.5) {
+  //   infrastructure = 0.5;
+  // } else if (infrastructure > 1.5) {
+  //   infrastructure = 1.5;
+  // }
+  
   phydro::ParCostNitrogen par_cost(par.alpha, par.gamma, infrastructure);
 	phydro::ParPlant par_plant(traits.K_leaf, traits.p50_leaf, traits.b_leaf);
 	phydro::ParControl par_control;
@@ -32,14 +34,15 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 	
 	double day_of_year = decimal_year_to_day_of_year(C.clim_inst.decimal_year);
 
-	double f_day_length = day_length_fraction(60.0, day_of_year); // TODO: make the latitude a parameter rather than a fixed value and sort out the days of year
+  // TODO: make the latitude a parameter rather than a fixed value and sort out the days of year
+	double f_day_length = day_length_fraction(60.0, day_of_year);
 	
 	double Iabs_acclim = fipar * C.clim_acclim.ppfd;
 	double Iabs_day    = fipar * C.clim_inst.ppfd / f_day_length;
 	double Iabs_24hr   = fipar * C.clim_inst.ppfd;
 	
 	double leaf_nitrogen = G->potential_nitrogen_leaf;
-	std::cout << " leaf_nitrogen " << leaf_nitrogen << "\n";
+	// std::cout << " leaf_nitrogen " << leaf_nitrogen << "\n";
 	if (leaf_nitrogen <= 1.0) {
 	  leaf_nitrogen = 1.0;
 	  std::cout << "Leaf nitrogen was 1 or less!"; // TODO: make into a proper warning
@@ -223,14 +226,13 @@ void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, 
 		//std::cout << "--- total (by avg light)\n";
 		//std::cout << "h = " << G->height << ", nz* = " << env.n_layers << ", I = " << plant_assim.c_open_avg << ", fapar = " << fapar << ", A = " << plant_assim.gpp/ca_total << " umol/m2/s x " << ca_total << " = " << plant_assim.gpp << ", vcmax_avg = " << plant_assim.vcmax_avg << "\n"; 
 	}
-	//std::cout << "---\nCA traversed = " << ca_cumm << " -- " << G->crown_area << "\n";
 
 	// Convert units from per sec to per unit_t (unit_t is the unit in which time is counted, e.g. yr, day)
 	double sec_per_unit_t = 86400 * par.days_per_tunit; // s-1 ---> unit_t-1
 
 	plant_assim.gpp   *= (sec_per_unit_t * 1e-6 * par.cbio);        // umol co2/s ----> umol co2/unit_t --> mol co2/unit_t --> kg/unit_t 
 	plant_assim.rleaf *= (sec_per_unit_t * 1e-6 * par.cbio);        // umol co2/s ----> umol co2/unit_t --> mol co2/unit_t --> kg/unit_t 
-	plant_assim.trans *= (sec_per_unit_t * 18e-3);                  // mol h2o/s  ----> mol h2o/unit_t  --> kg h2o /unit_t
+	plant_assim.trans *= (sec_per_unit_t * 18e-3);                  // mol h2o/s  ----> mol h2o/unit_t  --> kg h2o/unit_t
 
 	// TODO: other traits (vcmax, jmax, gs) etc could also be converted but they are only used in output and not in dynamics
 }
@@ -248,11 +250,12 @@ PlantAssimilationResult Assimilator::net_production(Env& env, PlantArchitecture*
 	plant_assim.rroot = root_respiration_rate(G, par, traits);      // kg unit_t-1
 	plant_assim.rstem = sapwood_respiration_rate(G, par, traits);   // kg unit_t-1
 
-	plant_assim.tleaf = leaf_turnover_rate(kappa_l, G, par, traits);  // kg unit_t-1
-	plant_assim.troot = root_turnover_rate(G, traits);  // kg unit_t-1
+	plant_assim.tleaf = leaf_turnover_rate(kappa_l, G, par, traits);     // kg unit_t-1
+	plant_assim.troot = root_turnover_rate(kappa_r, G, par, traits);     // kg unit_t-1
+	// plant_assim.troot = root_turnover_rate(G, traits);                   // kg unit_t-1
 
 	double A = plant_assim.gpp;
-	double R = plant_assim.rleaf + plant_assim.rroot + plant_assim.rstem;
+	double R = plant_assim.rleaf + plant_assim.rstem + plant_assim.rroot;
 	double T = plant_assim.tleaf + plant_assim.troot;
 
 	plant_assim.npp = par.y * (A - R) - T; // net biomass growth rate (kg unit_t-1)
