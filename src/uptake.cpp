@@ -52,10 +52,10 @@ namespace plant {
     
     double age_effect = uptake_age(G, T);
     
-    double uptake_roots_term = (1 - mycorrhized) * uptake_roots(N, G, T); 
+    double uptake_roots_term = (1.0 - mycorrhized) * uptake_roots(N, G, T); 
     double uptake_mycorrhiza_term = mycorrhized * nitrogen_gate(G, T) * investment_from_myco * uptake_myco(N, G);
     
-    return 10; age_effect * (uptake_roots_term + uptake_mycorrhiza_term);
+    return uptake_roots(N, G, T); // + uptake_mycorrhiza_term);
   }
 
   void Uptake::init(io::Initializer& I){
@@ -88,7 +88,7 @@ namespace plant {
     
     // These are the initial conditions, whilst this isn't working just have constant roots
     G.root_length = 1.5;
-    G.root_no = 20;
+    G.root_no = 20.0;
   }
 
 } // End namespace
