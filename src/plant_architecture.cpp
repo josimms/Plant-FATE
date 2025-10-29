@@ -93,7 +93,7 @@ double PlantArchitecture::dsize_dmass(PlantTraits& traits, double& dN_dd) const{
 	double dmbranches_dd = (sqrt(geom.c / geom.a) * M_PI * traits.wood_density / 12) * (2.5 * height + 0.5 * diameter * dh_dd) * diameter * sqrt(diameter / height);
 	double dmcroot_dd = (dmbranches_dd + dmtrunk_dd) * traits.fcr;
 	// Roots
-	double m_root = root_density(traits) * pow(root_diameter(traits)/2.0, 2.0) * root_length * M_PI * root_no * 1e-9;
+	double m_root = root_density(traits) * pow(root_diameter(traits)/2.0, 2.0) * root_length * M_PI/4.0 * root_no * 1e-9;
 	double dNroots_dD = (traits.zeta / traits.lma) * dmleaf_dd; // roots per D
 	double dmroot_dd = m_root * dNroots_dD;
 	
@@ -170,7 +170,7 @@ double PlantArchitecture::root_mass(const PlantTraits& traits) const {
   double density = root_density(traits);
   
   // kg / m3 * mm2 * mm * no * 1e-9 * no = kg C
-  // Note:  trait.zeta * crown_area is a number
+  // Note: trait.zeta * crown_area is a number
   
   return density * pow(diamater/2.0, 2.0) * root_length * M_PI * root_no * 1e-9 * traits.zeta * crown_area;
 }
@@ -278,6 +278,7 @@ void PlantArchitecture::grow_for_dt(double t, double dt, double& prod, double& l
 		double dL_dt = -0.01; //dlai_dt(traits);
 		double dLA_dt = dmass_dt_lai(dL_dt, dB_dt, traits);  // biomass going into leaf area increment
 		double dLit_dt = std::max(-dLA_dt, 0.0);  // biomass going into litter (through leaf loss)
+		// TODO: nitrogen here?
 		double dG_dt = dB_dt - std::max(dLA_dt, 0.0); // biomass going into geometric growth
 		double dN_dd = 0; // NOTE: not relevant in this function! Used for the nitrogen balance calculated in the Life History
 		double dD_dt = dsize_dmass(traits, dN_dd) * dG_dt;	// size (diameter) growth rate
