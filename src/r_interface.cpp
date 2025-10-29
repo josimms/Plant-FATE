@@ -76,7 +76,9 @@ RCPP_MODULE(plantfate_module){
     .field("fg", &plant::PlantParameters::fg)
     .field("lai0", &plant::PlantParameters::lai0)
     .field("kphio", &plant::PlantParameters::kphio)
+    .field("alpha", &plant::PlantParameters::alpha)
     .field("gamma", &plant::PlantParameters::gamma)
+    .field("a_jmax", &plant::PlantParameters::a_jmax)
 
 		.constructor()
 		.method("print", &plant::PlantParameters::print)
