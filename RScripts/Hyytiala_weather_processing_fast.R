@@ -32,7 +32,7 @@ downloading_data <- function(raw.directory = "/home/josimms/Documents/CASSIA_Cal
                              year_end = 2023) {
   
   http.origin = "https://smear-backend.2.rahtiapp.fi/search/timeseries/csv?tablevariable=HYY_"
-  for (variable in c(paste0("META.", c("RH672", "RH1250", "RHTd", "PAR", "CO2168", "T168", "T336", "Precip", "tsoil_5", "tsoil_10", "wsoil_B1", "wsoil_B2", "Glob", "Glob67", "Pamb336", "wpsoil_A", "wpsoil_B")), "EDDY233.GPP", "EDDY233.NEE", "TREE.F_CO2_leaf")[20]) {
+  for (variable in c(paste0("META.", c("RH672", "RH1250", "RHTd", "PAR", "CO2168", "T168", "T336", "Precip", "tsoil_5", "tsoil_10", "wsoil_B1", "wsoil_B2", "Glob", "Glob67", "Pamb336", "wpsoil_A", "wpsoil_B")), "EDDY233.GPP", "EDDY233.NEE", "TREE.F_CO2_leaf", "TREE.F_H2O_leaf", "EDDY233.ET_gapf")) {
     from = "&from="
     year1 = seq(year_start, year_end, by = 2)
     to = "-01-01T00%3A00%3A00.000&to="
