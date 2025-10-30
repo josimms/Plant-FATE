@@ -42,8 +42,8 @@ double PSPM_Plant::init_density(void* _env, double input_seed_rain){
 
 void PSPM_Plant::preCompute(double t, void* _env){
 	EnvUsed* env = static_cast<EnvUsed*>(_env);
-  double dN_dt_growth = 0; // TODO: haven't edited this code yet, so this doesn't really do anything
-	calc_demographic_rates(*env, t, dN_dt_growth);
+  // double dN_dt_growth = 0; // TODO: haven't edited this code yet, so this doesn't really do anything
+	calc_demographic_rates(*env, t);
 //	double p_plant_survival = exp(-vars.mortality);
 //	//viable_seeds_dt = vars.fecundity_dt; // only for single-plant testrun
 //	viable_seeds_dt = vars.fecundity_dt * p_plant_survival * env->patch_survival(t) / env->patch_survival(t_birth);
