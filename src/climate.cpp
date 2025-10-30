@@ -78,6 +78,11 @@ void Climate::init_co2(double _co2){
 	clim_acclim.co2 = _co2;
 }
 
+void Climate::set_soil_nitrogen(double _N) {
+  clim_inst.nitrogen = _N;
+  clim_acclim.nitrogen = _N;
+}
+
 void Climate::init_forcing_acclim(double t0, const Clim& c0){
 	t_last = t0;
 	clim_acclim = c0;
@@ -85,11 +90,6 @@ void Climate::init_forcing_acclim(double t0, const Clim& c0){
 
 void Climate::set_acclim_timescale(double tau){
 	tau_acclim = tau;
-}
-
-void Climate::set_soil_nitrogen(double _N) {
-  clim_inst.nitrogen = _N;
-  clim_acclim.nitrogen = _N;
 }
 
 // REF: https://stackoverflow.com/questions/1023860/exponential-moving-average-sampled-at-varying-times
