@@ -49,7 +49,7 @@ namespace plant {
     
     double age_effect = uptake_age(G, T);
     
-    double uptake_roots_term = (1 - mycorrhized) * uptake_roots(N, G, T); 
+    double uptake_roots_term = (1.0 - mycorrhized) * uptake_roots(N, G, T); 
     double uptake_mycorrhiza_term = mycorrhized * nitrogen_gate(G, T) * investment_from_myco * uptake_myco(N, G);
     
     // Temporary value from Korhonen
