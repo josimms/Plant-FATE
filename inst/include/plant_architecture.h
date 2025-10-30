@@ -79,7 +79,7 @@ class PlantArchitecture{
 
 	/// @brief Derivatives required for biomass partitioning
 	/// @{  
-	double dsize_dmass(PlantTraits& traits, double& dN_dd) const;
+	std::vector<double> dsize_dmass(PlantTraits& traits) const;
 	double dreproduction_dmass(PlantParameters& par, PlantTraits& traits);
 	/// @}
 
