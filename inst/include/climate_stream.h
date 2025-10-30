@@ -33,7 +33,7 @@ class ClimateStream{
 	T as(std::string s);
 
 	public:
-  void init(const std::string& time_unit);
+	void init();
 	void updateClimate(double julian_time, Climate& C);
 };
 
