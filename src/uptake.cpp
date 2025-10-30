@@ -23,7 +23,7 @@ namespace plant {
     double surface_area = root_no * M_PI * (root_length * 1e-3) * (G.root_diameter(T) * 1e-3); // m
       
     // TODO: I think that this doesn't make sense with the units as the G.root_mass is for the whole root system, but the surface area transformation is for the surface area
-    double biomass_conversion = 4 * one_root_mass / (G.root_density(T) * G.root_diameter(T) * 1e-3); // kg / (kg-1/m3 * mm * 1e-3) = m2
+    double biomass_conversion = 4.0 * one_root_mass / (G.root_density(T) * G.root_diameter(T) * 1e-3); // kg / (kg-1/m3 * mm * 1e-3) = m2
     double biomass_limitation = surface_area / (surface_area + 2.0 * k_13);
     double nitrogen_uptake = (u_c_B * N * e_u_root) / (u_c_B + N * e_u_root);
     
@@ -38,10 +38,7 @@ namespace plant {
   }
   
   double Uptake::nitrogen_gate(const PlantArchitecture& G, PlantTraits& T) {
-    double root_length = G.root_length;
-    double root_no = G.root_no;
-    
-    double surface_area = root_no * M_PI * root_length * G.root_diameter(T);
+    double surface_area = G.root_no * M_PI * G.root_length * G.root_diameter(T);
     
     return surface_area/(surface_area + k_9);
   }
@@ -52,10 +49,15 @@ namespace plant {
     
     double age_effect = uptake_age(G, T);
     
-    double uptake_roots_term = (1.0 - mycorrhized) * uptake_roots(N, G, T); 
+    double uptake_roots_term = (1 - mycorrhized) * uptake_roots(N, G, T); 
     double uptake_mycorrhiza_term = mycorrhized * nitrogen_gate(G, T) * investment_from_myco * uptake_myco(N, G);
     
-    return uptake_roots(N, G, T); // + uptake_mycorrhiza_term);
+    // Temporary value from Korhonen
+    // kg ha-1 year-1
+    // Assume that there are 1000 trees per ha
+    // 1145.7/12.0/1000.0/2.0/2.0, N at Hyytiälä assumed to be 0.5 for now!
+    
+    return uptake_roots_term + uptake_mycorrhiza_term;
   }
 
   void Uptake::init(io::Initializer& I){
@@ -87,8 +89,8 @@ namespace plant {
     
     
     // These are the initial conditions, whilst this isn't working just have constant roots
-    G.root_length = 1.5;
-    G.root_no = 20.0;
+    G.root_length = 1e5;
+    G.root_no = 20;
   }
 
 } // End namespace
