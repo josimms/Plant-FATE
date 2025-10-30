@@ -3,40 +3,26 @@
 namespace pfate{
 namespace env{
 
-void ClimateStream::init(const std::string& time_unit){
-  // Determine axis name based on time unit
-  std::string axis_name;
-  if (time_unit.find("month") != std::string::npos || time_unit.find("Month") != std::string::npos) {
-    axis_name = "Decimal_year";
-  } else {
-    axis_name = "Year";
-  }
-  
-  // Initialize CO2 stream
-  if (update_co2){
-    co2_stream.set_tname(axis_name);
-    co2_stream.periodic = false;
-    co2_stream.centered_t = false;
-    co2_stream.open({co2File}, time_unit);  // Use dynamic unit
-  }
-  
-  // Initialize incoming meteorology stream
-  if (update_i_met){
-    i_met_stream.set_tname(axis_name);
-    i_met_stream.periodic = true;
-    i_met_stream.centered_t = false;
-    i_met_stream.open({i_metFile}, time_unit);  // Use dynamic unit
-  }
-  
-  // Initialize above-canopy meteorology stream
-  if (update_a_met){
-    a_met_stream.set_tname(axis_name);
-    a_met_stream.periodic = true;
-    a_met_stream.centered_t = false;
-    a_met_stream.open({a_metFile}, time_unit);  // Use dynamic unit
-  }
+void ClimateStream::init(){
+	if (update_co2){
+		co2_stream.set_tname("Year");
+		co2_stream.periodic = false;
+		co2_stream.centered_t = false;
+		co2_stream.open({co2File}, "years CE");
+	}
+	if (update_i_met){
+		i_met_stream.set_tname("Decimal_year");
+		i_met_stream.periodic = true;
+		i_met_stream.centered_t = false;
+		i_met_stream.open({i_metFile}, "years CE");
+	}
+	if (update_a_met){
+		a_met_stream.set_tname("Decimal_year");
+		a_met_stream.periodic = true;
+		a_met_stream.centered_t = false;
+		a_met_stream.open({a_metFile}, "years CE");
+	}
 }
-
 
 
 void ClimateStream::updateClimate(double julian_time, Climate& C){
@@ -47,9 +33,8 @@ void ClimateStream::updateClimate(double julian_time, Climate& C){
 		C.clim_acclim.co2 = as<double>(co2_stream.current_row[1]); // co2 is in index 1
 	}
 	if (update_i_met){
-	  i_met_stream.advance_to_time(julian_time);
+		i_met_stream.advance_to_time(julian_time);
 		// std::cout << i_met_stream.current_row << std::endl;
-		C.clim_inst.decimal_year = as<double>(i_met_stream.current_row[2]);
 		C.clim_inst.tc   = as<double>(i_met_stream.current_row[3]);
 		C.clim_inst.vpd  = as<double>(i_met_stream.current_row[4]) * 100; // convert hPa to Pa
 		C.clim_inst.ppfd = as<double>(i_met_stream.current_row[5]);      // ppfd
