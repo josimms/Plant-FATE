@@ -29,6 +29,7 @@ class Plant{
 		double dsize_dt;   ///< Growth rate
 		double dmort_dt;   ///< Mortality rate
 		double dseeds_dt;  ///< Fecundity rate 
+		double dnitrogen_dt;  ///< Nitrogen rate of change
 		double rgr;        ///< Relative growth rate (RGR)
 		// double dseeds_dt_pool;
 		// double dseeds_dt_germ;
@@ -106,7 +107,7 @@ class Plant{
 	/// @addtogroup libpspm_interface
 	/// @{
 	template <class Env>
-	double size_growth_rate(double _dmass_dt_growth, double& _dN_dt_growth, Env& env);
+	std::vector<double> size_growth_rate(double _dmass_dt_growth, Env& env);
 
 	template <class Env>
 	double mortality_rate(Env& env, double t);
@@ -115,7 +116,7 @@ class Plant{
 	double fecundity_rate(double _dmass_dt_rep, Env& env);
 
 	template <class Env>
-	void calc_demographic_rates(Env& env, double t, double& _dN_dt_growth);
+	void calc_demographic_rates(Env& env, double t);
 	/// @}
 
 	/// @brief  Probability of survival during germination (i.e. until recruitment stage)
