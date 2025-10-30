@@ -1,11 +1,10 @@
 blank <- function() {
-  library(dplyr)
+  library(tidyverse)
   library(lubridate)  # convenient for date operations
   library(ggplot2)
   library(zoo)
   library(data.table)
   library(rphydro)
-  library(tidyverse)
   library(Rprebasso)
   
   ###
@@ -20,54 +19,153 @@ blank <- function() {
   # Simulation!
   ###
   
+  # ------------------------------------------------------------
+  # Add a third simulation (lho_3) for set_soil_nitrogen(0.5)
+  # ------------------------------------------------------------
+  
   lho <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
   lho$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_co2File("")
-  # lho$set_soil_nitrogen(0.5)
+  lho$set_soil_nitrogen(1.1)
   lho$init()
   
+  lho_2 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
+  lho_2$set_i_metFile("tests/data/ERAS_Monthly.csv")
+  lho_2$set_a_metFile("tests/data/ERAS_Monthly.csv")
+  lho_2$set_co2File("")
+  lho_2$set_soil_nitrogen(0.9)
+  lho_2$init()
+  
+  lho_3 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
+  lho_3$set_i_metFile("tests/data/ERAS_Monthly.csv")
+  lho_3$set_a_metFile("tests/data/ERAS_Monthly.csv")
+  lho_3$set_co2File("")
+  lho_3$set_soil_nitrogen(0.7)
+  lho_3$init()
+  
   dt <- 1/12
-  
-  df <- data.frame(matrix(ncol = length(lho$get_header()), nrow = 0))
-  col_names <- lho$get_header()
-  
   start_year <- 1960
   end_year <- 2022
-
-  results <- vector("list", length(seq(start_year, end_year, dt)))
+  years_seq <- seq(start_year, end_year, dt)
+  
+  df <- df_2 <- df_3 <- data.frame(matrix(ncol = length(lho$get_header()), nrow = 0))
+  col_names <- lho$get_header()
+  
+  results  <- results_2 <- results_3 <- vector("list", length(years_seq))
   i <- 1
   
-  # end_year
-  for (t in seq(start_year, end_year, dt)) {
+  for (t in years_seq) {
+    # --- Simulation 1 (N = 0.9)
     results[[i]] <- tryCatch({
       lho$grow_for_dt(t, dt)
       state <- lho$get_state(t + dt)
-      df_row <- as.data.frame(t(state), stringsAsFactors = FALSE)
-      names(df_row) <- col_names   # force the names here
+      df_row <- as.data.frame(t(state))
+      names(df_row) <- col_names
       df_row
-    },
-    error = function(e) {
-      message("Error at t = ", t, ": ", conditionMessage(e))
-      na_row <- as.data.frame(as.list(rep(NA, length(col_names))), stringsAsFactors = FALSE)
-      names(na_row) <- col_names
-      na_row
+    }, error = function(e) {
+      message("Error at t=", t, " (lho): ", e$message)
+      setNames(as.data.frame(as.list(rep(NA, length(col_names)))), col_names)
     })
+    
+    # --- Simulation 2 (N = 0.7)
+    results_2[[i]] <- tryCatch({
+      lho_2$grow_for_dt(t, dt)
+      state_2 <- lho_2$get_state(t + dt)
+      df_row_2 <- as.data.frame(t(state_2))
+      names(df_row_2) <- col_names
+      df_row_2
+    }, error = function(e) {
+      message("Error at t=", t, " (lho_2): ", e$message)
+      setNames(as.data.frame(as.list(rep(NA, length(col_names)))), col_names)
+    })
+    
+    # --- Simulation 3 (N = 0.5)
+    results_3[[i]] <- tryCatch({
+      lho_3$grow_for_dt(t, dt)
+      state_3 <- lho_3$get_state(t + dt)
+      df_row_3 <- as.data.frame(t(state_3))
+      names(df_row_3) <- col_names
+      df_row_3
+    }, error = function(e) {
+      message("Error at t=", t, " (lho_3): ", e$message)
+      setNames(as.data.frame(as.list(rep(NA, length(col_names)))), col_names)
+    })
+    
     i <- i + 1
   }
   
-  df <- do.call(rbind, results)
-  names(df) <- col_names
+  # --- Combine to data frames
+  df   <- do.call(rbind, results)
+  df_2 <- do.call(rbind, results_2)
+  df_3 <- do.call(rbind, results_3)
+  names(df) <- names(df_2) <- names(df_3) <- col_names
   
-  df$date <- seq(
-    as.Date(paste0(start_year, "-01-01")),
-    as.Date(paste0(end_year, "-01-01")),
-    by = "month"
-  )[1:nrow(df)]
+  # --- Add date columns
+  dates <- seq(as.Date(paste0(start_year, "-01-01")),
+               as.Date(paste0(end_year, "-01-01")), by = "month")[1:nrow(df)]
   
-  par(mfrow = c(1, 2))
-  plot(df$assim_gross)
-  plot(df$diameter)
+  df$date   <- dates
+  df_2$date <- dates
+  df_3$date <- dates
+  
+  # ------------------------------------------------------------
+  # Plot results for N = 0.9 (red), 0.7 (purple), 0.5 (blue)
+  # ------------------------------------------------------------
+  
+  par(mfrow = c(2, 2))
+  
+  plot(df$date, df$assim_gross, col = "red", type = "l",
+       ylab = "Assimilation gross", xlab = "Date",
+       main = "Gross Assimilation")
+  lines(df_2$date, df_2$assim_gross, col = "purple")
+  lines(df_3$date, df_3$assim_gross, col = "blue")
+  legend("topleft",
+         legend = c("N=0.9", "N=0.7", "N=0.5"),
+         col = c("red", "purple", "blue"),
+         lty = 1, bty = "n", title = "Soil N")
+  
+  plot(df$date, df$diameter, col = "red", type = "l",
+       ylab = "Diameter (cm)", main = "Tree Diameter")
+  lines(df_2$date, df_2$diameter, col = "purple")
+  lines(df_3$date, df_3$diameter, col = "blue")
+  
+  plot(df$date, df$root_mass, col = "red", type = "l",
+       ylab = "Root Mass (kg C)", main = "Root Carbon Pool")
+  lines(df_2$date, df_2$root_mass, col = "purple")
+  lines(df_3$date, df_3$root_mass, col = "blue")
+  
+  plot(df$date, df$crown_area, col = "red", type = "l",
+       ylab = "Crown Area (m²)", main = "Crown Area")
+  lines(df_2$date, df_2$crown_area, col = "purple")
+  lines(df_3$date, df_3$crown_area, col = "blue")
+  
+  # ------------------------------------------------------------
+  # Nitrogen-related variables
+  # ------------------------------------------------------------
+  par(mfrow = c(2, 2))
+  
+  plot(df$date, df$tree_nitrogen, col = "red", type = "l",
+       ylim = range(df$tree_nitrogen, df_2$tree_nitrogen, df_3$tree_nitrogen, na.rm = TRUE),
+       main = "Tree Nitrogen", ylab = "N (g N/kg C)")
+  lines(df_2$date, df_2$tree_nitrogen, col = "purple")
+  lines(df_3$date, df_3$tree_nitrogen, col = "blue")
+  
+  plot(df$date, df$optimal_leaf_nitrogen, col = "red",
+       main = "Optimal Leaf N", ylab = "N concentration")
+  points(df_2$date, df_2$optimal_leaf_nitrogen, col = "purple")
+  points(df_3$date, df_3$optimal_leaf_nitrogen, col = "blue")
+  
+  plot(df$date, df$nitrogen_uptake, col = "red", type = "l",
+       ylim = range(df$nitrogen_uptake, df_2$nitrogen_uptake, df_3$nitrogen_uptake, na.rm = TRUE),
+       main = "Nitrogen Uptake", ylab = "N uptake rate")
+  lines(df_2$date, df_2$nitrogen_uptake, col = "purple")
+  lines(df_3$date, df_3$nitrogen_uptake, col = "blue")
+  
+  plot(df$date, df$crown_area, col = "red", type = "l",
+       main = "Crown Area (again for ref)", ylab = "m²")
+  lines(df_2$date, df_2$crown_area, col = "purple")
+  lines(df_3$date, df_3$crown_area, col = "blue")
   
   ###
   # Validation data
@@ -121,11 +219,16 @@ blank <- function() {
   setorder(F_H2O_leaf_out, Monthly)
   setorder(ET_out, Monthly)
   
-  GPP_out$GPP_mean = GPP_out$GPP_mean * 12 * 1e-9 * 30.44 * 24 * 60 * 60 * 10000/1000
-  NEE_out$NEE_mean = NEE_out$NEE_mean * 12 * 1e-9 * 30.44 * 24 * 60 * 60 * 10000/1000
-  F_CO2_leaf_out$F_CO2_leaf_mean = F_CO2_leaf_out$F_CO2_leaf_mean * 12 * 1e-9 * 30.44 * 24 * 60 * 60 * 10000/1000
-  F_H2O_leaf_out$F_H2O_leaf_mean = F_H2O_leaf_out$F_H2O_leaf_mean * 18 * 1e-6 * 30.44 * 24 * 60 * 60 * 10000/1000
-  ET_out$ET_mean = ET_out$ET_mean * 18 * 1e-6 * 30.44 * 24 * 60 * 60 * 10000/1000
+  GPP_out$GPP_mean = GPP_out$GPP_mean
+  GPP_out$GPP_mean_kg = GPP_out$GPP_mean * 12 * 1e-9 * 30.44 * 24 * 60 * 60 * 10000/1000
+  NEE_out$NEE_mean = NEE_out$NEE_mean
+  NEE_out$NEE_mean_kg = NEE_out$NEE_mean * 12 * 1e-9 * 30.44 * 24 * 60 * 60 * 10000/1000
+  F_CO2_leaf_out$F_CO2_leaf_mean = F_CO2_leaf_out$F_CO2_leaf_mean
+  F_CO2_leaf_out$F_CO2_leaf_mean_kg = F_CO2_leaf_out$F_CO2_leaf_mean * 12 * 1e-9 * 30.44 * 24 * 60 * 60 * 10000/1000
+  F_H2O_leaf_out$F_H2O_leaf_mean = F_H2O_leaf_out$F_H2O_leaf_mean
+  F_H2O_leaf_out$F_H2O_leaf_mean_kg = F_H2O_leaf_out$F_H2O_leaf_mean * 18 * 1e-6 * 30.44 * 24 * 60 * 60 * 10000/1000
+  ET_out$ET_mean = ET_out$ET_mean
+  ET_out$ET_mean_kg = ET_out$ET_mean * 18 * 1e-6 * 30.44 * 24 * 60 * 60 * 10000/1000
   
   GPP_out$NEE <- NEE_out$NEE_mean
   GPP_out <- merge(GPP_out, F_CO2_leaf_out[, c("Monthly", "F_CO2_leaf_mean")], 
@@ -437,11 +540,16 @@ blank <- function() {
     Version = "0.5"
   )
   
-  # Combine both data frames
-  df_combined <- bind_rows(df1, df2, df3)
-  df_combined$a_scaled <- df_combined$a * 12 * 1e-9 * 20 * 60 * 60 * 24 * 30.44
+  # Assuming GPP_out is a data frame or list with numeric vectors
+  # GPP_out$GPP_mean and GPP_out$GPP_mean_kg should have same length as df1$Month
+  # Add Month column if needed:
+  GPP_out_df <- data.frame(
+    Month = 1:length(GPP_out$GPP_mean),
+    GPP_mean = GPP_out$GPP_mean,
+    GPP_mean_kg = GPP_out$GPP_mean_kg
+  )
   
-  # Convert to long format for facet plotting
+  # Create combined long-format model data as before
   df_long <- df_combined %>%
     pivot_longer(
       cols = c(a, jmax, vcmax, a_scaled, dpsi, n_leaf),
@@ -449,32 +557,58 @@ blank <- function() {
       values_to = "Value"
     )
   
-  # Create a named vector for facet labels
+  # Add facet labels
   facet_labels <- c(
     a = "a (µmol m⁻² s⁻¹)",
     a_scaled = "a (kg C month⁻¹)",
     jmax = "Jmax (µmol m⁻² s⁻¹)",
     vcmax = "Vcmax (µmol m⁻² s⁻¹)",
     dpsi = "Δψ (MPa)",
-    n_leaf = "Leaf N (g g-1)"
+    n_leaf = "Leaf N (g g⁻¹)"
   )
   
+  # ---- ADD VALIDATION DATA ----
+  # Convert validation data to long format matching the same "Variable" naming
+  GPP_long <- GPP_out_df %>%
+    pivot_longer(
+      cols = c(GPP_mean, GPP_mean_kg),
+      names_to = "Variable",
+      values_to = "Value"
+    ) %>%
+    mutate(
+      Variable = recode(Variable,
+                        GPP_mean = "a",
+                        GPP_mean_kg = "a_scaled")
+    )
+  
+  # ---- PLOT ----
   ggplot(df_long,
          aes(x = Month, y = Value, color = Version, group = Version)) +
     geom_line() +
     geom_point() +
+    # Overlay validation points in black
+    geom_point(data = GPP_long,
+               aes(x = Month, y = Value),
+               color = "black",
+               size = 2,
+               shape = 16,
+               inherit.aes = FALSE) +
     facet_wrap(~ Variable, scales = "free_y", ncol = 2,
                labeller = as_labeller(facet_labels)) +
     labs(
-      title = "Comparison of Model Outputs: Infrastructure",
+      title = "Comparison of Model Outputs vs Validation GPP",
       x = "Iteration (Month)",
       y = "Value",
-      color = "Infrastructure"
+      color = "Infrastructure",
+      subtitle = "Black dots = validation GPP data"
     ) +
-    theme_minimal()
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
   
   ### Respiration
   
+  par(mfrow = c(2, 2))
   plot(df$date, df$rl, main = "Leaf respiration", xlab = "Date", ylab = "kg/month")
   
   ylim = range(df$rr, 30.44 * 4/1000, na.rm = T)
@@ -520,7 +654,8 @@ blank <- function() {
   
   ylim = range(df$crown_area, na.rm = T)
   plot(df$date, df$crown_area, main = "Crown Area", xlab = "Date", ylab = "m² ?", ylim = ylim)
-  abline(h = 20, col = "blue") # NOTE: this is just a reference value to get the scale approx right
+  values = df$diameter > 0.1 & df$diameter < 0.12 & !is.na(df$diameter)
+  points(df$crown_area[values], rep(20, sum(values)), col = "blue", pch = "x") # NOTE: this is just a reference value to get the scale approx right
   
   ylim = range(loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "LAI_pine_ICOS"], df$lai, na.rm = T)
   plot(df$date, df$lai, main = "Leaf Area Index", xlab = "Date", ylab = "?", ylim = ylim)
@@ -662,7 +797,7 @@ Getting_assimilation_to_the_right_levels <- function() {
   lho$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_co2File("")
-  lho$set_soil_nitrogen(0.5)
+  lho$set_soil_nitrogen(0.9)
   lho$init()
   
   dt <- 1/12
@@ -674,10 +809,10 @@ Getting_assimilation_to_the_right_levels <- function() {
   end_year <- 1970
   
   # Parameter grids
-  kphio_values <- seq(0.01, 0.03, length = 5)   # smaller grid for illustration
-  alpha_values <- c(0.08, 0.1, 0.12)
-  gamma_values <- c(0.15, 0.18, 0.2)
-  a_jmax_values <- c(60, 80, 100)
+  kphio_values <- seq(0.0001, 0.01, length = 5)   # smaller grid for illustration
+  alpha_values <- seq(0.0001, 0.01, length = 5)
+  gamma_values <- seq(0.0001, 0.01, length = 5)
+  a_jmax_values <- seq(50, 110, length = 5)
   
   time_seq <- seq(start_year, end_year, dt)
   
@@ -775,7 +910,40 @@ Getting_assimilation_to_the_right_levels <- function() {
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
   
+  ####
   
+  # Aggregate by date and parameter combination
+  df_daily <- df_long %>%
+    group_by(date, kphio, alpha, gamma, a_jmax, variable) %>%
+    summarise(
+      value = if(all(is.na(value))) NA else max(value, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  # Filter only the variable of interest
+  df_agg <- df_daily %>%
+    filter(variable == "assim_gross") %>%
+    mutate(
+      kphio_f = factor(kphio),
+      alpha_f = factor(alpha),
+      gamma_f = factor(gamma),
+      a_jmax_f = factor(a_jmax)
+    )
+  
+  # Plot
+  ggplot(df_agg, aes(x = date, y = value, color = kphio_f, linetype = alpha_f)) +
+    geom_line() +
+    facet_grid(gamma_f ~ a_jmax_f) +
+    labs(
+      title = "Assim Gross over Time for Different Parameters",
+      x = "Date",
+      y = "assim_gross",
+      color = "kphio",
+      linetype = "alpha",
+      subtitle = "Facets: rows = gamma, columns = a_jmax"
+    ) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
   
 }
 
