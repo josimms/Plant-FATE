@@ -17,13 +17,7 @@ inline void print_phydro(const phydro::PHydroResultNitrogen& res, std::string s)
 // **
 template<class _Climate>
 phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G){
-  double infrastructure = G->potential_nitrogen_leaf;
-  infrastructure = 1.0;
-  // if (infrastructure < 0.5) {
-  //   infrastructure = 0.5;
-  // } else if (infrastructure > 1.5) {
-  //   infrastructure = 1.5;
-  // }
+  double infrastructure = 1;
   
   phydro::ParCostNitrogen par_cost(par.alpha, par.gamma, infrastructure);
 	phydro::ParPlant par_plant(traits.K_leaf, traits.p50_leaf, traits.b_leaf);
@@ -32,21 +26,16 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 	par_control.gs_method = phydro::GS_APX;
 	par_control.et_method = phydro::ET_DIFFUSION;
 	
-	double day_of_year = decimal_year_to_day_of_year(C.clim_inst.decimal_year);
+	// double day_of_year = decimal_year_to_day_of_year(C.clim_inst.decimal_year);
 
   // TODO: make the latitude a parameter rather than a fixed value and sort out the days of year
-	double f_day_length = day_length_fraction(60.0, day_of_year);
+	double f_day_length = 0.5; // day_length_fraction(60.0, day_of_year);
 	
 	double Iabs_acclim = fipar * C.clim_acclim.ppfd;
 	double Iabs_day    = fipar * C.clim_inst.ppfd / f_day_length;
 	double Iabs_24hr   = fipar * C.clim_inst.ppfd;
 	
-	double leaf_nitrogen = G->potential_nitrogen_leaf;
-	// std::cout << " leaf_nitrogen " << leaf_nitrogen << "\n";
-	if (leaf_nitrogen <= 1.0) {
-	  leaf_nitrogen = 1.0;
-	  std::cout << "Leaf nitrogen was 1 or less!"; // TODO: make into a proper warning
-	}
+	double leaf_nitrogen = 1000 * G->potential_nitrogen_leaf; // kg from PlantFATE to g in Phydro
 
 	auto out_phydro_acclim = phydro::phydro_nitrogen(
 		C.clim_acclim.tc,     // current temperature
@@ -56,7 +45,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 		C.clim_acclim.vpd,    // vpd [kPa]
 		C.clim_acclim.co2,	  // co2 [ppm]
 		C.clim_acclim.pa,     // surface pressure [Pa]
-		G->potential_nitrogen_leaf,  // nitorgen in leaf [g g-1 dry leaf mass]
+		leaf_nitrogen,        // nitorgen in leaf [g g-1 dry leaf mass]
 		fapar,                // fraction of absorbed PAR
 		par.kphio,            // phi0 - quantum yield
 		C.clim_acclim.swp,    // soil water potential [MPa]
