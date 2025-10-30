@@ -261,6 +261,10 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 		P.calc_demographic_rates(C, t);
 		
 		P.geometry.nitrogen_tree -= (P.rates.dnitrogen_dt - P.traits.k_14 * (P.res.tleaf * P.traits.nc_leaf + P.res.troot * P.traits.nc_root));
+		if (P.geometry.nitrogen_tree < 0.0) {
+		  P.geometry.nitrogen_tree = 0.0;
+		  std::cout << " Nitrogen in the tree was negative, made into 0.";
+		}
 
 		// Override Plant-FATE fecundity calculations 
 		// We need to explicitly include plant mortality here for fitness calcs
