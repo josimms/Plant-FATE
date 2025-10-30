@@ -62,7 +62,7 @@ double Assimilator::leaf_turnover_rate(double _kappa_l, PlantArchitecture* G, Pl
 }
 
 double Assimilator::root_turnover_rate(double _kappa_r, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits){
-  return G->root_mass(traits) * _kappa_r; // / par.lr;
+  return G->root_mass(traits)/G->root_lifespan(traits); // / par.lr;
 }
 
 //double Assimilator::root_turnover_rate(PlantArchitecture* G, const PlantTraits& traits){
