@@ -61,14 +61,14 @@ double Assimilator::leaf_turnover_rate(double _kappa_l, PlantArchitecture* G, Pl
 	return G->leaf_mass(traits) * _kappa_l; // / traits.ll;	
 }
 
-double Assimilator::root_turnover_rate(double _kappa_r, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits){
-  return G->root_mass(traits)/G->root_lifespan(traits); // / par.lr;
-}
-
-//double Assimilator::root_turnover_rate(PlantArchitecture* G, const PlantTraits& traits){
-  // TODO: Does root mass include the zeta / z term?
-//  return  G->root_mass(traits) / G->root_lifespan(traits);
+//double Assimilator::root_turnover_rate(double _kappa_r, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits){
+//  return G->root_mass(traits)/G->root_lifespan(traits); // / par.lr;
 //}
+
+double Assimilator::root_turnover_rate(PlantArchitecture* G, const PlantTraits& traits){
+  // TODO: Does root mass include the zeta / z term?
+  return  G->root_mass(traits) / G->root_lifespan(traits) * 365.25;
+}
 
 double Assimilator::day_length_fraction(double lat_deg, double day_of_year) {
   const double pi = M_PI;  // from <cmath>
