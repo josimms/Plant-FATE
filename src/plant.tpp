@@ -6,10 +6,10 @@ namespace plant{
 // LAI model
 // These equations do not assume any time unit
 template<class Env>
-double Plant::lai_model(PlantAssimilationResult& res, double _dmass_dt_tot, Env& env){
+double Plant::lai_model(PlantAssimilationResult& res, double _dmass_dt_tot, Env& env, double t){
 	double lai_curr = geometry.lai;
 	geometry.set_lai(lai_curr + par.dl);
-	auto res_plus = assimilator.net_production(env, &geometry, par, traits);
+	auto res_plus = assimilator.net_production(env, &geometry, par, traits, t); // TODO; make better when working with plantfate
 	geometry.set_lai(lai_curr);
 
 	double dnpp_dL = (res_plus.npp - res.npp) / geometry.crown_area / par.dl;
@@ -34,8 +34,8 @@ double Plant::lai_model(PlantAssimilationResult& res, double _dmass_dt_tot, Env&
 // seed and sapling survival 
 // adjusted for time unit
 template<class Env>
-double Plant::p_survival_germination(Env& env){
-	auto res = assimilator.net_production(env, &geometry, par, traits); // FIXME: Does this need to be recalculated?
+double Plant::p_survival_germination(Env& env, double t){
+	auto res = assimilator.net_production(env, &geometry, par, traits, t); // FIXME: Does this need to be recalculated?
 
 	double npp_annual_avg = res.npp / par.years_per_tunit_avg; // convert NPP from kg unit_t-1 --> kg yr-1, then calculate per m2 crown
 	double P = std::max(npp_annual_avg, 0.0) / geometry.crown_area;
@@ -157,7 +157,7 @@ double Plant::fecundity_rate(double _dmass_dt_rep, Env& env){
 template<class Env>
 void Plant::calc_demographic_rates(Env& env, double t){
 
-	res = assimilator.net_production(env, &geometry, par, traits);
+	res = assimilator.net_production(env, &geometry, par, traits, t);
 	
 	// Take a percentage of the total npp and allocate this to mycorrhiza
 	double res_all = std::max(res.npp, 0.0);
@@ -171,7 +171,7 @@ void Plant::calc_demographic_rates(Env& env, double t){
 	if (std::isnan(bp.dmass_dt_tot)) throw std::runtime_error("biomass production is nan");
 
 	// set rates.dlai_dt and bp.dmass_dt_lai
-	rates.dlai_dt = lai_model(res, bp.dmass_dt_tot, env);   // also sets rates.dmass_dt_lai
+	rates.dlai_dt = lai_model(res, bp.dmass_dt_tot, env, t);   // also sets rates.dmass_dt_lai
 
 	// set all of bp.dmass_dt_xxx
 	partition_biomass(bp.dmass_dt_tot, bp.dmass_dt_lai, env);
