@@ -61,21 +61,23 @@ double Assimilator::leaf_turnover_rate(double _kappa_l, PlantArchitecture* G, Pl
 	return G->leaf_mass(traits) * _kappa_l; // / traits.ll;	
 }
 
-//double Assimilator::root_turnover_rate(double _kappa_r, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits){
-//  return G->root_mass(traits)/G->root_lifespan(traits); // / par.lr;
-//}
-
-double Assimilator::root_turnover_rate(PlantArchitecture* G, const PlantTraits& traits){
-  // TODO: Does root mass include the zeta / z term?
-  return  G->root_mass(traits) / G->root_lifespan(traits) * 365.25;
+double Assimilator::root_turnover_rate(PlantArchitecture* G, PlantParameters& par, PlantTraits& traits){
+  double out = G->root_mass(traits)/(G->root_lifespan(traits) * par.days_per_tunit);
+  return out; // / par.lr;
 }
 
-double Assimilator::day_length_fraction(double lat_deg, double day_of_year) {
+//double Assimilator::root_turnover_rate(PlantArchitecture* G, const PlantTraits& traits){
+  // The sec_per_unit_t multiplied by biomass per day / yearly root lifespan
+//  double out = G->root_mass(traits) / G->root_lifespan(traits);
+//  return out * par.t;
+//}
+
+double Assimilator::day_length_fraction(double lat_deg, double t) {
   const double pi = M_PI;  // from <cmath>
   double lat = lat_deg * pi / 180.0;
   double z0 = 90.833 * pi / 180.0; // Zenith angle (sunrise/sunset)
   
-  int N = day_of_year;
+  int N = decimal_year_to_day_of_year(t);
   
   // Solar declination (radians)
   double delta = -asin(0.39779 * cos(0.98565 * pi / 180.0 * (N + 10) +

@@ -16,20 +16,19 @@ inline void print_phydro(const phydro::PHydroResultNitrogen& res, std::string s)
 // ** Gross and Net Assimilation 
 // **
 template<class _Climate>
-phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G){
+phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G, double t){
   double infrastructure = 1;
   
   phydro::ParCostNitrogen par_cost(par.alpha, par.gamma, infrastructure);
 	phydro::ParPlant par_plant(traits.K_leaf, traits.p50_leaf, traits.b_leaf);
 	phydro::ParControl par_control;
-
+	
 	par_control.gs_method = phydro::GS_APX;
 	par_control.et_method = phydro::ET_DIFFUSION;
-	
-	// double day_of_year = decimal_year_to_day_of_year(C.clim_inst.decimal_year);
 
-  // TODO: make the latitude a parameter rather than a fixed value and sort out the days of year
-	double f_day_length = 0.5; // day_length_fraction(60.0, day_of_year);
+  // TODO: make the latitude a parameter rather than a fixed value
+  double latitude = 60.0;
+	double f_day_length = day_length_fraction(latitude, t);
 	
 	double Iabs_acclim = fipar * C.clim_acclim.ppfd;
 	double Iabs_day    = fipar * C.clim_inst.ppfd / f_day_length;
@@ -58,7 +57,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 	);
 
 	// print_phydro(out_phydro_acclim, "acclim");
-
+	
 	// // ~~~~~
 	// // Note: Inst calcs were being done in a hacky way before the instantaneous model was ready, as follows. 
 	// // This was completely wrong!
@@ -117,7 +116,6 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 	photo_leaf.gs       *= f_day_length;
 	// print_phydro(photo_leaf, "inst real 12 hr");
 
-
 	// auto photo_leaf2 = phydro::phydro_instantaneous_analytical(
 	// 	out_phydro_acclim.vcmax25, // acclimated vcmax25
 	// 	out_phydro_acclim.jmax25,  // acclimated jmax25
@@ -146,7 +144,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 
 
 template<class Env>
-void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits){
+void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits, double t){
 	//double GPP_plant = 0, Rl_plant = 0, dpsi_avg = 0;
 	double fapar = 1 - exp(-par.k_light * G->lai);
 	bool by_layer = false;
@@ -170,7 +168,7 @@ void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, 
 		//std::cout << "h = " << G->height << ", z* = " << zst << ", I = " << env.canopy_openness[ilayer] << ", fapar = " << fapar << /*", A = " << (res.a + res.vcmax*par.rd) << " umol/m2/s x " <<*/ ", ca_layer = " << ca_layer << /*" m2 = " << (res.a + res.vcmax*par.rd) * ca_layer << ", vcmax = " << res.vcmax <<*/ "\n"; 
 
 		if (by_layer == true){
-			auto res = leaf_assimilation_rate(env.canopy_openness[ilayer], fapar, env, par, traits, G);
+			auto res = leaf_assimilation_rate(env.canopy_openness[ilayer], fapar, env, par, traits, G, t);
 			plant_assim.gpp        += (res.a + res.vcmax * par.rd) * ca_layer;
 			plant_assim.rleaf      += (res.vcmax * par.rd) * ca_layer;
 			plant_assim.trans      += res.e * ca_layer;
@@ -201,7 +199,7 @@ void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, 
 	}
 
 	if (by_layer == false){
-		auto res = leaf_assimilation_rate(plant_assim.c_open_avg, fapar, env, par, traits, G);
+		auto res = leaf_assimilation_rate(plant_assim.c_open_avg, fapar, env, par, traits, G, t);
 		plant_assim.gpp        = (res.a + res.vcmax * par.rd) * ca_total;
 		plant_assim.rleaf      = (res.vcmax * par.rd) * ca_total;
 		plant_assim.trans      = res.e * ca_total;
@@ -218,7 +216,7 @@ void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, 
 
 	// Convert units from per sec to per unit_t (unit_t is the unit in which time is counted, e.g. yr, day)
 	double sec_per_unit_t = 86400 * par.days_per_tunit; // s-1 ---> unit_t-1
-
+	
 	plant_assim.gpp   *= (sec_per_unit_t * 1e-6 * par.cbio);        // umol co2/s ----> umol co2/unit_t --> mol co2/unit_t --> kg/unit_t 
 	plant_assim.rleaf *= (sec_per_unit_t * 1e-6 * par.cbio);        // umol co2/s ----> umol co2/unit_t --> mol co2/unit_t --> kg/unit_t 
 	plant_assim.trans *= (sec_per_unit_t * 18e-3);                  // mol h2o/s  ----> mol h2o/unit_t  --> kg h2o/unit_t
@@ -228,11 +226,11 @@ void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, 
 
 
 template<class Env>
-PlantAssimilationResult Assimilator::net_production(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits){
+PlantAssimilationResult Assimilator::net_production(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits, double t){
 	plant_assim = PlantAssimilationResult(); // reset plant_assim
 
   // calc_plant_assimilation_rate
-	calc_plant_assimilation_rate(env, G, par, traits);
+	calc_plant_assimilation_rate(env, G, par, traits, t);
 	les_update_lifespans(G->lai, par, traits);
 
 	plant_assim.rleaf = leaf_respiration_rate(G, par, traits);      // kg unit_t-1  
@@ -240,8 +238,8 @@ PlantAssimilationResult Assimilator::net_production(Env& env, PlantArchitecture*
 	plant_assim.rstem = sapwood_respiration_rate(G, par, traits);   // kg unit_t-1
 
 	plant_assim.tleaf = leaf_turnover_rate(kappa_l, G, par, traits);     // kg unit_t-1
-	plant_assim.troot = root_turnover_rate(kappa_r, G, par, traits);     // kg unit_t-1
-	// plant_assim.troot = root_turnover_rate(G, traits);                   // kg unit_t-1
+	// plant_assim.troot = root_turnover_rate(kappa_r, G, par, traits);     // kg unit_t-1
+	plant_assim.troot = root_turnover_rate(G, par, traits);              // kg unit_t-1
 
 	double A = plant_assim.gpp;
 	double R = plant_assim.rleaf + plant_assim.rstem + plant_assim.rroot;
