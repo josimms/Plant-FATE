@@ -87,7 +87,8 @@ void LifeHistoryOptimizer::init(){
 	P.geometry.set_nitrogen(P.par.nitrogen_start0, P.par.nitrogen_uptake0, P.par.ectomycorrhizal_mass0, P.traits);
 	// set_nitrogen after set_size as crown area is defined in set_size
 	
-	P.state.mortality = -log(P.p_survival_dispersal(C) * P.p_survival_germination(C)); // p{fresh seed is still alive after germination} = p{it survives dispersal}*p{it survives germination}
+	// TODO: temperarily set the day of the year to midyear in case
+	P.state.mortality = -log(P.p_survival_dispersal(C) * P.p_survival_germination(C, 182)); // p{fresh seed is still alive after germination} = p{it survives dispersal}*p{it survives germination}
 
 	// double total_prod = P.get_biomass();
 	// cout << "Starting biomass = " << total_prod << "\n";
@@ -175,6 +176,7 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
 		, P.geometry.coarse_root_mass(P.traits)
 		, P.get_biomass()
     , P.geometry.nitrogen_tree
+    , P.geometry.nitrogen_in_biomass
     , P.geometry.potential_nitrogen_leaf
     , P.assimilator.plant_assim.nitrogen_avg
 		, rep
@@ -251,6 +253,7 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 	auto derivs = [this](double t, std::vector<double>& S, std::vector<double>& dSdt){
 		//if (fabs(t - 2050) < 1e-5) 
 		update_climate(ts.to_julian(t));
+	  
 		// C.Climate::print(t);
 		set_state(S.begin());
 		
@@ -261,6 +264,7 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 		P.calc_demographic_rates(C, t);
 		
 		P.geometry.nitrogen_tree -= (P.rates.dnitrogen_dt - P.traits.k_14 * (P.res.tleaf * P.traits.nc_leaf + P.res.troot * P.traits.nc_root));
+		P.geometry.nitrogen_in_biomass += P.rates.dnitrogen_dt;
 		if (P.geometry.nitrogen_tree < 0.0) {
 		  P.geometry.nitrogen_tree = 0.0;
 		  std::cout << " Nitrogen in the tree was negative, made into 0.";

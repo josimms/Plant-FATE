@@ -208,6 +208,14 @@ double PlantArchitecture::total_mass(const PlantTraits& traits) const{
 	return stem_mass(traits) * (1 + traits.fcr) + leaf_mass(traits) + fine_root_mass;
 }
 
+double PlantArchitecture::total_mass_nitrogen(const PlantTraits& traits) const{
+  // kg
+  
+  double fine_root_mass = root_mass(traits) * traits.nc_root;
+  
+  return stem_mass(traits) * (1 + traits.fcr) * traits.nc_wood + leaf_mass(traits) * traits.nc_leaf + fine_root_mass;
+}
+
 // **
 // ** state manipulations
 // **	
@@ -232,6 +240,7 @@ void PlantArchitecture::set_nitrogen(double _nt, double _nu, double _em, PlantTr
   nitrogen_tree = _nt;
   nitrogen_uptake = _nu;
   potential_nitrogen_leaf = nitrogen_leaf(nitrogen_tree, traits);
+  nitrogen_in_biomass = total_mass_nitrogen(traits);
   ectomycorrhiza_mass = _em;
 }
 
