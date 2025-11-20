@@ -59,7 +59,8 @@ void PSPM_Plant::afterStep(double t, void* _env){
 // Probability that a fresh seed survives to become a seedling
 double PSPM_Plant::establishmentProbability(double t, void* _env){
 	EnvUsed* env = static_cast<EnvUsed*>(_env);
-	return p_survival_dispersal(env) * p_survival_germination(*env);
+  // TODO: 182 chosen as middle of the year
+	return p_survival_dispersal(env) * p_survival_germination(*env, t);
 }
 
 
