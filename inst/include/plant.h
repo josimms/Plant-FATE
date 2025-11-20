@@ -95,7 +95,7 @@ class Plant{
 
 	/// @brief LAI model
 	template <class Env>
-	double lai_model(PlantAssimilationResult& res, double _dmass_dt_tot, Env& env);
+	double lai_model(PlantAssimilationResult& res, double _dmass_dt_tot, Env& env, double t);
 
 	/// @brief  Partition total biomass dm_dt_tot into various carbon pools
 	/// @param dm_dt_tot  Total biomass to partition
@@ -121,7 +121,7 @@ class Plant{
 
 	/// @brief  Probability of survival during germination (i.e. until recruitment stage)
 	template <class Env>
-	double p_survival_germination(Env& env);
+	double p_survival_germination(Env& env, double t);
 
 	/// @brief  Probability of survival during dispersal
 	template <class Env>

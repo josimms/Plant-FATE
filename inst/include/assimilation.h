@@ -53,17 +53,17 @@ class Assimilator{
 	/// @param traits  plant traits
 	/// @return        leaf assimilatio rate and a bunch of other leaf-level things
 	template<class _Climate>
-	phydro::PHydroResultNitrogen leaf_assimilation_rate(double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G);
+	phydro::PHydroResultNitrogen leaf_assimilation_rate(double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G, double t);
 
 
 	/// @brief  Calculate whole-plant gross assimilation, transpiration, gs, etc. 
 	template<class Env>
-	void  calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
+	void  calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits, double t);
 
 
 	/// @brief  Calculate whole-plant net assimilation 
 	template<class Env>
-	PlantAssimilationResult net_production(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
+	PlantAssimilationResult net_production(Env& env, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits, double t);
 
 
 	/// @brief Leaf economics - calculate optimal leaf lifespan 
@@ -90,13 +90,12 @@ class Assimilator{
 	/// @brief Calculate leaf and fine-root turnover rates 
 	/// @{
 	double leaf_turnover_rate(double _kappa_l, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
-	double root_turnover_rate(double _kappa_r, PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
-	// double root_turnover_rate(PlantArchitecture* G, const PlantTraits& traits);
+	double root_turnover_rate(PlantArchitecture* G, PlantParameters& par, PlantTraits& traits);
 	/// @}
 	
 	/// @brief Calculate the day length
   /// @{
-  double day_length_fraction(double lat_deg, double day_of_year);
+  double day_length_fraction(double lat_deg, double t);
   bool is_leap_year(int year);
   int decimal_year_to_day_of_year(double dec_year);
   /// @}
