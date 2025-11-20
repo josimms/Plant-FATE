@@ -122,6 +122,7 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
 		, "coarse_root_mass"
 		, "total_mass"
     , "tree_nitrogen"
+    , "nitrogen_in_biomass"
     , "potential_leaf_nitrogen"
     , "optimal_leaf_nitrogen"
 		, "total_rep"
