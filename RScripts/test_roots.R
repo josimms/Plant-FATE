@@ -126,7 +126,7 @@ blank <- function() {
   
   dt <- 1/12
   start_year <- 1960
-  end_year <- 2022
+  end_year <- 2022+60
   years_seq <- seq(start_year, end_year, dt)
   
   df <- df_2 <- df_3 <- data.frame(matrix(ncol = length(lho$get_header()), nrow = 0))
@@ -322,38 +322,38 @@ blank <- function() {
   # ----------------------------
   # 2. Nitrogen Variables
   # ----------------------------
+  date_point <- as.Date("2007-06-21")
+  
   par(mfrow = c(2, 2))
   plot(df$date, df$tree_nitrogen, type = "l", col = cols[1],
-       ylab = "Tree N (g N/kg C)", main = "Tree Nitrogen",
-       ylim = range(df$tree_nitrogen, df_2$tree_nitrogen, df_3$tree_nitrogen, 39, na.rm = TRUE))
+       ylab = "kg N", main = "Free Tree Nitrogen", xlab = "Date",
+       ylim = range(df$tree_nitrogen, df_2$tree_nitrogen, df_3$tree_nitrogen, na.rm = TRUE))
   title(sub = "This is \"free\" nitrogen not used nitrogen")
   lines(df_2$date, df_2$tree_nitrogen, col = cols[2])
   lines(df_3$date, df_3$tree_nitrogen, col = cols[3])
   legend("topleft", legend = c(N_labels), col = c(cols), lty = 1, bty = "n")
   
   plot(df$date, df$optimal_leaf_nitrogen, type = "p", col = cols[1], pch = ".",
-       ylab = "Leaf N (g g⁻¹)", main = "Optimal Leaf N",
+       ylab = "Leaf N Dynamics (g g⁻¹)", main = "Optimal Leaf N", xlab = "Date",
        ylim = range(df$optimal_leaf_nitrogen, df$potential_leaf_nitrogen, df_2$optimal_leaf_nitrogen, df_3$optimal_leaf_nitrogen, na.rm = TRUE))
   points(df_2$date, df_2$optimal_leaf_nitrogen, col = cols[2], pch = ".")
   points(df_3$date, df_3$optimal_leaf_nitrogen, col = cols[3], pch = ".")
-  points(df$date, df$potential_leaf_nitrogen, col = cols[1], pch = "x")
-  points(df_2$date, df_2$potential_leaf_nitrogen, col = cols[2], pch = "x")
-  points(df_3$date, df_3$potential_leaf_nitrogen, col = cols[3], pch = "x")
-  lines(v = 11, col = "blue")
-  legend("topleft", legend = c(N_labels, "Potential Leaf N"), col = c(cols, "black"), pch = c(NA,NA,NA,"x", "."), bty = "n")
-  
+  points(df$date, df$potential_leaf_nitrogen, col = cols[1], pch = "-")
+  points(df_2$date, df_2$potential_leaf_nitrogen, col = cols[2], pch = "-")
+  points(df_3$date, df_3$potential_leaf_nitrogen, col = cols[3], pch = "-")
+  abline(h = 12/1000, col = "blue", lty = 1)
+  legend("topright", legend = c("Potential", "Optimal"), col = "black", pch = c("-", "."), bty = "n", title = "Leaf Nitrogen")
+  title(sub = "Korhonen 2012: Socts Pine Needle N", col.sub = "blue")
   
   # Lower and upper values in g per tree per year
   low  <- 12 / 1010      # kg tree-1 year-1
   high <- 23.8 /2000    # kg tree-1 year-1
   # Plot your lines
   plot(df$date, df$nitrogen_uptake, type = "l", col = cols[1],
-       ylab = "N uptake (g N per biomass)", main = "Nitrogen Uptake",
+       ylab = "kg N per kg biomass", main = "Nitrogen Uptake", xlab = "Date",
        ylim = range(df$nitrogen_uptake, df_2$nitrogen_uptake, df_3$nitrogen_uptake, high, low, na.rm = TRUE))
   lines(df_2$date, df_2$nitrogen_uptake, col = cols[2])
   lines(df_3$date, df_3$nitrogen_uptake, col = cols[3])
-  # Add two points showing the range
-  date_point <- as.Date("2007-06-21")
   points(date_point, low,  pch = "x", col = "blue")
   points(date_point, high, pch = "x", col = "blue")
   # Optional: draw a vertical line between them to show the full range
@@ -366,13 +366,20 @@ blank <- function() {
     lty = c(rep(1, length(N_labels) + 1), 1),     # keep a line for consistency
     bty = "n"
   )
+  title(sub = "Korhonen 2012: kg tree-1 year-1", col.sub = "blue")
 
-  # TODO: make an output for this!
-  plot(df$date, df$leaf_mass, type = "l", col = cols[1],
-       ylab = "Nitorgen In Biomass", main = "Crown Area Reference",
-       ylim = range(df$crown_area, df_2$crown_area, df_3$crown_area, na.rm = TRUE))
-  lines(df_2$date, df_2$crown_area, col = cols[2])
-  lines(df_3$date, df_3$crown_area, col = cols[3])
+  low  <- 210 / 1010    # kg tree-1
+  high <- 210 / 2000    # kg tree-1
+  plot(df$date, df$nitrogen_in_biomass, type = "l", col = cols[1],
+       ylab = "kg", main = "Nitorgen In Biomass", xlab = "Date",
+       ylim = range(df$nitrogen_in_biomass, df_2$nitrogen_in_biomass, df_3$nitrogen_in_biomass, na.rm = TRUE))
+  lines(df_2$date, df_2$nitrogen_in_biomass, col = cols[2])
+  lines(df_3$date, df_3$nitrogen_in_biomass, col = cols[3])
+  points(date_point, low,  pch = "x", col = "blue")
+  points(date_point, high, pch = "x", col = "blue")
+  # Optional: draw a vertical line between them to show the full range
+  segments(date_point, low, date_point, high, col = "blue", lwd = 2)
+  title(sub = "Korhonen 2012: Standing Biomass / Tree Number", col.sub = "blue")
   
   # ----------------------------
   # 3. Respiration
