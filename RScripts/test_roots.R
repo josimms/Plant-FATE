@@ -94,7 +94,6 @@ blank <- function() {
   Eddy_covariance[, MonthlyDate := as.Date(paste0("01 ", Monthly), format = "%d %b %Y")]
   Eddy_covariance[, Month := as.integer(format(MonthlyDate, "%m"))]
   
-  
   ###
   # Simulation!
   ###
@@ -285,7 +284,7 @@ blank <- function() {
   
   # 4. Height with validation data
   plot(df$date, df$height, type = "l", col = cols[1],
-       ylab = "Height (m)", main = "Tree Height",
+       ylab = "Height (m)", main = "Tree Height", xlab = "Date",
        ylim = range(df$height, loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "pine height BA weighted mean"],
                     prebas$multiOut[3,,11,,1][1:62], na.rm = TRUE))
   lines(df_2$date, df_2$height, col = cols[2])
@@ -298,7 +297,7 @@ blank <- function() {
          col = c(cols, "blue", "green"), lty = c(1,1,1,NA,NA), pch = c(NA,NA,NA,16,17), bty = "n")
   
   plot(df$date, df$diameter, type = "l", col = cols[1],
-       ylab = "Diameter (m)", main = "Tree Diameter",
+       ylab = "Diameter (m)", main = "Tree Diameter", xlab = "Date",
        ylim = range(df$diameter, df_2$diameter, df_3$diameter, 0.01*loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "pine diameter BA weighted mean"], prebas$multiOut[3,,12,,1][1:62]/100, na.rm = TRUE))
   lines(df_2$date, df_2$diameter, col = cols[2])
   lines(df_3$date, df_3$diameter, col = cols[3])
@@ -307,14 +306,14 @@ blank <- function() {
   legend("topleft", legend = c(N_labels, "ICOS Data", "Preles"), col = c(cols, "blue", "green"), lty = c(1,1,1,NA,NA), pch = c(NA,NA,NA,16,17), bty = "n")
   
   plot(df$date, df$root_mass, type = "l", col = cols[1],
-       ylab = "Root Mass (kg C)", main = "Root Carbon Pool",
+       ylab = "Root Mass (kg C)", main = "Root Carbon Pool", xlab = "Date",
        ylim = range(df$root_mass, df_2$root_mass, df_3$root_mass, 0.4, na.rm = TRUE))
   lines(df_2$date, df_2$root_mass, col = cols[2])
   lines(df_3$date, df_3$root_mass, col = cols[3])
   abline(h = 0.4)
   
   plot(df$date, df$crown_area, type = "l", col = cols[1],
-       ylab = "Crown Area (m²)", main = "Crown Area",
+       ylab = "Crown Area (m²)", main = "Crown Area", xlab = "Date",
        ylim = range(df$crown_area, df_2$crown_area, df_3$crown_area, na.rm = TRUE))
   lines(df_2$date, df_2$crown_area, col = cols[2])
   lines(df_3$date, df_3$crown_area, col = cols[3])
@@ -324,7 +323,7 @@ blank <- function() {
   # ----------------------------
   date_point <- as.Date("2007-06-21")
   
-  par(mfrow = c(2, 2))
+  par(mfrow = c(3, 2))
   plot(df$date, df$tree_nitrogen, type = "l", col = cols[1],
        ylab = "kg N", main = "Free Tree Nitrogen", xlab = "Date",
        ylim = range(df$tree_nitrogen, df_2$tree_nitrogen, df_3$tree_nitrogen, na.rm = TRUE))
@@ -335,29 +334,46 @@ blank <- function() {
   
   plot(df$date, df$optimal_leaf_nitrogen, type = "p", col = cols[1], pch = ".",
        ylab = "Leaf N Dynamics (g g⁻¹)", main = "Optimal Leaf N", xlab = "Date",
-       ylim = range(df$optimal_leaf_nitrogen, df$potential_leaf_nitrogen, df_2$optimal_leaf_nitrogen, df_3$optimal_leaf_nitrogen, na.rm = TRUE))
+       ylim = range(df$optimal_leaf_nitrogen, 1000 * df$potential_leaf_nitrogen[5:nrow(df)], 
+                    df_2$optimal_leaf_nitrogen, 1000 * df_2$potential_leaf_nitrogen[5:nrow(df_2)],
+                    df_3$optimal_leaf_nitrogen, 1000 * df_3$potential_leaf_nitrogen[5:nrow(df_3)], na.rm = TRUE))
   points(df_2$date, df_2$optimal_leaf_nitrogen, col = cols[2], pch = ".")
   points(df_3$date, df_3$optimal_leaf_nitrogen, col = cols[3], pch = ".")
-  points(df$date, df$potential_leaf_nitrogen, col = cols[1], pch = "-")
-  points(df_2$date, df_2$potential_leaf_nitrogen, col = cols[2], pch = "-")
+  points(df$date, 1000 * df$potential_leaf_nitrogen, col = cols[1], pch = "-")
+  points(df_2$date, 1000 * df_2$potential_leaf_nitrogen, col = cols[2], pch = "-")
   points(df_3$date, df_3$potential_leaf_nitrogen, col = cols[3], pch = "-")
   abline(h = 12/1000, col = "blue", lty = 1)
   legend("topright", legend = c("Potential", "Optimal"), col = "black", pch = c("-", "."), bty = "n", title = "Leaf Nitrogen")
   title(sub = "Korhonen 2012: Socts Pine Needle N", col.sub = "blue")
   
-  # Lower and upper values in g per tree per year
-  low  <- 12 / 1010      # kg tree-1 year-1
-  high <- 23.8 /2000    # kg tree-1 year-1
+  plot(df$date, df$vcmax, type = "l", col = cols[1], main = "Vcmax", ylab = "µmol m⁻² s⁻¹", xlab = "Date",
+       ylim = range(df$vcmax, df_2$vcmax, df_3$vcmax, na.rm = TRUE))
+  lines(df_2$date, df_2$vcmax, col = cols[2])
+  lines(df_3$date, df_3$vcmax, col = cols[3])
+  abline(h = 0, col = "blue")
+  abline(h = 30, col = "blue")
+  title(sub = "Thum 2008: Hyytiälä Vcmax Range", col.sub = "blue")
+  
+  plot(df$date, df$optimal_leaf_nitrogen, type = "p", col = cols[1], pch = ".",
+       ylab = "Leaf N Dynamics (g g⁻¹)", main = "Optimal Leaf N", xlab = "Date",
+       ylim = range(df$optimal_leaf_nitrogen,
+                    df_2$optimal_leaf_nitrogen,
+                    df_3$optimal_leaf_nitrogen,
+                    na.rm = TRUE))
+  points(df_2$date, df_2$optimal_leaf_nitrogen, col = cols[2], pch = ".")
+  points(df_3$date, df_3$optimal_leaf_nitrogen, col = cols[3], pch = ".")
+  abline(h = 12/1000, col = "blue", lty = 1)
+  legend("topright", legend = c("Optimal"), col = "black", pch = ".", bty = "n", title = "Leaf Nitrogen")
+  title(sub = "Korhonen 2012: Scots Pine Needle N", col.sub = "blue")
+  
   # Plot your lines
   plot(df$date, df$nitrogen_uptake, type = "l", col = cols[1],
        ylab = "kg N per kg biomass", main = "Nitrogen Uptake", xlab = "Date",
        ylim = range(df$nitrogen_uptake, df_2$nitrogen_uptake, df_3$nitrogen_uptake, high, low, na.rm = TRUE))
   lines(df_2$date, df_2$nitrogen_uptake, col = cols[2])
   lines(df_3$date, df_3$nitrogen_uptake, col = cols[3])
-  points(date_point, low,  pch = "x", col = "blue")
-  points(date_point, high, pch = "x", col = "blue")
+  points(date_point, 12 / 1000,  pch = "x", col = "blue")
   # Optional: draw a vertical line between them to show the full range
-  segments(date_point, low, date_point, high, col = "blue", lwd = 2)
   legend(
     "topleft",
     legend = c(N_labels, "Korhonen 2012 (range)"),
@@ -386,21 +402,21 @@ blank <- function() {
   # ----------------------------
   par(mfrow = c(2, 2))
   
-  plot(df$date, df$rl, type = "l", col = cols[1], main = "Leaf Respiration", ylab = "kg/month")
+  plot(df$date, df$rl, type = "l", col = cols[1], main = "Leaf Respiration", ylab = "kg/month", xlab = "Date",)
   lines(df_2$date, df_2$rl, col = cols[2])
   lines(df_3$date, df_3$rl, col = cols[3])
   
-  plot(df$date, df$rr, type = "l", col = cols[1], main = "Root Respiration", ylab = "kg/month",
+  plot(df$date, df$rr, type = "l", col = cols[1], main = "Root Respiration", ylab = "kg/month", xlab = "Date",
        ylim = range(df$rr, df_2$rr, df_3$rr, 30.44*4/1000, na.rm = TRUE))
   lines(df_2$date, df_2$rr, col = cols[2])
   lines(df_3$date, df_3$rr, col = cols[3])
   abline(h = 30.44*4/1000, col = "blue")
   
-  plot(df$date, df$rs, type = "l", col = cols[1], main = "Sapwood Respiration", ylab = "kg/month")
+  plot(df$date, df$rs, type = "l", col = cols[1], main = "Sapwood Respiration", ylab = "kg/month", xlab = "Date",)
   lines(df_2$date, df_2$rs, col = cols[2])
   lines(df_3$date, df_3$rs, col = cols[3])
   
-  plot(df$date, df$tl, type = "l", col = cols[1], main = "Leaf Turnover", ylab = "kg/month")
+  plot(df$date, df$tl, type = "l", col = cols[1], main = "Leaf Turnover", ylab = "kg/month", xlab = "Date",)
   lines(df_2$date, df_2$tl, col = cols[2])
   lines(df_3$date, df_3$tl, col = cols[3])
   
@@ -409,24 +425,24 @@ blank <- function() {
   # ----------------------------
   par(mfrow = c(2, 2))
   
-  plot(df$date, df$leaf_mass, type = "l", col = cols[1], main = "Leaf Mass", ylab = "kg",
+  plot(df$date, df$leaf_mass, type = "l", col = cols[1], main = "Leaf Mass", ylab = "kg", xlab = "Date",
        ylim = range(df$leaf_mass, df_2$leaf_mass, df_3$leaf_mass, loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "pine_foliage_biomass_ICOS"]/1000, na.rm = TRUE))
   lines(df_2$date, df_2$leaf_mass, col = cols[2])
   lines(df_3$date, df_3$leaf_mass, col = cols[3])
   points(as.Date(paste0(loaded_data$smearII_data$date[loaded_data$smearII_data$variable == "pine_foliage_biomass_ICOS"], "-01-01")), 
          loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "pine_foliage_biomass_ICOS"]/1000, col = "blue", pch = "x")
   
-  plot(df$date, df$root_mass, type = "l", col = cols[1], main = "Root Mass", ylab = "kg",
+  plot(df$date, df$root_mass, type = "l", col = cols[1], main = "Root Mass", ylab = "kg", xlab = "Date",
        ylim = range(df$root_mass, df_2$root_mass, df_3$root_mass, na.rm = TRUE))
   lines(df_2$date, df_2$root_mass, col = cols[2])
   lines(df_3$date, df_3$root_mass, col = cols[3])
   
-  plot(df$date, df$stem_mass, type = "l", col = cols[1], main = "Stem Mass", ylab = "kg",
+  plot(df$date, df$stem_mass, type = "l", col = cols[1], main = "Stem Mass", ylab = "kg", xlab = "Date",
        ylim = range(df$stem_mass, df_2$stem_mass, df_3$stem_mass, na.rm = TRUE))
   lines(df_2$date, df_2$stem_mass, col = cols[2])
   lines(df_3$date, df_3$stem_mass, col = cols[3])
   
-  plot(df$date, df$coarse_root_mass, type = "l", col = cols[1], main = "Coarse Stem Mass", ylab = "kg",
+  plot(df$date, df$coarse_root_mass, type = "l", col = cols[1], main = "Coarse Root Mass", ylab = "kg", xlab = "Date",
        ylim = range(df$coarse_root_mass, df_2$coarse_root_mass, df_3$coarse_root_mass, na.rm = TRUE))
   lines(df_2$date, df_2$coarse_root_mass, col = cols[2])
   lines(df_3$date, df_3$coarse_root_mass, col = cols[3])
@@ -436,7 +452,7 @@ blank <- function() {
   # ----------------------------
   par(mfrow = c(2, 2))
   
-  plot(df$date, df$lai, type = "l", col = cols[1], main = "Leaf Area Index", ylab = "?",
+  plot(df$date, df$lai, type = "l", col = cols[1], main = "Leaf Area Index", ylab = "?", xlab = "Date",
        ylim = range(df$lai, df_2$lai, df_3$lai, loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "LAI_pine_ICOS"], na.rm = TRUE))
   lines(df_2$date, df_2$lai, col = cols[2])
   lines(df_3$date, df_3$lai, col = cols[3])
@@ -444,15 +460,17 @@ blank <- function() {
          loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "LAI_pine_ICOS"], col = "blue", pch = "x")
   abline(h = 4.0, col = "green")
   
-  plot(df$date, df$leaf_lifespan, type = "l", col = cols[1], main = "Leaf Lifespan", ylab = "days")
+  plot(df$date, df$leaf_lifespan, type = "l", col = cols[1], main = "Leaf Lifespan", ylab = "years", xlab = "Date",)
   lines(df_2$date, df_2$leaf_lifespan, col = cols[2])
   lines(df_3$date, df_3$leaf_lifespan, col = cols[3])
+  abline(h = 3, col = "blue")
+  title(sub = "Aprorx 3 years, find source", col.sub = "blue")
   
-  plot(df$date, df$fineroot_lifespan, type = "l", col = cols[1], main = "Fineroot Lifespan", ylab = "days")
+  plot(df$date, df$fineroot_lifespan, type = "l", col = cols[1], main = "Fineroot Lifespan", ylab = "years", xlab = "Date",)
   lines(df_2$date, df_2$fineroot_lifespan, col = cols[2])
   lines(df_3$date, df_3$fineroot_lifespan, col = cols[3])
   
-  plot(df$date, df$mortality, type = "l", col = cols[1], main = "Mortality", ylab = "?")
+  plot(df$date, df$mortality, type = "l", col = cols[1], main = "Mortality", ylab = "?", xlab = "Date",)
   lines(df_2$date, df_2$mortality, col = cols[2])
   lines(df_3$date, df_3$mortality, col = cols[3])
   
@@ -501,7 +519,7 @@ blank <- function() {
   lines(df_2$date, df_2$total_rep, col = cols[2])
   lines(df_3$date, df_3$total_rep, col = cols[3])
   points(as.Date(as.character(1960 + prebas$multiOut[3,,7,,1]), format = "%Y")[1:62], prebas$multiOut[3,,9,,1][1:62], col = "green", pch = 17)
-  legend("topleft", legend = c(N_labels, "Preles"), col = c(cols, "green"), lty = 1, pch = c(NA,NA,NA,17), bty = "n")
+  legend("topleft", legend = c(N_labels, "Preles"), col = c(cols, "green"), lty = c(1, 1, 1, 0), pch = c(NA,NA,NA,17), bty = "n")
   
   plot(df$date, df$fitness, type = "l", col = cols[1], main = "Fitness", ylab = "?",
        ylim = range(df$fitness, df_2$fitness, df_3$fitness, na.rm = TRUE))
