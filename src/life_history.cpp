@@ -152,6 +152,8 @@ void LifeHistoryOptimizer::printHeader(ostream& lfout){
 }
 
 vector<double> LifeHistoryOptimizer::get_state(double t){
+  // NOTE: root_lifespan is in years!
+  
 	return {
 		  ts.to_julian(t)
 		, C.clim_inst.ppfd
