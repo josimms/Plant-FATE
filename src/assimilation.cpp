@@ -9,8 +9,8 @@ void Assimilator::les_update_lifespans(double lai, PlantParameters& par, PlantTr
 	double hT = plant_assim.vcmax_avg / plant_assim.vcmax25_avg;
 	double f = 1;
 	double fac = sqrt(((par.les_k1 * par.les_k2) * (par.les_k1 * par.les_k2) * f * hT * plant_assim.mc_avg) / (2 * par.les_u * par.les_cc));
-
-	kappa_l = 365 * plant_assim.vcmax25_avg / (traits.lma * 1e3 * lai) * fac * par.years_per_tunit_avg; // convert yr-1 --> t_unit-1
+	
+	kappa_l = 365 * par.years_per_tunit_avg * plant_assim.vcmax25_avg / (traits.lma * 1e3 * lai) * fac; // convert yr-1 --> t_unit-1
 	// kappa_r no longer used
 	//kappa_r = 365 * plant_assim.vcmax25_avg / (0.1333 * 1e3) * fac * par.years_per_tunit_avg;           // convert yr-1 --> t_unit-1
 	//kappa_r = kappa_l * (par.les_cc/lai - 1) / (traits.zeta / traits.lma);
@@ -62,7 +62,7 @@ double Assimilator::leaf_turnover_rate(double _kappa_l, PlantArchitecture* G, Pl
 }
 
 double Assimilator::root_turnover_rate(PlantArchitecture* G, PlantParameters& par, PlantTraits& traits){
-  double out = G->root_mass(traits)/(G->root_lifespan(traits) * par.days_per_tunit);
+  double out = G->root_mass(traits)/(G->root_lifespan(traits) * par.years_per_tunit_avg);
   return out; // / par.lr;
 }
 
