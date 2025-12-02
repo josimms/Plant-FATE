@@ -173,6 +173,11 @@ void PlantArchitecture::get_ectomycorrhiza_mass(double exudates, PlantTraits& tr
   // Update the ectomycorrhizal mass
   double input = exudates * traits.investment_from_tree;
   ectomycorrhiza_mass = (1 - traits.mycorrhizal_turnover) * ectomycorrhiza_mass + input * traits.mycorrhizal_biomass_conversion;
+  
+  // As the ectomycorrhiza mass isn't a fungi let this mass go to 0 without repercussions in the model other than reduced uptake.
+  if (ectomycorrhiza_mass < 0) {
+    ectomycorrhiza_mass = 0;
+  }
 }
 
 double PlantArchitecture::coarse_root_mass(const PlantTraits& traits) const{
