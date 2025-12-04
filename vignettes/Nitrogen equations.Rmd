@@ -1,0 +1,800 @@
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(purrr)
+```
+
+## Parameters
+
+```{r}
+###
+### SOIL PARAMETERS
+###
+
+N_s <- 0.005              # soil N (kg N m-3)
+
+# Soil diffusion coefficient (m2 s-1)
+D <- 1e-9                 # replace with soil-type-specific value
+# Area-based uptake (kg N m-1 s-1) used for depletion radius
+u_c <- 2e-8               # TODO: find real value
+
+# Depletion radius (identical for roots & ECM)
+rd <- D * N_s / u_c       # m
+
+###
+### ROOT PARAMETERS
+###
+
+# Average biomass when needed
+B_root_average = 2.8      # kg
+B_myco_average = 2.8      # kg
+
+# ECM defaults (replace with literature)
+myco_diameter <- 8e-6     # m (8 microns)
+myco_density  <- 400      # kg m-3
+myco_length   <- 4e-6     # m
+
+# Root architecture
+n <- 1e5                  # number of roots per crown area
+l <- 1.5                  # average root length (mm or m depending on your model)
+
+###
+### EXTRA PARAMETERS
+###
+
+k9 <- 0.01                # nitrogen gate parameter
+k8 <- 2.7                 # uptake-age parameter (years)
+
+mycorrhized   <- 0.9      # 90% colonisation
+investment_m  <- 0.3      # fungi return 30% of N to host
+
+traits <- list(
+  k_1 = 0.25,      # diameter scaling (mm * sqrt(m))  → adjust for your species
+  k_2 = 0.15,      # cortex scaling 1
+  k_3 = 0.02,      # cortex scaling 2
+  k_4 = 350,       # cortical density (kg m-3)
+  k_5 = 150,       # stele density (kg m-3)
+  k_6 = 4,         # max lifespan (years)
+  k_7 = 120        # lifespan sensitivity to diameter
+)
+
+
+```
+
+## Equtaions
+
+```{r}
+
+############################################################
+## ROOT ARCHITECTURE FUNCTIONS (R translation of C++)
+############################################################
+
+root_diameter <- function(root_length, traits) {
+  traits$k_1 / sqrt(root_length)
+}
+
+root_density <- function(root_length, traits) {
+  d <- root_diameter(root_length, traits)
+  pct_cortex <- (traits$k_2 + traits$k_3 / d)^2
+  traits$k_4 * pct_cortex + traits$k_5
+}
+
+root_lifespan <- function(root_length, traits) {
+  d <- root_diameter(root_length, traits)
+  traits$k_6 * (1 - exp(-traits$k_7 * d))
+}
+
+root_mass <- function(root_length, root_no, crown_area, traits) {
+  d <- root_diameter(root_length, traits)
+  rho <- root_density(root_length, traits)
+  
+  rho * (d/2)^2 * root_length * pi * root_no * 1e-9 * crown_area
+}
+
+
+############################################################
+## 1. SOIL EXPLORATION PER BIOMASS (e_u)
+############################################################
+
+e_u_root <- function(rd, root_diameter, root_density) {
+  4 * rd^2 / (root_density * root_diameter^2)
+}
+
+e_u_myco <- function(rd, myco_diameter, myco_density) {
+  4 * rd^2 / (myco_density * myco_diameter^2)
+}
+
+
+############################################################
+## 2. CROWDING TERMS
+############################################################
+
+effective_biomass <- function(B_root, B_myco, e_root, e_myco) {
+  B_root + B_myco * (e_myco / e_root)
+}
+
+Bs_total <- function(N_s, n, l, myco_rho, L_hypha, D, u_c, e_root, e_myco, traits) {
+  
+  # root radius based on N_s, D, u_c
+  rd <- N_s * D / u_c
+  
+  # root biomass
+  Bs_root <- root_density(l, traits) * pi * rd^2 * l * n
+  
+  # mycorrhizal biomass
+  Bs_myco <- myco_rho * pi * rd^2 * L_hypha
+  
+  # total biomass scaled by efficiency
+  Bs_total <- Bs_root + Bs_myco * (e_myco / e_root)
+  
+  return(Bs_total)
+}
+
+
+S_crowding <- function(Btot, Bstot) {
+  Bstot / (Bstot + Btot)
+}
+
+
+############################################################
+## 3. BIOCHEMICAL UPTAKE (CROWDING-LIMITED)
+############################################################
+
+U_c <- function(B_i, Sval, Vmax_i) {
+  B_i * Sval * Vmax_i
+}
+
+
+############################################################
+## 4. NITROGEN AVAILABILITY
+############################################################
+
+N_av <- function(e_u_i, N_s) {
+  e_u_i * N_s
+}
+
+
+############################################################
+## 5. TWO-STEP MICHAELIS–MENTEN
+############################################################
+
+U_final <- function(Uc, Nav) {
+  (Uc * Nav) / (Uc + Nav)
+}
+
+
+############################################################
+## 6. ROOT AND MYCORRHIZAL UPTAKE FUNCTIONS
+############################################################
+
+uptake_root <- function(crown_area, B_myco, l, n, traits, myco_diameter, myco_density, myco_length, N_s, u_c, D) {
+  
+  # --- Root architecture ------------------------------------------
+  root_d <- root_diameter(l, traits) / 1000
+  rho_root <- root_density(l, traits)
+  
+  B_root = root_mass(root_length = l, root_no = n, traits = traits, crown_area = crown_area)
+  
+  # --- Depletion radius -------------------------------------------
+  rd <- D * N_s / u_c
+  
+  # --- Soil exploration per biomass -------------------------------
+  e_root_val <- e_u_root(root_d, rho_root)
+  e_myco_val <- e_u_myco(root_d, rho_root)
+  
+  # --- Effective biomass ------------------------------------------
+  Btot <- effective_biomass(B_root, B_myco, e_root_val, e_myco_val)
+  
+  # --- Saturation biomass -----------------------------------------
+  Bs_root <- rho_root * pi * rd^2 * l * n
+  Bs_myco <- myco_density * pi * rd^2 * myco_length # TODO: scale wrong
+  Bstot <- Bs_total(N_s, myco_density, n, l, D, u_c)
+  
+  # --- Crowding ---------------------------------------------------
+  Sval <- S_crowding(Btot, Bstot)
+  
+  # --- Biochemical limitation ------------------------------------
+  Uc <- U_c(B_root, Sval, u_c)
+  
+  # --- Nitrogen availability -------------------------------------
+  Nav <- N_av(e_root_val, N_s)
+  
+  # --- Final uptake -----------------------------------------------
+  U_final(Uc, Nav)
+}
+
+
+uptake_myco <- function(crown_area, B_myco, l, n, traits, myco_diameter, myco_density, myco_length, N_s, u_c, D) {
+  
+  # --- Root architecture ------------------------------------------
+  root_d <- root_diameter(l, traits) / 1000
+  rho_root <- root_density(l, traits)
+  
+  B_root = root_mass(root_length = l, root_no = n, traits = traits, crown_area = crown_area)
+  
+  # --- Depletion radius -------------------------------------------
+  rd <- D * N_s / u_c
+  
+  # --- Soil exploration per biomass -------------------------------
+  e_root_val <- e_u_root(root_d, rho_root)
+  e_myco_val <- e_u_myco(root_d, rho_root)
+  
+  # --- Effective biomass ------------------------------------------
+  Btot <- effective_biomass(B_root, B_myco, e_root_val, e_myco_val)
+  
+  # --- Saturation biomass -----------------------------------------
+  Bs_root <- rho_root * pi * rd^2 * l * n
+  Bs_myco <- myco_density * pi * rd^2 * myco_length # TODO: scale wrong
+  Bstot <- Bs_total(N_s, myco_density, n, l, D, u_c)
+  
+  # --- Crowding ---------------------------------------------------
+  Sval <- S_crowding(Btot, Bstot)
+  
+  # --- Biochemical limitation ------------------------------------
+  Uc <- U_c(B_myco, Sval, u_c)
+  
+  # --- Nitrogen availability -------------------------------------
+  Nav <- N_av(e_myco_val, N_s)
+  
+  # --- Final uptake -----------------------------------------------
+  U_final(Uc, Nav)
+}
+
+
+uptake_myco <- function(B_myco, B_root, l, traits, myco_diameter, myco_density, N_s, u_c, D) {
+  
+  # --- Root architecture ------------------------------------------
+  root_d <- root_diameter(l, traits) / 1000
+  rho_root <- root_density(l, traits)
+  
+  # --- Depletion radius -------------------------------------------
+  rd <- N_s * D / u_c
+  
+  # --- Soil exploration per biomass -------------------------------
+  e_root_val <- e_u_root(root_d, rho_root)
+  e_myco_val <- e_u_myco(root_d, rho_root)
+  
+  # --- Effective biomass ------------------------------------------
+  Btot <- effective_biomass(B_root, B_myco, e_root_val, e_myco_val)
+  
+  # --- Saturation biomass -----------------------------------------
+  Bs_root <- rho_root * pi * rd^2
+  Bs_myco <- myco_density * pi * rd^2
+  Bstot <- Bs_total(N_s, myco_density, n, l, D, u_c)
+  
+  # --- Crowding saturation ----------------------------------------
+  Sval <- S_crowding(Btot, Bstot)
+  
+  # --- Biochemical limitation ------------------------------------
+  Uc <- U_c(B_myco, Sval, u_c)
+  
+  # --- Nitrogen availability -------------------------------------
+  Nav <- N_av(e_myco_val, N_s)
+  
+  # --- Final uptake -----------------------------------------------
+  U_final(Uc, Nav)
+}
+
+############################################################
+## 7. AGE EFFECT AND N GATE
+############################################################
+
+uptake_age <- function(age) {
+  1 / (1 + exp(age - k8))
+}
+
+nitrogen_gate <- function(n, length, diameter) {
+  SA <- n * pi * diameter * length
+  SA / (SA + k9)
+}
+
+
+############################################################
+## 8. COMBINED PLANT UPTAKE
+############################################################
+
+plant_uptake <- function(N_s,
+                         crown_area,
+                         B_myco,
+                         l,
+                         n_root,
+                         traits,
+                         mycorrhized,
+                         investment_m,
+                         age,
+                         myco_diameter,
+                         myco_density,
+                         myco_length,
+                         u_c,
+                         D) {
+  
+  # --- Root uptake ---------------------------------------------------
+  Uroot <- uptake_root(crown_area = crown_area,
+                       B_myco = B_myco,
+                       l = l,
+                       n = n_root,
+                       traits = traits,
+                       myco_diameter = myco_diameter,
+                       myco_density = myco_density,
+                       myco_length = myco_length,
+                       N_s = N_s,
+                       u_c = u_c,
+                       D = D)
+  
+  # --- Mycorrhizal uptake -------------------------------------------
+  Um <- uptake_myco(crown_area = crown_area,
+                     B_myco = B_myco,
+                     l = l,
+                     n = n_root,
+                     traits = traits,
+                     myco_diameter = myco_diameter,
+                     myco_density = myco_density,
+                     myco_length = myco_length,
+                     N_s = N_s,
+                     u_c = u_c,
+                     D = D)
+  
+  # --- Gate & age effects -------------------------------------------
+  root_d <- root_diameter(l, traits) / 1000  # root diameter in meters
+  gate <- nitrogen_gate(n_root, l, root_d)
+  age_factor <- uptake_age(age)
+  
+  # --- Total plant uptake -------------------------------------------
+  age_factor * (
+    (1 - mycorrhized) * Uroot +
+      mycorrhized * gate * investment_m * Um
+  )
+}
+
+
+```
+
+## e_u plots
+
+```{r}
+root_d <- root_diameter(l, traits) / 1000  # m
+root_rho <- root_density(l, traits)
+myco_d <- myco_diameter                     # m
+myco_rho <- myco_density
+
+# Test multiple N_s values
+N_s_vals <- c(0.1, 0.5, 1)   # example: kg N m⁻³
+
+# --- 1. e_u vs D ----------------------------------------------------
+D_vals <- 10^seq(-10, -8, length.out = 50)
+u_c_fixed <- 2e-8
+
+e_D <- expand_grid(D = D_vals, N_s = N_s_vals) %>%
+  mutate(
+    rd = N_s * D / u_c_fixed,
+    e_root = e_u_root(rd, root_d, root_rho),
+    e_myco = e_u_myco(rd, myco_d, myco_rho)
+  ) %>%
+  pivot_longer(
+    cols = c(e_root, e_myco),
+    names_to = "Component",
+    values_to = "e_u"
+  ) %>%
+  mutate(Var = "Diffusion coefficient (D)", Var_val = D)
+
+# --- 2. e_u vs u_c --------------------------------------------------
+u_c_vals <- 10^seq(-9, -7, length.out = 50)
+D_fixed <- 1e-9
+
+e_uc <- expand_grid(u_c = u_c_vals, N_s = N_s_vals) %>%
+  mutate(
+    rd = N_s * D_fixed / u_c,
+    e_root = e_u_root(rd, root_d, root_rho),
+    e_myco = e_u_myco(rd, myco_d, myco_rho)
+  ) %>%
+  pivot_longer(
+    cols = c(e_root, e_myco),
+    names_to = "Component",
+    values_to = "e_u"
+  ) %>%
+  mutate(Var = "Uptake capacity (u_c)", Var_val = u_c)
+
+# --- Combine -------------------------------------------------------
+e_all <- bind_rows(e_D, e_uc)
+
+# --- Plot -----------------------------------------------------------
+ggplot(e_all, aes(x = Var_val, y = e_u, colour = as.factor(N_s))) +
+  geom_line(size = 1.1) +
+  facet_grid(rows = vars(Var), cols = vars(Component), scales = "free_x") +
+  scale_x_log10() +
+  labs(
+    x = "Variable value",
+    y = expression(e[u] ~ "(m"^3 * " kg"^-1 * ")"),
+    colour = expression(N[s] ~ "(kg ~ N ~ m"^-3 * ")"),
+    title = "Soil exploration efficiency e_u vs D and u_c"
+  ) +
+  theme_classic() +
+  theme(strip.background = element_rect(fill = "grey90"),
+        legend.position = "bottom")
+
+
+```
+
+
+## Plots, Crowding Saturation S(B_tot)
+
+```{r}
+
+library(ggplot2)
+library(dplyr)
+library(purrr)
+library(patchwork)
+
+# ------------------------------------------------------------
+# Parameter ranges and defaults
+# ------------------------------------------------------------
+N_s_vals <- c(0.1, 0.25, 0.5)
+
+param_grid <- list(
+  l             = seq(0.1, 1.0, length.out = 10),
+  n             = seq(1e5, 1e7, length.out = 10),
+  myco_diameter = seq(8e-5, 8e-7, length.out = 10),
+  myco_rho      = seq(300, 500, length.out = 10),
+  L_hypha       = seq(4e-6, 4e-8, length.out = 10)
+)
+
+defaults <- list(
+  l             = 1.5,
+  n             = 1e5,
+  myco_diameter = 8e-5,
+  myco_rho      = 400,
+  L_hypha       = 4e-6
+)
+
+# ------------------------------------------------------------
+# Compute Bstot and crowding saturation for a given parameter
+# ------------------------------------------------------------
+make_curve_data <- function(param_name, param_value, N_s) {
+
+  # assign parameters
+  l             <- if (param_name == "l")             param_value else defaults$l
+  n             <- if (param_name == "n")             param_value else defaults$n
+  myco_diameter <- if (param_name == "myco_diameter") param_value else defaults$myco_diameter
+  myco_rho      <- if (param_name == "myco_rho")      param_value else defaults$myco_rho
+  L_hypha       <- if (param_name == "L_hypha")       param_value else defaults$L_hypha
+
+  # root demand
+  rd <- N_s * D / u_c   # make sure D and u_c are defined
+
+  # biomass components
+  root_mass_val <- root_mass(l, n, crown_area = 1, traits)
+  myco_mass_val <- myco_rho * pi * (myco_diameter/2)^2 * L_hypha
+
+  # efficiencies
+  e_root_val <- e_u_root(rd, root_diameter(l, traits)/1000, root_density(l, traits))
+  e_myco_val <- e_u_myco(rd, myco_diameter, myco_rho)
+
+  # total biomass saturation
+  Bstot <- Bs_total(N_s, n, l, myco_rho, L_hypha, D, u_c, e_root_val, e_myco_val, traits)
+  B_effect <- effective_biomass(root_mass_val, myco_mass_val, e_root_val, e_myco_val)
+
+  # effective biomass — generate sequence from 0 to current B_effect for plotting S(B)
+  S_seq <- S_crowding(B_effect, Bstot)
+
+  # return as data.frame
+  data.frame(
+    param      = param_name,
+    x          = param_value,
+    N_s        = N_s,
+    B_effect   = B_effect,
+    Bstot      = Bstot,
+    S_crowding = S_seq
+  )
+}
+
+
+# ------------------------------------------------------------
+# Generate full dataset
+# ------------------------------------------------------------
+df_results <- map_df(names(param_grid), function(param_name) {
+  map_df(param_grid[[param_name]], function(param_value) {
+    map_df(N_s_vals, function(N_s) {
+      make_curve_data(param_name, param_value, N_s)
+    })
+  })
+})
+
+# ------------------------------------------------------------
+# Plotting function: two stacked panels per parameter
+# ------------------------------------------------------------
+plot_param <- function(param_name, log_x = FALSE) {
+  
+  dfp <- df_results %>% filter(param == param_name)
+  
+  scale_x <- if(log_x) scale_x_log10() else NULL
+
+  # Panel 1: Crowding saturation vs parameter
+  p1 <- ggplot(dfp, aes(x = x, y = S_crowding, color = factor(N_s))) +
+    geom_line(size = 1.2) +
+    geom_point(size = 3) +
+    labs(title = paste("Crowding saturation vs", param_name),
+         x = param_name,
+         y = "Crowding saturation",
+         color = "N_s") +
+    theme_classic() +
+    scale_x
+
+  # Panel 2: Bstot vs parameter
+  p2 <- ggplot(dfp, aes(x = x, y = Bstot, color = factor(N_s))) +
+    geom_line(size = 1.2) +
+    geom_point(size = 3) +
+    labs(title = paste("Bstot vs", param_name),
+         x = param_name,
+         y = "Bstot (kg C)",
+         color = "N_s") +
+    theme_classic() +
+    scale_x
+
+  p1 / p2  # stack panels vertically
+}
+
+# ------------------------------------------------------------
+# Example usage
+# ------------------------------------------------------------
+plot_param("l", log_x = FALSE)
+plot_param("n", log_x = TRUE)
+plot_param("myco_diameter", log_x = TRUE)
+plot_param("myco_rho", log_x = FALSE)
+plot_param("L_hypha", log_x = TRUE)
+
+# ------------------------------------------------------------
+# Generate plots for all parameters
+# ------------------------------------------------------------
+B_seq <- seq(0, 1, length.out = 100)
+S_seq <- S_crowding(B_seq, 0.5)
+
+plot(B_seq, S_seq, xlab = "Biomass", ylab = "Saturation")
+
+``` 
+
+## Plot 2 — Root Uptake vs Soil Nitrogen Nₛ
+
+```{r}
+
+# Plot 2: Two-step Michaelis-Menten uptake vs soil N
+Nseq <- seq(0.0001, 0.01, length.out = 200)  # soil N range (kg N m-3)
+
+# Compute dynamic root parameters
+root_d <- root_diameter(l, traits)
+root_rho <- root_density(l, traits)
+
+Uptake_values <- sapply(Nseq, function(N_s_i) {
+  
+  uptake_root(
+    B_root = root_mass(l, n, crown_area = 1, traits),  # dynamic root biomass
+    B_myco = B_myco_average,                           # or dynamic myco mass if desired
+    l = l,
+    traits = traits,
+    myco_diameter = myco_diameter,
+    myco_density = myco_density,
+    N_s = N_s_i,
+    u_c = u_c,
+    D = D
+  )
+})
+
+df2 <- data.frame(N_s = Nseq, Uptake = Uptake_values)
+
+ggplot(df2, aes(x = N_s, y = Uptake)) +
+  geom_line(size = 1.2, color = "forestgreen") +
+  labs(
+    x = "Soil N concentration N_s (kg N m⁻³)",
+    y = "Root uptake (kg N)",
+    title = "Root Nitrogen Uptake vs Soil N Availability"
+  ) +
+  theme_classic()
+
+
+```
+
+## Plot 3
+
+```{r}
+# Plot 3: Whole-Plant Uptake vs Root Age
+age_seq <- seq(0.1, 6, length.out = 200)  # root age in years
+
+Uplant_age <- sapply(age_seq, function(age_i) {
+  plant_uptake(
+    N_s = N_s,
+    B_root = root_mass(l, n, crown_area = 1, traits),  # dynamic root biomass
+    B_myco = B_myco_average,
+    l = l,
+    traits = traits,
+    mycorrhized = mycorrhized,
+    investment_m = investment_m,
+    n_root = n,
+    age = age_i,
+    myco_diameter = myco_diameter,
+    myco_density = myco_density,
+    u_c = u_c,
+    D = D
+  )
+})
+
+df3 <- data.frame(Age = age_seq, Uptake = Uplant_age)
+
+ggplot(df3, aes(x = Age, y = Uptake)) +
+  geom_line(size = 1.2, color = "steelblue") +
+  labs(
+    x = "Root Age (years)",
+    y = "Whole-Plant N Uptake (kg N)",
+    title = "Whole-Plant Nitrogen Uptake vs Root Age"
+  ) +
+  theme_classic()
+
+
+``` 
+
+## PLOT 5 — Whole-Plant Uptake vs Mycorrhizal Colonisation
+
+```{r}
+# Plot 5: Whole-Plant Uptake vs Mycorrhizal Colonisation
+colon_seq <- seq(0, 1, length.out = 200)  # colonisation fraction
+
+Uplant_colon <- sapply(colon_seq, function(mcol) {
+  plant_uptake(
+    N_s = N_s,
+    B_root = root_mass(l, n, crown_area = 1, traits),  # dynamic root biomass
+    B_myco = B_myco_average,                            # fungal biomass
+    l = l,
+    traits = traits,
+    mycorrhized = mcol,
+    investment_m = investment_m,
+    n_root = n,
+    age = 2,                                           # example root age (years)
+    myco_diameter = myco_diameter,
+    myco_density = myco_density,
+    u_c = u_c,
+    D = D
+  )
+})
+
+df5 <- data.frame(Mycorrhization = colon_seq, Uptake = Uplant_colon)
+
+ggplot(df5, aes(x = Mycorrhization, y = Uptake)) +
+  geom_line(size = 1.2, color = "forestgreen") +
+  labs(
+    x = "Mycorrhizal Colonisation Fraction",
+    y = "Whole-Plant N Uptake (kg N)",
+    title = "Whole-Plant Nitrogen Uptake vs Mycorrhizal Colonisation"
+  ) +
+  theme_classic()
+
+
+``` 
+
+PLOT 6 — Uptake vs Soil Diffusion D
+
+```{r}
+# Plot 6: N Uptake vs Soil Diffusion Coefficient
+Dseq <- 10^seq(-10, -8, length.out = 200)  # soil diffusion range m²/s
+
+Uuptake_D <- sapply(Dseq, function(Di) {
+  plant_uptake(
+    N_s = N_s,
+    B_root = root_mass(l, n, crown_area = 1, traits),  # dynamic root biomass
+    B_myco = B_myco_average,
+    l = l,
+    traits = traits,
+    mycorrhized = mycorrhized,
+    investment_m = investment_m,
+    n_root = n,
+    age = 2,
+    myco_diameter = myco_diameter,
+    myco_density = myco_density,
+    u_c = u_c,
+    D = Di
+  )
+})
+
+df6 <- data.frame(D = Dseq, Uptake = Uuptake_D)
+
+ggplot(df6, aes(x = D, y = Uptake)) +
+  geom_line(size = 1.2, color = "steelblue") +
+  scale_x_log10() +
+  labs(
+    x = "Soil Diffusion Coefficient D (m²/s)",
+    y = "Whole-Plant N Uptake (kg N)",
+    title = "Whole-Plant N Uptake vs Soil Diffusion Coefficient"
+  ) +
+  theme_classic()
+
+```
+
+## PLOT 7 — Component Uptake: Roots vs Mycorrhiza vs Whole Plant
+
+```{r}
+
+# Sequence of soil N concentrations
+Nseq <- seq(0.0001, 0.01, length.out = 200)  # adjust max as needed
+
+# Dynamic biomass
+B_root_dyn <- root_mass(l, n, crown_area = 1, traits)
+B_myco_dyn <- B_myco_average  # placeholder
+
+# Compute uptakes for each N_s
+Uroot_vals <- sapply(Nseq, function(N_i) {
+  uptake_root(
+    B_root = B_root_dyn,
+    B_myco = B_myco_dyn,
+    l = l,
+    traits = traits,
+    myco_diameter = myco_diameter,
+    myco_density = myco_density,
+    N_s = N_i,
+    u_c = u_c,
+    D = D
+  )
+})
+
+Umyco_vals <- sapply(Nseq, function(N_i) {
+  uptake_myco(
+    B_myco = B_myco_dyn,
+    B_root = B_root_dyn,
+    l = l,
+    traits = traits,
+    myco_diameter = myco_diameter,
+    myco_density = myco_density,
+    N_s = N_i,
+    u_c = u_c,
+    D = D
+  )
+})
+
+Uwhole_vals <- sapply(Nseq, function(N_i) {
+  plant_uptake(
+    N_s = N_i,
+    B_root = B_root_dyn,
+    B_myco = B_myco_dyn,
+    l = l,
+    traits = traits,
+    mycorrhized = mycorrhized,
+    investment_m = investment_m,
+    n_root = n,
+    age = 2,
+    myco_diameter = myco_diameter,
+    myco_density = myco_density,
+    u_c = u_c,
+    D = D
+  )
+})
+
+# Create individual data frames for plotting
+df_root <- data.frame(N_s = Nseq, Uptake = Uroot_vals)
+df_myco <- data.frame(N_s = Nseq, Uptake = Umyco_vals)
+df_whole <- data.frame(N_s = Nseq, Uptake = Uwhole_vals)
+
+# Plot Root Uptake
+p_root <- ggplot(df_root, aes(x = N_s, y = Uptake)) +
+  geom_line(color = "forestgreen", size = 1.2) +
+  labs(title = "Root Nitrogen Uptake", x = "Soil N (kg N m⁻³)", y = "Uptake (kg N)") +
+  theme_classic() +
+  scale_x_continuous(trans = "log10")
+
+# Plot Mycorrhizal Uptake
+p_myco <- ggplot(df_myco, aes(x = N_s, y = Uptake)) +
+  geom_line(color = "sienna", size = 1.2) +
+  labs(title = "Mycorrhizal Nitrogen Uptake", x = "Soil N (kg N m⁻³)", y = "Uptake (kg N)") +
+  theme_classic() +
+  scale_x_continuous(trans = "log10")
+
+# Plot Whole-Plant Uptake
+p_whole <- ggplot(df_whole, aes(x = N_s, y = Uptake)) +
+  geom_line(color = "steelblue", size = 1.2) +
+  labs(title = "Whole-Plant Nitrogen Uptake", x = "Soil N (kg N m⁻³)", y = "Uptake (kg N)") +
+  theme_classic() +
+  scale_x_continuous(trans = "log10")
+
+# Optionally, display them together (requires patchwork package)
+library(patchwork)
+p_root / p_myco / p_whole
+
+
+```
+
