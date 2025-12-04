@@ -122,9 +122,9 @@ class PlantArchitecture{
 	/// Set the crown LAI and properties that change with LAI
 	void set_lai(double _l);
 	/// Set plant size (diameter) and other variables that scale with size  
-	void set_root(double _rn, double _rl);
+	void set_root(double _rn, double _rl, PlantTraits& traits);
 	void set_size(double _x, PlantTraits& traits);
-	void set_nitrogen(double _nt, double _nu, double _em, PlantTraits& traits);
+	void set_nitrogen(double _nt, double _nu, PlantTraits& traits);
 	/// Set size and lai, the two state variables that define plant geometry
 	/// And nor also size and nitrogen
 	std::vector<double>::iterator set_state(std::vector<double>::iterator S, PlantTraits& traits);
