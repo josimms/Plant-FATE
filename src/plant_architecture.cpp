@@ -164,7 +164,7 @@ double PlantArchitecture::root_mass(const PlantTraits& traits) const{
   double diameter_root = root_diameter(traits);
   double density_root = root_density(traits);
   
-  // kg / m3 * mm2 * mm * no * 1e-9 * no = kg C
+  // kg / m3 * mm2 * mm * no * 1e-9 * no = kg biomass
   
   return density_root * pow(diameter_root/2.0, 2.0) * root_length * M_PI * root_no * 1e-9 * crown_area;
 }
@@ -235,18 +235,18 @@ void PlantArchitecture::set_lai(double _l){
 }
 
 /// @details Sets the following properties: root_no, root_length
-void PlantArchitecture::set_root(double _rn, double _rl){
+void PlantArchitecture::set_root(double _rn, double _rl, PlantTraits& traits){
   root_no = _rn;
   root_length = _rl;
+  ectomycorrhiza_mass = root_mass(traits);
 };
 
 /// @details Sets the following properties: nitrogen_tree, nitrogen_uptake, potential_nitrogen_leaf, ectomycorrhiza_mass 
-void PlantArchitecture::set_nitrogen(double _nt, double _nu, double _em, PlantTraits& traits) {
+void PlantArchitecture::set_nitrogen(double _nt, double _nu, PlantTraits& traits) {
   nitrogen_tree = _nt;
   nitrogen_uptake = _nu;
   potential_nitrogen_leaf = nitrogen_leaf(nitrogen_tree, traits);
   nitrogen_in_biomass = total_mass_nitrogen(traits);
-  ectomycorrhiza_mass = _em;
 }
 
 /// @details Sets the following properties: diameter, height, crown area, sapwood fraction 

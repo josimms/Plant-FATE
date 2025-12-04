@@ -81,10 +81,10 @@ void LifeHistoryOptimizer::init(){
 	P.init(par0, traits0, uptake0);
 
 	P.geometry.set_lai(P.par.lai0);
-	P.geometry.set_root(P.par.root_no0, P.par.root_length0);
+	P.geometry.set_root(P.par.root_no0, P.par.root_length0, P.traits);
 	P.set_size(0.01);
 	// Simulation below starts at seedling stage. So account for survival until seedling stage
-	P.geometry.set_nitrogen(P.par.nitrogen_start0, P.par.nitrogen_uptake0, P.par.ectomycorrhizal_mass0, P.traits);
+	P.geometry.set_nitrogen(P.par.nitrogen_start0, P.par.nitrogen_uptake0, P.traits);
 	// set_nitrogen after set_size as crown area is defined in set_size
 	
 	// TODO: temperarily set the day of the year to midyear in case
@@ -260,13 +260,13 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 		// C.Climate::print(t);
 		set_state(S.begin());
 		
-		P.geometry.nitrogen_uptake = P.uptake.nitrogen_plant(C.clim_acclim.nitrogen, P.geometry, P.traits);
-		P.geometry.nitrogen_tree  += P.geometry.nitrogen_uptake;
-		P.geometry.potential_nitrogen_leaf = P.geometry.nitrogen_leaf(P.geometry.nitrogen_tree, P.traits);
+		P.geometry.nitrogen_uptake = P.uptake.nitrogen_plant(C.clim_acclim.nitrogen, P.geometry, P.traits); // g N per kg Biomass
+		P.geometry.nitrogen_tree  += P.geometry.nitrogen_uptake / 1000; // kg
+		P.geometry.potential_nitrogen_leaf = P.geometry.nitrogen_leaf(P.geometry.nitrogen_tree, P.traits); // kg
 		
 		P.calc_demographic_rates(C, t);
 		
-		P.geometry.nitrogen_tree -= (P.rates.dnitrogen_dt - P.traits.k_14 * (P.res.tleaf * P.traits.nc_leaf + P.res.troot * P.traits.nc_root));
+		P.geometry.nitrogen_tree -= (P.rates.dnitrogen_dt - P.traits.k_14 * (P.res.tleaf * P.traits.nc_leaf + P.res.troot * P.traits.nc_root)); // As the biomass is in kg the nitrogen used is also in kg!
 		P.geometry.nitrogen_in_biomass += P.rates.dnitrogen_dt;
 		if (P.geometry.nitrogen_tree < 0.0) {
 		  P.geometry.nitrogen_tree = 0.0;
