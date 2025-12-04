@@ -4,13 +4,17 @@ using namespace std;
 namespace plant {
 
   double Uptake::uptake_myco(double N, PlantArchitecture& G) {
-    double biomass_limitation = G.ectomycorrhiza_mass / (G.ectomycorrhiza_mass + 2.0 * k_12);
+    // G.ectomycorrhiza_mass kg
+    // k_12 per biomass
+    // u_c_B 
+    
+    double biomass_limitation = G.ectomycorrhiza_mass / (G.ectomycorrhiza_mass + k_12);
     double nitrogen_uptake = (u_c_B * N * e_u_myco) / (u_c_B + N * e_u_myco);
     
     double nitrogen_capacity = G.ectomycorrhiza_mass * biomass_limitation * nitrogen_uptake; 
     
     // NOTE this is for all of the ectomycorrhizal biomass.
-    // gN per kg C
+    // kg N per kg C
     return nitrogen_capacity * N / (nitrogen_capacity + N);
   }
   
@@ -51,11 +55,6 @@ namespace plant {
     
     double uptake_roots_term = (1.0 - mycorrhized) * uptake_roots(N, G, T); 
     double uptake_mycorrhiza_term = mycorrhized * nitrogen_gate(G, T) * investment_from_myco * uptake_myco(N, G);
-    
-    // Temporary value from Korhonen
-    // kg ha-1 year-1
-    // Assume that there are 1000 trees per ha
-    // 1145.7/12.0/1000.0/2.0/2.0, N at Hyytiälä assumed to be 0.5 for now!
     
     return uptake_roots_term + uptake_mycorrhiza_term;
   }
