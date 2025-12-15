@@ -90,7 +90,7 @@ std::vector<double> PlantArchitecture::dsize_dmass(PlantTraits& traits) const{
 	double dmleaf_dd = traits.lma * lai * geom.pic_4a * (height + diameter * dh_dd);	// LAI variation is accounted for in biomass production rate
 	double dmtrunk_dd = (geom.eta_c * M_PI * traits.wood_density / 4) * (2 * height + diameter * dh_dd) * diameter;
 	double dmbranches_dd = (sqrt(geom.c / geom.a) * M_PI * traits.wood_density / 12) * (2.5 * height + 0.5 * diameter * dh_dd) * diameter * sqrt(diameter / height);
-	double dmroot_dd = M_PI * pow(root_diameter(traits)/2.0, 2.0) * root_length * root_density(traits) * 1e-9 * root_no * geom.pic_4a * (height + diameter * dh_dd);
+	double dmroot_dd = M_PI * pow(root_diameter(traits)/2.0, 2.0) * root_length * root_density(traits) * 1e-9 * root_no / traits.lma * dmleaf_dd;
 	double dmcroot_dd = (dmbranches_dd + dmtrunk_dd) * traits.fcr;
 
 	double dmass_dd = dmleaf_dd + dmtrunk_dd + dmbranches_dd + dmroot_dd + dmcroot_dd;
@@ -114,8 +114,7 @@ double PlantArchitecture::dreproduction_dmass(PlantParameters& par, PlantTraits&
 ///          Complete coordination between fine roots and leaves is assumed. Thus, both leaves and fine roots need to increase for increasing LAI, 
 ///          and both are simultaneously shed if LAI decreases.
 double PlantArchitecture::dmass_dt_lai(double& dL_dt, double dmass_dt_max, PlantTraits& traits){
-  // TODO: I think this needs to be updated with the new zeta definition
-	double l2m = crown_area * (traits.lma + traits.zeta);    // biomass required to support a unit LAI
+	double l2m = crown_area * (traits.lma + M_PI * pow(root_diameter(traits)/2.0, 2.0) * root_length * root_density(traits) * 1e-9 * root_no);    // biomass required to support a unit LAI
 	double dm_dt_lai = std::min(dL_dt * l2m, dmass_dt_max);  // biomass change resulting from LAI change. 
 	dL_dt = dm_dt_lai / l2m;   // Revise dL_dt, in case dm_lai_dt was capped at the maximum
 	return dm_dt_lai;
@@ -166,7 +165,7 @@ double PlantArchitecture::root_mass(const PlantTraits& traits) const{
   
   // kg / m3 * mm2 * mm * no * 1e-9 * no = kg biomass
   
-  return density_root * pow(diameter_root/2.0, 2.0) * root_length * M_PI * root_no * 1e-9 * crown_area;
+  return density_root * pow(diameter_root/2.0, 2.0) * root_length * M_PI * root_no * 1e-9 * crown_area * lai;
 }
 
 void PlantArchitecture::get_ectomycorrhiza_mass(double exudates, PlantTraits& traits) {
@@ -216,9 +215,9 @@ double PlantArchitecture::total_mass(const PlantTraits& traits) const{
 double PlantArchitecture::total_mass_nitrogen(const PlantTraits& traits) const{
   // kg
   
-  double fine_root_mass = root_mass(traits) * traits.nc_root;
+  double fine_root_mass = root_mass(traits) * 0.5 * traits.nc_root;
   
-  return stem_mass(traits) * (1 + traits.fcr) * traits.nc_wood + leaf_mass(traits) * traits.nc_leaf + fine_root_mass;
+  return stem_mass(traits) * 0.5 * (1 + traits.fcr) * traits.nc_wood + leaf_mass(traits) * 0.5 * traits.nc_leaf + fine_root_mass;
 }
 
 // **

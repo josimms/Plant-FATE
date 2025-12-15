@@ -266,7 +266,7 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 		
 		P.calc_demographic_rates(C, t);
 		
-		P.geometry.nitrogen_tree -= (P.rates.dnitrogen_dt - P.traits.k_14 * (P.res.tleaf * P.traits.nc_leaf + P.res.troot * P.traits.nc_root)); // As the biomass is in kg the nitrogen used is also in kg!
+		P.geometry.nitrogen_tree -= (P.rates.dnitrogen_dt - P.traits.k_14 * (P.res.tleaf * 0.5 * P.traits.nc_leaf + P.res.troot * 0.5 * P.traits.nc_root)); // As the biomass is in kg the nitrogen used is also in kg!
 		P.geometry.nitrogen_in_biomass += P.rates.dnitrogen_dt;
 		if (P.geometry.nitrogen_tree < 0.0) {
 		  P.geometry.nitrogen_tree = 0.0;
