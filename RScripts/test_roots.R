@@ -103,22 +103,22 @@ blank <- function() {
   # ------------------------------------------------------------
   
   lho <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
-  lho$set_i_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
-  lho$set_a_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
+  lho$set_i_metFile("tests/data/ERAS_Monthly.csv")
+  lho$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_co2File("")
   lho$set_soil_nitrogen(1.1)
   lho$init()
   
   lho_2 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
-  lho_2$set_i_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
-  lho_2$set_a_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
+  lho_2$set_i_metFile("tests/data/ERAS_Monthly.csv")
+  lho_2$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho_2$set_co2File("")
   lho_2$set_soil_nitrogen(0.9)
   lho_2$init()
   
   lho_3 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
-  lho_3$set_i_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
-  lho_3$set_a_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
+  lho_3$set_i_metFile("tests/data/ERAS_Monthly.csv")
+  lho_3$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho_3$set_co2File("")
   lho_3$set_soil_nitrogen(0.7)
   lho_3$init()
@@ -901,7 +901,7 @@ Testing_the_architecture <- function() {
   ### 
   
   geom_from_cpp <- function(a, c, m, n, fg, H_m,
-                            D_seq = seq(0.01, 0.5, length.out = 100),
+                            D_seq = seq(0.01, 1.0, length.out = 100),
                             z_len = 100) {
     
     ### --- C++ GEOMETRY TRANSLATION --- ###
@@ -993,7 +993,7 @@ Testing_the_architecture <- function() {
     - (H_m / a) * log(1 - H / H_m)
   }
   
-  plot(out$input_sequences$D_seq, out$crown_area + out$input_sequences$D_seq,
+  plot(out$input_sequences$D_seq, out$crown_area,
        xlab = "Diameter, m", ylab = "Crown Area, A_c, m²",
        main = "Projected Crown Area from C++ Model", type = "l")
   for (i in seq_len(nrow(halme_et_al_2022))) {
@@ -1034,7 +1034,7 @@ Testing_the_architecture <- function() {
   ### ============================================================
   ### (3) Radius(z) for two diameters (right, spanning both rows)
   ### ============================================================
-  Ds <- seq(0.05, 0.5, by = 0.05)
+  Ds <- seq(0.05, 1.0, by = 0.05)
   cols <- rainbow(length(Ds))  # colors for model diameters
   obs_col <- "lightgrey"       # light grey for Halme crown boxes
   
@@ -1096,7 +1096,7 @@ Testing_the_architecture <- function() {
          col = cols, lty = 2, lwd = 2, bty = "n")
   
   # Legend for Halme crowns
-  legend("bottomright",
+  legend("topright",
          legend = "Halme 2022 (max crown width)",
          col = obs_col, lwd = 2, bty = "n")
   
@@ -1418,6 +1418,467 @@ Getting_assimilation_to_the_right_levels <- function() {
   mtext("Instantenous Climate is outputted. Green: weather data in", 
         side = 3, line = 0.5, cex = 0.8)
   points(df$date, df$ppfd)
+  
+}
+
+###
+# Original Life History
+### 
+
+original_life_histroy <- function() {
+  devtools::install_github("jaideep777/Plant-FATE@develop")
+  library(PlantFATE)
+  
+  lho <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
+  lho$set_i_metFile("tests/data/ERAS_Monthly.csv")
+  lho$set_a_metFile("tests/data/ERAS_Monthly.csv")
+  lho$set_co2File("")
+  lho$init()
+  
+  lho_2 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
+  lho_2$set_i_metFile("tests/data/ERAS_Monthly.csv")
+  lho_2$set_a_metFile("tests/data/ERAS_Monthly.csv")
+  lho_2$set_co2File("")
+  lho_2$init()
+  
+  lho_3 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
+  lho_3$set_i_metFile("tests/data/ERAS_Monthly.csv")
+  lho_3$set_a_metFile("tests/data/ERAS_Monthly.csv")
+  lho_3$set_co2File("")
+  lho_3$init()
+  
+  dt <- 1/12
+  start_year <- 1960
+  end_year <- 2022+120
+  years_seq <- seq(start_year, end_year, dt)
+  
+  df <- df_2 <- df_3 <- data.frame(matrix(ncol = length(lho$get_header()), nrow = 0))
+  col_names <- lho$get_header()
+  
+  results  <- results_2 <- results_3 <- vector("list", length(years_seq))
+  i <- 1
+  
+  for (t in years_seq) {
+    # --- Simulation 1 (N = 0.9)
+    results[[i]] <- tryCatch({
+      lho$grow_for_dt(t, dt)
+      state <- lho$get_state(t + dt)
+      df_row <- as.data.frame(t(state))
+      names(df_row) <- col_names
+      df_row
+    }, error = function(e) {
+      message("Error at t=", t, " (lho): ", e$message)
+      setNames(as.data.frame(as.list(rep(NA, length(col_names)))), col_names)
+    })
+    
+    # --- Simulation 2 (N = 0.7)
+    results_2[[i]] <- tryCatch({
+      lho_2$grow_for_dt(t, dt)
+      state_2 <- lho_2$get_state(t + dt)
+      df_row_2 <- as.data.frame(t(state_2))
+      names(df_row_2) <- col_names
+      df_row_2
+    }, error = function(e) {
+      message("Error at t=", t, " (lho_2): ", e$message)
+      setNames(as.data.frame(as.list(rep(NA, length(col_names)))), col_names)
+    })
+    
+    # --- Simulation 3 (N = 0.5)
+    results_3[[i]] <- tryCatch({
+      lho_3$grow_for_dt(t, dt)
+      state_3 <- lho_3$get_state(t + dt)
+      df_row_3 <- as.data.frame(t(state_3))
+      names(df_row_3) <- col_names
+      df_row_3
+    }, error = function(e) {
+      message("Error at t=", t, " (lho_3): ", e$message)
+      setNames(as.data.frame(as.list(rep(NA, length(col_names)))), col_names)
+    })
+    
+    i <- i + 1
+  }
+  
+  # --- Combine to data frames
+  df   <- do.call(rbind, results)
+  df_2 <- do.call(rbind, results_2)
+  df_3 <- do.call(rbind, results_3)
+  names(df) <- names(df_2) <- names(df_3) <- col_names
+  
+  # --- Add date columns
+  dates <- seq(as.Date(paste0(start_year, "-01-01")),
+               as.Date(paste0(end_year, "-01-01")), by = "month")[1:nrow(df)]
+  
+  df$date   <- dates
+  df_2$date <- dates
+  df_3$date <- dates
+  
+  # Set color scheme
+  cols <- c("red", "orange", "yellow")
+  N_labels <- c("N=0.9", "N=0.7", "N=0.5")
+  
+  #####
+  # Model
+  #####
+  
+  # ----------------------------
+  # 1. Gross Assimilation & Tree Growth
+  # ----------------------------
+  par(mfrow = c(3, 2))
+  
+  # 1. Gross Assimilation
+  plot(df$date, df$assim_gross, type = "l", col = cols[1],
+       ylab = "Assimilation gross", xlab = "Date",
+       main = "Gross Assimilation", ylim = range(df$assim_gross, df_2$assim_gross, df_3$assim_gross, Eddy_covariance$GPP_mean_kg,
+                                                 prebas$multiOut[3,,10,,1][1:62], na.rm = TRUE))
+  lines(df_2$date, df_2$assim_gross, col = cols[2])
+  lines(df_3$date, df_3$assim_gross, col = cols[3])
+  points(Eddy_covariance$MonthlyDate, Eddy_covariance$GPP_mean_kg, col = "black", pch = 16)
+  points(as.Date(as.character(1960 + prebas$multiOut[3,,7,,1]), format = "%Y")[1:62], 
+         prebas$multiOut[3,,10,,1][1:62], col = "green", pch = 17)
+  legend("topleft", legend = c(N_labels, "Eddy Covariance", "Preles", "Hyytiälä Data"), 
+         col = c(cols, "black", "green", "blue"), lty = c(1,1,1,NA,NA, NA), pch = c(NA,NA,NA,16,17, 4), bty = "n")
+  
+  # 2. NPP (assim_net)
+  plot(df$date, df$assim_net, type = "l", col = cols[1],
+       ylab = "NPP (kg C / month)", xlab = "Date",
+       main = "Net Primary Production",
+       ylim = range(df$assim_net, df_2$assim_net, df_3$assim_net,
+                    -Eddy_covariance$NEE_mean_kg, prebas$multiOut[3,,18,,1]/prebas$multiOut[3,,17,,1], na.rm = TRUE))
+  lines(df_2$date, df_2$assim_net, col = cols[2])
+  lines(df_3$date, df_3$assim_net, col = cols[3])
+  points(Eddy_covariance$MonthlyDate, -Eddy_covariance$NEE_mean_kg, col = "black", pch = 16)
+  points(as.Date(as.character(1960 + prebas$multiOut[3,,7,,1]), format = "%Y")[1:62], 
+         prebas$multiOut[3,,18,,1][1:62]/prebas$multiOut[3,,17,,1][1:62], col = "green", pch = 17)
+  
+  # 4. Height with validation data
+  plot(df$date, df$height, type = "l", col = cols[1],
+       ylab = "Height (m)", main = "Tree Height", xlab = "Date",
+       ylim = range(df$height, loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "pine height BA weighted mean"],
+                    prebas$multiOut[3,,11,,1][1:62], na.rm = TRUE))
+  lines(df_2$date, df_2$height, col = cols[2])
+  lines(df_3$date, df_3$height, col = cols[3])
+  points(as.Date(paste0(loaded_data$smearII_data$date[loaded_data$smearII_data$variable == "pine height BA weighted mean"], "-01-01")), 
+         loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "pine height BA weighted mean"], col = "blue", pch = "x")
+  points(as.Date(as.character(1960 + prebas$multiOut[3,,7,,1]), format = "%Y")[1:62], 
+         prebas$multiOut[3,,11,,1][1:62], col = "green", pch = 17)
+  points(as.Date("2017-06-01"), min(halme_et_al_2022$height),  pch = 8, col = "blue")
+  points(as.Date("2017-06-01"), max(halme_et_al_2022$height), pch = 8, col = "blue")
+  segments(as.Date("2017-06-01"), min(halme_et_al_2022$height), as.Date("2017-06-01"), max(halme_et_al_2022$height), col = "blue", lwd = 2)
+  title(sub = "SMEAR Biomass Data (x), Halme 2022 (star)", col.sub = "blue")
+  
+  plot(df$date, df$diameter, type = "l", col = cols[1],
+       ylab = "Diameter (m)", main = "Tree Diameter", xlab = "Date",
+       ylim = range(df$diameter, df_2$diameter, df_3$diameter, 0.01*loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "pine diameter BA weighted mean"], prebas$multiOut[3,,12,,1][1:62]/100, na.rm = TRUE))
+  lines(df_2$date, df_2$diameter, col = cols[2])
+  lines(df_3$date, df_3$diameter, col = cols[3])
+  points(as.Date(paste0(loaded_data$smearII_data$date[loaded_data$smearII_data$variable == "pine diameter BA weighted mean"], "-01-01")), 0.01*loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "pine diameter BA weighted mean"], col = "blue", pch = "x")
+  points(as.Date(as.character(1960 + prebas$multiOut[3,,7,,1]), format = "%Y")[1:62], prebas$multiOut[3,,12,,1][1:62]/100, col = "green", pch = 17)
+  title(sub = "SMEAR Biomass Data", col.sub = "blue")
+  
+  plot(df$date, df$root_mass, type = "l", col = cols[1],
+       ylab = "Root Mass (kg C)", main = "Root Carbon Pool", xlab = "Date",
+       ylim = range(df$root_mass, df_2$root_mass, df_3$root_mass, 0.4, na.rm = TRUE))
+  lines(df_2$date, df_2$root_mass, col = cols[2])
+  lines(df_3$date, df_3$root_mass, col = cols[3])
+  points(as.Date("2015-06-01"), 2.8, col = "blue", pch = "x")
+  title(sub = "Pauliina, 2019", col.sub = "blue")
+  
+  plot(df$date, df$crown_area, type = "l", col = cols[1],
+       ylab = "Crown Area (m²)", main = "Crown Area", xlab = "Date",
+       ylim = range(df$crown_area, df_2$crown_area, df_3$crown_area, na.rm = TRUE))
+  lines(df_2$date, df_2$crown_area, col = cols[2])
+  lines(df_3$date, df_3$crown_area, col = cols[3])
+  A_c_low = (min(halme_et_al_2022$crown_diameter, na.rm = T) / 2)^2 * pi
+  A_c_high = (max(halme_et_al_2022$crown_diameter, na.rm = T) / 2)^2 * pi
+  points(as.Date("2017-06-01"), A_c_low,  pch = 8, col = "blue")
+  points(as.Date("2017-06-01"), A_c_high, pch = 8, col = "blue")
+  segments(as.Date("2017-06-01"), A_c_low, as.Date("2017-06-01"), A_c_high, col = "blue", lwd = 2)
+  title(sub = "Halme 2022 (star)", col.sub = "blue")
+  
+  # ----------------------------
+  # 2. Nitrogen Variables
+  # ----------------------------
+  date_point <- as.Date("2007-06-21")
+  
+  par(mfrow = c(3, 2))
+  plot(df$date, df$tree_nitrogen, type = "l", col = cols[1],
+       ylab = "kg N", main = "Free Tree Nitrogen", xlab = "Date",
+       ylim = range(df$tree_nitrogen, df_2$tree_nitrogen, df_3$tree_nitrogen, na.rm = TRUE))
+  title(sub = "This is \"free\" nitrogen not used nitrogen")
+  lines(df_2$date, df_2$tree_nitrogen, col = cols[2])
+  lines(df_3$date, df_3$tree_nitrogen, col = cols[3])
+  legend("topleft", legend = c(N_labels), col = c(cols), lty = 1, bty = "n")
+  
+  plot(df$date, df$optimal_leaf_nitrogen, type = "p", col = cols[1], pch = ".",
+       ylab = "Leaf N Dynamics (g g⁻¹)", main = "Optimal Leaf N", xlab = "Date",
+       ylim = range(df$optimal_leaf_nitrogen, 1000 * df$potential_leaf_nitrogen[5:nrow(df)], 
+                    df_2$optimal_leaf_nitrogen, 1000 * df_2$potential_leaf_nitrogen[5:nrow(df_2)],
+                    df_3$optimal_leaf_nitrogen, 1000 * df_3$potential_leaf_nitrogen[5:nrow(df_3)], na.rm = TRUE))
+  points(df_2$date, df_2$optimal_leaf_nitrogen, col = cols[2], pch = ".")
+  points(df_3$date, df_3$optimal_leaf_nitrogen, col = cols[3], pch = ".")
+  points(df$date, 1000 * df$potential_leaf_nitrogen, col = cols[1], pch = "-")
+  points(df_2$date, 1000 * df_2$potential_leaf_nitrogen, col = cols[2], pch = "-")
+  points(df_3$date, df_3$potential_leaf_nitrogen, col = cols[3], pch = "-")
+  abline(h = 0.0151, col = "blue", lty = 1)
+  legend("topright", legend = c("Potential", "Optimal"), col = "black", pch = c("-", "."), bty = "n", title = "Leaf Nitrogen")
+  title(sub = "Korhonen 2012: Socts Pine Needle N", col.sub = "blue")
+  
+  plot(df$date, df$vcmax, type = "l", col = cols[1], main = "Vcmax", ylab = "µmol m⁻² s⁻¹", xlab = "Date",
+       ylim = range(df$vcmax, df_2$vcmax, df_3$vcmax, na.rm = TRUE))
+  lines(df_2$date, df_2$vcmax, col = cols[2])
+  lines(df_3$date, df_3$vcmax, col = cols[3])
+  abline(h = 0, col = "blue")
+  abline(h = 30, col = "blue")
+  title(sub = "Thum 2008: Hyytiälä Vcmax Range", col.sub = "blue")
+  
+  plot(df$date, df$optimal_leaf_nitrogen, type = "p", col = cols[1], pch = ".",
+       ylab = "Leaf N Dynamics (g g⁻¹)", main = "Optimal Leaf N", xlab = "Date",
+       ylim = range(df$optimal_leaf_nitrogen,
+                    df_2$optimal_leaf_nitrogen,
+                    df_3$optimal_leaf_nitrogen,
+                    na.rm = TRUE))
+  points(df_2$date, df_2$optimal_leaf_nitrogen, col = cols[2], pch = ".")
+  points(df_3$date, df_3$optimal_leaf_nitrogen, col = cols[3], pch = ".")
+  abline(h = 12/1000, col = "blue", lty = 1)
+  legend("topright", legend = c("Optimal"), col = "black", pch = ".", bty = "n", title = "Leaf Nitrogen")
+  title(sub = "Korhonen 2012: Scots Pine Needle N", col.sub = "blue")
+  
+  # Plot your lines
+  low  <- 210 / 1010    # kg tree-1
+  high <- 210 / 2000    # kg tree-1
+  plot(df$date, df$nitrogen_uptake, type = "l", col = cols[1],
+       ylab = "kg N per kg biomass", main = "Nitrogen Uptake", xlab = "Date",
+       ylim = range(df$nitrogen_uptake, df_2$nitrogen_uptake, df_3$nitrogen_uptake, high, low, na.rm = TRUE))
+  lines(df_2$date, df_2$nitrogen_uptake, col = cols[2])
+  lines(df_3$date, df_3$nitrogen_uptake, col = cols[3])
+  points(date_point, 12 / 1000,  pch = "x", col = "blue")
+  # Optional: draw a vertical line between them to show the full range
+  legend(
+    "topleft",
+    legend = c(N_labels, "Korhonen 2012 (range)"),
+    col = c(cols, "blue"),
+    pch = c(rep(NA, length(N_labels) + 1), "x"),   # use 16 for the range points
+    lty = c(rep(1, length(N_labels) + 1), 1),     # keep a line for consistency
+    bty = "n"
+  )
+  title(sub = "Korhonen 2012: kg tree-1 year-1", col.sub = "blue")
+  
+  plot(df$date, df$nitrogen_in_biomass, type = "l", col = cols[1],
+       ylab = "kg", main = "Nitorgen In Biomass", xlab = "Date",
+       ylim = range(df$nitrogen_in_biomass, df_2$nitrogen_in_biomass, df_3$nitrogen_in_biomass, na.rm = TRUE))
+  lines(df_2$date, df_2$nitrogen_in_biomass, col = cols[2])
+  lines(df_3$date, df_3$nitrogen_in_biomass, col = cols[3])
+  points(date_point, low,  pch = "x", col = "blue")
+  points(date_point, high, pch = "x", col = "blue")
+  # Optional: draw a vertical line between them to show the full range
+  segments(date_point, low, date_point, high, col = "blue", lwd = 2)
+  title(sub = "Korhonen 2012: Standing Biomass / Tree Number", col.sub = "blue")
+  
+  # ----------------------------
+  # 2.5. Mycorrhiza and root logic
+  # ----------------------------
+  
+  par(mfrow = c(3, 2))
+  plot(df$date, df$ectomycorrhiza_mass, type = "l", col = cols[1],
+       ylab = "kg C", main = "Ectomycorrhizal Mass", xlab = "Date",
+       ylim = range(df$ectomycorrhiza_mass, df_2$ectomycorrhiza_mass, df_3$ectomycorrhiza_mass, na.rm = TRUE))
+  lines(df_2$date, df_2$ectomycorrhiza_mass, col = cols[2])
+  lines(df_3$date, df_3$ectomycorrhiza_mass, col = cols[3])
+  legend("topleft", legend = c(N_labels), col = c(cols), lty = 1, bty = "n")
+  title(sub = "Would expect a limit here (Hagenbo, 2015)")
+  
+  plot(df$date, df$ectomycorrhiza_mass/df$root_mass, type = "l", col = cols[1],
+       ylab = "kg C", main = "Ectomycorrhizal Mass / Fine Root Mass", xlab = "Date",
+       ylim = range(df$ectomycorrhiza_mass/df$root_mass, 
+                    df_2$ectomycorrhiza_mass/df_2$root_mass, 
+                    df_3$ectomycorrhiza_mass/df_3$root_mass, na.rm = TRUE))
+  lines(df_2$date, df_2$ectomycorrhiza_mass/df_2$root_mass, col = cols[2])
+  lines(df_3$date, df_3$ectomycorrhiza_mass/df_3$root_mass, col = cols[3])
+  legend("topleft", legend = c(N_labels), col = c(cols), lty = 1, bty = "n")
+  title(sub = "At least the same order (Neumann, 2013, Wallender 2001)")
+  
+  plot(df$date, df$nitrogen_uptake, type = "l", col = cols[1],
+       ylab = "kg C", main = "Nitrogen uptake", xlab = "Date",
+       ylim = range(df$nitrogen_uptake, df_2$nitrogen_uptake, df_3$nitrogen_uptake, na.rm = TRUE))
+  lines(df_2$date, df_2$nitrogen_uptake, col = cols[2])
+  lines(df_3$date, df_3$nitrogen_uptake, col = cols[3])
+  points(date_point, 12 / 1000,  pch = "x", col = "blue")
+  title(sub = "Korhonen 2012: Scots Pine Needle N", col.sub = "blue")
+  
+  plot(df$date, df$root_length, type = "l", col = cols[1],
+       ylab = "kg C", main = "Root length", xlab = "Date",
+       ylim = range(df$root_length, df_2$root_length, df_3$root_length, na.rm = TRUE))
+  lines(df_2$date, df_2$root_length, col = cols[2])
+  lines(df_3$date, df_3$root_length, col = cols[3])
+  
+  plot(df$date, df$root_no, type = "l", col = cols[1],
+       ylab = "kg C", main = "Root Number per crown area", xlab = "Date",
+       ylim = range(df$root_no, df_2$root_no, df_3$root_no, na.rm = TRUE))
+  lines(df_2$date, df_2$root_no, col = cols[2])
+  lines(df_3$date, df_3$root_no, col = cols[3])
+  
+  plot(df$date, df$fineroot_lifespan, type = "l", col = cols[1],
+       ylab = "kg C", main = "Fineroot Lifespan", xlab = "Date",
+       ylim = range(df$fineroot_lifespan, df_2$fineroot_lifespan, df_3$fineroot_lifespan, na.rm = TRUE))
+  lines(df_2$date, df_2$fineroot_lifespan, col = cols[2])
+  lines(df_3$date, df_3$fineroot_lifespan, col = cols[3])
+  
+  # ----------------------------
+  # 3. Respiration
+  # ----------------------------
+  par(mfrow = c(2, 2))
+  
+  plot(df$date, df$rl, type = "l", col = cols[1], main = "Leaf Respiration", ylab = "kg/year", xlab = "Date")
+  lines(df_2$date, df_2$rl, col = cols[2])
+  lines(df_3$date, df_3$rl, col = cols[3])
+  legend("topleft", legend = c(N_labels, "Hyytiälä", "CASSIA"), col = c(cols[1:3], "blue", "green"), lty = c(1, 1, 1, 0, 0), pch = c(NA, NA, NA, 4, 17), bty = "n")
+  
+  ryhti_2022 <- read.csv("/home/josimms/Documents/CASSIA_Calibration/Processed_Data/Ryhti_2022_root_respiration.csv", sep =",")
+  ryhti_2022$date <- as.Date(ryhti_2022$date)
+  plot(df$date, df$rr, type = "l", col = cols[1], main = "Root Respiration", ylab = "kg/year", xlab = "Date",
+       ylim = range(df$rr, df_2$rr, df_3$rr, 0.03 * 365, na.rm = TRUE))
+  lines(df_2$date, df_2$rr, col = cols[2])
+  lines(df_3$date, df_3$rr, col = cols[3])
+  points(as.Date(c("2013-06-21", "2014-06-21", "2015-06-21", "2016-06-21", "2017-06-21", "2018-06-21")), 
+         c(2.8, 3.0, 2.6, 2.7, 2.1, 3.1), col = "green", pch = 17)
+  points(ryhti_2022$date, ryhti_2022$resp_root / 1000 * 365, col = "blue", pch = "x")
+  title(sub = "CASSIA, Ryhti 2022 (sum kg C tree-1 year-1, line)", col.sub = "green")
+  title(sub = "All data, Ryhti 2022 (kg C m-2 year, x)", col.sub = "blue", line = +2)
+  
+  plot(df$date, df$rs, type = "l", col = cols[1], main = "Sapwood Respiration", ylab = "kg/year", xlab = "Date",
+       ylim = range(c(df$rs + df$rr + df$rl, df_2$rs + df_2$rr + df_2$rl, df_3$rs + df_3$rr + df_3$rl)))
+  lines(df_2$date, df_2$rs, col = cols[2])
+  lines(df_3$date, df_3$rs, col = cols[3])
+  lines(df_2$date, df$rs + df$rr + df$rl, col = cols[1], lty = 2)
+  lines(df_2$date, df_2$rs + df_2$rr + df_2$rl, col = cols[2], lty = 2)
+  lines(df_3$date, df_3$rs + df_3$rr + df_3$rl, col = cols[3], lty = 2)
+  points(as.Date(as.character(1960 + prebas$multiOut[3,,7,,1]), format = "%Y")[1:62], prebas$multiOut[3,,9,,1][1:62]/1000/10000*prebas$multiOut[3,,17,,1][1:62], col = "green", pch = 17)
+  legend("topleft", legend = c(N_labels, "Preles"), col = c(cols, "green"), lty = c(1, 1, 1, 0), pch = c(NA,NA,NA,17), bty = "n")
+  # gC m-2 y-1 * 1000 / 10000 * N trees = kg C tree-1 year-1
+  title(sub = "PREBAS TOTAL respiration kg C tree-1 year-1", col.sub = "green")
+  
+  plot(df$date, df$tl, type = "l", col = cols[1], main = "Leaf Turnover", ylab = "kg/year", xlab = "Date")
+  lines(df_2$date, df_2$tl, col = cols[2])
+  lines(df_3$date, df_3$tl, col = cols[3])
+  points(seq(as.Date("1998-06-21"), as.Date("2006-06-21"), by = "year"), 
+         rep(115 / 1000 / 10000 * 1010, times = 2007-1998), 
+         col = "blue", pch = "x")
+  points(seq(as.Date("1998-06-21"), as.Date("2006-06-21"), by = "year"), 
+         rep(170 / 1000 / 10000 * 1010, times = 2007-1998), 
+         col = "blue", pch = "x")
+  title(sub = "Ilvisniemi, Average litter fall (kg C tree-1 year-1)", col.sub = "blue")
+  
+  # ----------------------------
+  # 4. Biomass: Leaf, Root, Stem
+  # ----------------------------
+  par(mfrow = c(2, 2))
+  
+  plot(df$date, df$leaf_mass, type = "l", col = cols[1], main = "Leaf Mass", ylab = "kg", xlab = "Date",
+       ylim = range(df$leaf_mass, df_2$leaf_mass, df_3$leaf_mass, loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "pine_foliage_biomass_ICOS"]/1000, na.rm = TRUE))
+  lines(df_2$date, df_2$leaf_mass, col = cols[2])
+  lines(df_3$date, df_3$leaf_mass, col = cols[3])
+  points(as.Date(paste0(loaded_data$smearII_data$date[loaded_data$smearII_data$variable == "pine_foliage_biomass_ICOS"], "-01-01")), 
+         loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "pine_foliage_biomass_ICOS"]/1000, col = "blue", pch = "x")
+  title(sub = "SMEAR Foliage Bioamss Data", col.sub = "blue")
+  
+  plot(df$date, df$lai, type = "l", col = cols[1], main = "Leaf Area Index", ylab = "?", xlab = "Date",
+       ylim = range(df$lai, df_2$lai, df_3$lai, loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "LAI_pine_ICOS"], na.rm = TRUE))
+  lines(df_2$date, df_2$lai, col = cols[2])
+  lines(df_3$date, df_3$lai, col = cols[3])
+  points(as.Date(paste0(loaded_data$smearII_data$date[loaded_data$smearII_data$variable == "LAI_pine_ICOS"], "-01-01")), 
+         loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "LAI_pine_ICOS"], col = "blue", pch = "x")
+  
+  plot(df$date, df$stem_mass, type = "l", col = cols[1], main = "Stem Mass", ylab = "kg", xlab = "Date",
+       ylim = range(df$stem_mass, df_2$stem_mass, df_3$stem_mass, na.rm = TRUE))
+  lines(df_2$date, df_2$stem_mass, col = cols[2])
+  lines(df_3$date, df_3$stem_mass, col = cols[3])
+  points(as.Date(paste0(loaded_data$smearII_data$date[loaded_data$smearII_data$variable == "pine_stem_bark_biomass"], "-01-01")), 
+         loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "pine_stem_bark_biomass"]/1000, col = "blue", pch = "x")
+  title(sub = "SMEAR Stem and Bark Data", col.sub = "blue")
+  
+  plot(df$date, df$coarse_root_mass, type = "l", col = cols[1], main = "Coarse Root Mass", ylab = "kg", xlab = "Date",
+       ylim = range(df$coarse_root_mass, df_2$coarse_root_mass, df_3$coarse_root_mass, na.rm = TRUE))
+  lines(df_2$date, df_2$coarse_root_mass, col = cols[2])
+  lines(df_3$date, df_3$coarse_root_mass, col = cols[3])
+  
+  # ----------------------------
+  # 5. Additional variables: LAI, Crown, Lifespan, Mortality
+  # ----------------------------
+  par(mfrow = c(2, 2))
+  
+  plot(df$date, df$leaf_lifespan, type = "l", col = cols[1], main = "Leaf Lifespan", ylab = "years", xlab = "Date",)
+  lines(df_2$date, df_2$leaf_lifespan, col = cols[2])
+  lines(df_3$date, df_3$leaf_lifespan, col = cols[3])
+  abline(h = 3, col = "blue")
+  title(sub = "Aprorx 3 years, find source", col.sub = "blue")
+  
+  plot(df$date, df$fineroot_lifespan, type = "l", col = cols[1], main = "Fineroot Lifespan", ylab = "years", xlab = "Date",)
+  lines(df_2$date, df_2$fineroot_lifespan, col = cols[2])
+  lines(df_3$date, df_3$fineroot_lifespan, col = cols[3])
+  title(sub = "Fitted in Root Optimisation", col.sub = "blue")
+  
+  plot(df$date, df$dpsi, type = "l", col = cols[1], main = "Δψ", ylab = "MPa",
+       ylim = range(df$dpsi, df_2$dpsi, df_3$dpsi, na.rm = TRUE))
+  lines(df_2$date, df_2$dpsi, col = cols[2])
+  lines(df_3$date, df_3$dpsi, col = cols[3])
+  
+  plot(df$date, df$transpiration, type = "l", col = cols[1], main = "Transpiration", ylab = "kg H2O / year",
+       ylim = range(df$transpiration, df_2$transpiration, df_3$transpiration, Eddy_covariance$ET/100, na.rm = TRUE))
+  lines(df_2$date, df_2$transpiration, col = cols[2])
+  lines(df_3$date, df_3$transpiration, col = cols[3])
+  points(Eddy_covariance$MonthlyDate, Eddy_covariance$ET/100, col = "black", pch = 16)
+  legend("topleft", legend = c(N_labels, "Eddy ET"), col = c(cols, "black"), lty = 1, bty = "n")
+  
+  # ----------------------------
+  # 7. Total Production, Fitness, Mortality
+  # ----------------------------
+  par(mfrow = c(2, 2))
+  
+  plot(df$date, df$total_prod, type = "l", col = cols[1], main = "Total Production", ylab = "?",
+       ylim = range(df$total_prod, df_2$total_prod, df_3$total_prod, na.rm = TRUE))
+  lines(df_2$date, df_2$total_prod, col = cols[2])
+  lines(df_3$date, df_3$total_prod, col = cols[3])
+  
+  plot(df$date, df$total_rep, type = "l", col = cols[1], main = "Total Reproduction", ylab = "?",
+       ylim = range(df$total_rep, df_2$total_rep, df_3$total_rep, prebas$multiOut[3,,9,,1][1:62], na.rm = TRUE))
+  lines(df_2$date, df_2$total_rep, col = cols[2])
+  lines(df_3$date, df_3$total_rep, col = cols[3])
+  
+  plot(df$date, df$fitness, type = "l", col = cols[1], main = "Fitness", ylab = "?",
+       ylim = range(df$fitness, df_2$fitness, df_3$fitness, na.rm = TRUE))
+  lines(df_2$date, df_2$fitness, col = cols[2])
+  lines(df_3$date, df_3$fitness, col = cols[3])
+  
+  plot(df$date, df$mortality, type = "l", col = cols[1], main = "Mortality", ylab = "?",
+       ylim = range(df$mortality, df_2$mortality, df_3$mortality, na.rm = TRUE))
+  lines(df_2$date, df_2$mortality, col = cols[2])
+  lines(df_3$date, df_3$mortality, col = cols[3])
+  
+  # ----------------------------
+  # 8. Mortality breakdown (growth, hyd, d, inst)
+  # ----------------------------
+  par(mfrow = c(2, 2))
+  
+  plot(df$date, df$mortrate_growth, type = "l", col = cols[1], main = "Mortality Growth", ylab = "?",
+       ylim = range(df$mortrate_growth, df_2$mortrate_growth, df_3$mortrate_growth, na.rm = TRUE))
+  lines(df_2$date, df_2$mortrate_growth, col = cols[2])
+  lines(df_3$date, df_3$mortrate_growth, col = cols[3])
+  
+  plot(df$date, df$mortrate_d, type = "l", col = cols[1], main = "Mortality D", ylab = "?",
+       ylim = range(df$mortrate_d, df_2$mortrate_d, df_3$mortrate_d, na.rm = TRUE))
+  lines(df_2$date, df_2$mortrate_d, col = cols[2])
+  lines(df_3$date, df_3$mortrate_d, col = cols[3])
+  
+  plot(df$date, df$mortrate_hyd, type = "l", col = cols[1], main = "Mortality Hyd", ylab = "?",
+       ylim = range(df$mortrate_hyd, df_2$mortrate_hyd, df_3$mortrate_hyd, na.rm = TRUE))
+  lines(df_2$date, df_2$mortrate_hyd, col = cols[2])
+  lines(df_3$date, df_3$mortrate_hyd, col = cols[3])
+  
+  plot(df$date, df$mortality_inst, type = "l", col = cols[1], main = "Mortality Inst", ylab = "?",
+       ylim = range(df$mortality_inst, df_2$mortality_inst, df_3$mortality_inst, na.rm = TRUE))
+  lines(df_2$date, df_2$mortality_inst, col = cols[2])
+  lines(df_3$date, df_3$mortality_inst, col = cols[3])
+  
   
 }
 
