@@ -130,7 +130,7 @@ double PlantArchitecture::nitrogen_leaf(double nitrogen_tree, PlantTraits& trait
   // Then divide by the 
   // kg N
   
-  return traits.k_10 * nitrogen_tree / crown_area;
+  return traits.k_10 * nitrogen_tree / (crown_area * lai);
 }
 
 // **
