@@ -190,7 +190,7 @@ blank <- function() {
   
   # Set color scheme
   cols <- c("red", "orange", "yellow")
-  N_labels <- c("N=0.9", "N=0.7", "N=0.5")
+  N_labels <- c("N = 0.9", "N = 0.7", "N = 0.5")
   
   #####
   # Weather
@@ -673,11 +673,11 @@ blank <- function() {
   pa = rpmodel::calc_patm(elv)
   pa_amazon = 101325
   psi_soil = -0.01
-  fapar = 0.7
+  fapar = 0.660413
   nitrogen = 1000000
   
   options = list(
-    gs_method = "GS_IGF", 
+    gs_method = "GS_APX", 
     et_method = "ET_DIFFUSION",
     ftemp_vj_method = "FV_kumarathunge19",
     ftemp_rd_method = "FR_heskel16",
@@ -710,21 +710,21 @@ blank <- function() {
       input_climate$Temp[month], input_climate$Temp[month],
       input_climate$PPFD[month], input_climate$PPFD_max[month],
       0.1 * input_climate$VPD[month],
-      co2, pa, nitrogen, fapar, kphio, psi_soil,
+      co2, pa, nitrogen, fapar, kphio, -input_climate$SWP[month],
       rdark, vwind, a_jmax, par_plant, par_cost, options), month)
     
     phydro_results_2[[month]] <- safe_try(rphydro::rphydro_nitrogen(
       input_climate$Temp[month], input_climate$Temp[month],
       input_climate$PPFD[month], input_climate$PPFD_max[month],
       0.1 * input_climate$VPD[month],
-      co2, pa, nitrogen, fapar, kphio, psi_soil,
+      co2, pa, nitrogen, fapar, kphio, -input_climate$SWP[month],
       rdark, vwind, a_jmax, par_plant, par_cost_2, options), month)
     
     phydro_results_3[[month]] <- safe_try(rphydro::rphydro_nitrogen(
       input_climate$Temp[month], input_climate$Temp[month],
       input_climate$PPFD[month], input_climate$PPFD_max[month],
       0.1 * input_climate$VPD[month],
-      co2, pa, nitrogen, fapar, kphio, psi_soil,
+      co2, pa, nitrogen, fapar, kphio, -input_climate$SWP[month],
       rdark, vwind, a_jmax, par_plant, par_cost_3, options), month)
     
     # ---- Analytical Boreal ----
@@ -733,7 +733,7 @@ blank <- function() {
         input_climate$Temp[month], input_climate$Temp[month],
         input_climate$PPFD[month], input_climate$PPFD_max[month],
         0.1 * input_climate$VPD[month],
-        co2, pa, fapar, kphio, psi_soil,
+        co2, pa, fapar, kphio, -input_climate$SWP[month],
         rdark, vwind, par_plant, par_cost, options), month)
   }
   
@@ -743,7 +743,7 @@ blank <- function() {
       import_amazon_data$Temp[month], import_amazon_data$Temp[month],
       import_amazon_data$PAR[month], import_amazon_data$PAR_max[month],
       0.1 * import_amazon_data$VPD[month],
-      co2, pa_amazon, nitrogen, fapar, kphio_amazon, psi_soil,
+      co2, pa_amazon, nitrogen, fapar, kphio_amazon, import_amazon_data$SWP[month],
       rdark, vwind, a_jmax, par_plant_amazon, par_cost_amazon, options), month)
     
     # ---- Analytical Amazon ----
@@ -752,7 +752,7 @@ blank <- function() {
         import_amazon_data$Temp[month], import_amazon_data$Temp[month],
         import_amazon_data$PAR[month], import_amazon_data$PAR_max[month],
         0.1 * import_amazon_data$VPD[month],
-        co2, pa_amazon, fapar, kphio_amazon, psi_soil,
+        co2, pa_amazon, fapar, kphio_amazon, import_amazon_data$SWP[month],
         rdark, vwind, par_plant_amazon, par_cost_amazon, options), month)
   }
   
@@ -891,8 +891,7 @@ blank <- function() {
       color = "Version"
     ) +
     theme_minimal()
-  
-                               
+
 }
 
 Testing_the_architecture <- function() {
