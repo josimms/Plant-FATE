@@ -1425,7 +1425,7 @@ Getting_assimilation_to_the_right_levels <- function() {
 ### 
 
 original_life_histroy <- function() {
-  devtools::install_github("jaideep777/Plant-FATE@develop")
+  devtools::install_github("jaideep777/Plant-FATE@develop", force = TRUE)
   library(PlantFATE)
   
   lho <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
