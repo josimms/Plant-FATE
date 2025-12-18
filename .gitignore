@@ -53,3 +53,5 @@ py_plantFATE.egg-info/
 .RDataTmp1
 .RDataTmp2
 .RDataTmp4
+cleanup
+configure
