@@ -143,32 +143,8 @@ S_crowding <- function(B_root, B_myco, e_root, e_myco,
 }
 
 ############################################################
-## 3. BIOCHEMICAL UPTAKE (CROWDING-LIMITED)
+## 3. UPTAKE (CROWDING-LIMITED)
 ############################################################
-
-U_c <- function(B_i, u_max) {
-  B_i * u_max
-}
-
-U_s <- function(B_root, B_myco, rho_root, rho_myco,
-                root_d, myco_d, N_flux,
-                C_r = 2, depth = 0.5, k20 = 1, k21 = 1,
-                which = c("root", "myco")) {
-  
-  which <- match.arg(which)
-  
-  # Compute crowding saturation internally
-  Sval <- S_crowding(B_root, B_myco, rho_root, rho_myco,
-                     root_d, myco_d, C_r, depth, k20, k21)
-  
-  # Compute supply-limited uptake
-  if (which == "root") {
-    4 * N_flux / (rho_root * root_d^2) * Sval * B_root
-  } else {
-    4 * N_flux / (rho_myco * myco_d^2) * Sval * B_myco
-  }
-}
-
 
 # Final uptake (Michaelis-Menten combination)
 U_final <- function(B_root, B_myco, rho_root, rho_myco,
@@ -178,16 +154,16 @@ U_final <- function(B_root, B_myco, rho_root, rho_myco,
   
   which <- match.arg(which)
   
-  # Biochemical-limited
-  Uc <- U_c(ifelse(which == "root", B_root, B_myco), u_max)
+  # Compute crowding saturation internally
+  Sval <- S_crowding(B_root, B_myco, e_root, e_myco,
+                     rho_root, rho_myco, C_r, depth, k20, k21)
   
-  # Supply-limited
-  Us <- U_s(B_root, B_myco, rho_root, rho_myco,
-            root_d, myco_d, N_flux,
-            C_r, depth, k20, k21, which)
+  if (which == "root") {
+    B_root * u_max * Sval
+  } else {
+    B_myco * u_max * Sval
+  }
   
-  # Michaelis-Menten combination
-  (Uc * Us) / (Uc + Us)
 }
 
 ############################################################
@@ -198,34 +174,21 @@ uptake_core <- function(B_root, B_myco, root_length, n_root,
                          N_flux, u_max, u_max_B,
                          C_r = 2, depth = 0.5, k20 = 1, k21 = 1) {
   
+  r_d <- rd(N_flux, u_max)
+  
   # --- Root architecture ---
   root_d <- root_diameter(root_length, traits) / 1000  # convert mm -> m
   rho_root <- root_density(root_length, traits)
   
   # --- Soil exploration ---
-  e_root <- 4 / (rho_root * root_d^2)
-  e_myco <- 4 / (myco_density * myco_diameter^2)
+  e_root <- 4 * r_d^2 / (rho_root * root_d^2)
+  e_myco <- 4 * r_d^2 / (myco_density * myco_diameter^2)
   
   # --- Crowding factor inside supply-limited function ---
   Sval <- S_crowding(B_root, B_myco, rho_root, myco_density,
                      root_d, myco_diameter, C_r, depth, k20, k21)
   
-  # --- Biochemical-limited uptake ---
-  Uc_root <- U_c(B_root, u_max_B)
-  Uc_myco <- U_c(B_myco, u_max_B)
   
-  # --- Supply-limited uptake ---
-  Us_root <- U_s(B_root, B_myco, rho_root, myco_density,
-                 root_d, myco_diameter, N_flux,
-                 C_r, depth, k20, k21, which = "root")
-  
-  Us_myco <- U_s(B_root, B_myco, rho_root, myco_density,
-                 root_d, myco_diameter, N_flux,
-                 C_r, depth, k20, k21, which = "myco")
-  
-  # --- Final uptake (Michaelis-Menten) ---
-  U_root <- (Uc_root * Us_root) / (Uc_root + Us_root)
-  U_myco <- (Uc_myco * Us_myco) / (Uc_myco + Us_myco)
   
   list(
     root_d = root_d,
@@ -608,7 +571,7 @@ p2 <- ggplot(df_l_base, aes(l, B_root)) +
 # ===============================================================
 # 3. Uptake vs Biomass (fixed N_flux = 0.0001, B_myco = 2.8)
 # ===============================================================
-N_flux_vals <- c(1e-7, 1e-6, 1e-5, 1e-4, 1e-3)
+N_flux_vals <- 10^seq(-7, -3, length.out = 5)
 
 # --- Compute uptake for all combinations of root biomass and N_flux ---
 df_uptake <- df_n_base %>%
@@ -646,12 +609,19 @@ p3 <- ggplot(df_uptake, aes(B_root, U_root, color = factor(N_flux))) +
 # 4. Uptake vs Soil N Concentration (N_flux range: 1e-7 to 1e-3, B_myco = 2.8)
 # ===============================================================
 # --- Parameters ---
-Nseq <- 10^seq(-7, -3, length.out = 200)
+Nseq <- 10^seq(-7, -3, length.out = 5)
 B_root_vals <- c(2, 3, 4)  # example biomasses (kg)
 B_myco_fixed <- 2.8  # fixed mycorrhizal biomass
 
 # --- Compute uptake for all combinations of B_root and N_s ---
-df4 <- tidyr::crossing(B_root = B_root_vals, N_s = Nseq) %>%
+df4 <- tidyr::crossing(
+  B_root = B_root_vals,
+  N_s = Nseq
+) %>%
+  mutate(
+    l = 1.5,
+    n = 2.75e6
+  ) %>%
   rowwise() %>%
   mutate(
     U_root = uptake_core(
@@ -674,7 +644,7 @@ p4 <- ggplot(df4, aes(N_s, U_root, color = factor(B_root))) +
   geom_line(size = 1.1) +
   scale_x_log10() +
   labs(
-    title = "Root Uptake vs Soil N Concentration",
+    title = "Root Uptake vs Soil N Flux",
     x = "Soil N Flux (kg N m-1 year-1)",
     y = "Root uptake (kg N)",
     color = "Root biomass (kg)"
