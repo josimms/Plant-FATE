@@ -180,9 +180,9 @@ void Plant::calc_demographic_rates(Env& env, double t){
 	partition_biomass(bp.dmass_dt_tot, bp.dmass_dt_lai, env);
 
 	// set core rates
-	rates.dsize_dt  = size_growth_rate(bp.dmass_dt_growth, env)[0]; // also sets rates.rgr
+	rates.dsize_dt = size_growth_rate(bp.dmass_dt_growth, env)[0]; // also sets rates.rgr
 	rates.dnitrogen_dt = size_growth_rate(bp.dmass_dt_growth, env)[1];
-	rates.dmort_dt  = mortality_rate(env, t);
+	rates.dmort_dt = mortality_rate(env, t);
 
 	double fec = fecundity_rate(bp.dmass_dt_rep, env);
 	// rates.dseeds_dt_pool =  -state.seed_pool/par.ll_seed  +  fec * p_survival_dispersal(env);  // seeds that survive dispersal enter seed pool
@@ -192,15 +192,13 @@ void Plant::calc_demographic_rates(Env& env, double t){
 	// Update nitrogen balance
 	// As the biomass is in kg the nitrogen used is also in kg!
 	geometry.nitrogen_tree -= (rates.dnitrogen_dt - traits.k_14 * (res.tleaf * 0.5 * traits.nc_leaf + res.troot * 0.5 * traits.nc_root));
-  	geometry.nitrogen_in_biomass += rates.dnitrogen_dt - traits.k_14 * (res.tleaf * 0.5 * traits.nc_leaf + res.troot * 0.5 * traits.nc_root);
+  geometry.nitrogen_in_biomass += rates.dnitrogen_dt - traits.k_14 * (res.tleaf * 0.5 * traits.nc_leaf + res.troot * 0.5 * traits.nc_root);
 	if (geometry.nitrogen_tree < 0.0) {
 	  geometry.nitrogen_tree = 0.0;
 	  std::cout << " Nitrogen in the tree was negative, made into 0.";
 	}
 
 }
-
-
 
 // Shorthand is used for biomass partitioning into geometric growth and LAI growth
 // These two lines are shorthand for the conditional below
