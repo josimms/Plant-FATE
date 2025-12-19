@@ -1,4 +1,7 @@
 #include "plant.h"
+#include "traits_params.h"
+#include "plant_architecture.h"
+#include "uptake.h" 
 using namespace std;
 
 namespace plant {
@@ -45,18 +48,6 @@ namespace plant {
     double surface_area = G.root_no * M_PI * G.root_length * G.root_diameter(T);
     
     return surface_area/(surface_area + k_9);
-  }
-  
-  double Uptake::nitrogen_plant(double N, PlantArchitecture& G, PlantTraits& T) {
-    double root_length = G.root_length;
-    double root_no = G.root_no;
-    
-    double age_effect = uptake_age(G, T);
-    
-    double uptake_roots_term = (1.0 - mycorrhized) * uptake_roots(N, G, T); 
-    double uptake_mycorrhiza_term = mycorrhized * nitrogen_gate(G, T) * investment_from_myco * uptake_myco(N, G);
-    
-    return uptake_roots_term + uptake_mycorrhiza_term;
   }
 
   void Uptake::init(io::Initializer& I){
