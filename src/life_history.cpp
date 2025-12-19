@@ -260,18 +260,7 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 		// C.Climate::print(t);
 		set_state(S.begin());
 		
-		P.geometry.nitrogen_uptake = P.uptake.nitrogen_plant(C.clim_acclim.nitrogen, P.geometry, P.traits); // g N per kg Biomass
-		P.geometry.nitrogen_tree  += P.geometry.nitrogen_uptake / 1000; // kg
-		P.geometry.potential_nitrogen_leaf = P.geometry.nitrogen_leaf(P.geometry.nitrogen_tree, P.traits); // kg
-		
 		P.calc_demographic_rates(C, t);
-		
-		P.geometry.nitrogen_tree -= (P.rates.dnitrogen_dt - P.traits.k_14 * (P.res.tleaf * 0.5 * P.traits.nc_leaf + P.res.troot * 0.5 * P.traits.nc_root)); // As the biomass is in kg the nitrogen used is also in kg!
-		P.geometry.nitrogen_in_biomass += P.rates.dnitrogen_dt;
-		if (P.geometry.nitrogen_tree < 0.0) {
-		  P.geometry.nitrogen_tree = 0.0;
-		  std::cout << " Nitrogen in the tree was negative, made into 0.";
-		}
 
 		// Override Plant-FATE fecundity calculations 
 		// We need to explicitly include plant mortality here for fitness calcs
