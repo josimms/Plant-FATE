@@ -112,7 +112,6 @@ class PlantArchitecture{
 	///@brief Nitrogen value of biomass
 	/// @{
 	double total_mass_nitrogen(const PlantTraits& traits) const;
-	double nitrogen_leaf(double nitrogen_tree, PlantTraits& traits);
 	/// @}
 
 	// These functions are used to get and set state variables

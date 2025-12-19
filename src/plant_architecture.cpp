@@ -121,19 +121,6 @@ double PlantArchitecture::dmass_dt_lai(double& dL_dt, double dmass_dt_max, Plant
 }
 
 // **
-// ** nitrogen storage functions
-// **
-
-double PlantArchitecture::nitrogen_leaf(double nitrogen_tree, PlantTraits& traits) {
-  
-  // Get the percentage of nitrogen that is allocated to the leaf
-  // Then divide by the 
-  // kg N
-  
-  return traits.k_10 * nitrogen_tree / (crown_area * lai);
-}
-
-// **
 // ** root allometry
 // **
 
@@ -244,7 +231,7 @@ void PlantArchitecture::set_root(double _rn, double _rl, PlantTraits& traits){
 void PlantArchitecture::set_nitrogen(double _nt, double _nu, PlantTraits& traits) {
   nitrogen_tree = _nt;
   nitrogen_uptake = _nu;
-  potential_nitrogen_leaf = nitrogen_leaf(nitrogen_tree, traits);
+  potential_nitrogen_leaf = traits.k_10 * nitrogen_tree;
   nitrogen_in_biomass = total_mass_nitrogen(traits);
 }
 
