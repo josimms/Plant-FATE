@@ -4,7 +4,9 @@
 #include <vector>
 #include <ostream>
 
-#include "assimilation.h" // This already has the plant_traits and plant_architecture headers included
+#include "traits_params.h"
+#include "plant_architecture.h"
+#include "assimilation.h"
 #include "plant.h"
 
 #include "climate.h"

@@ -1,9 +1,13 @@
 #ifndef PLANT_FATE_PLANT_PLANT_H_
 #define PLANT_FATE_PLANT_PLANT_H_
 #include <fstream>
+#include "traits_params.h"
+#include "uptake.h"
+#include "plant_architecture.h"
 #include "assimilation.h"
 #include "utils/rk4.h"
 #include "utils/moving_average.h"
+#include "utils/initializer_v2.h"
 
 namespace plant{
 

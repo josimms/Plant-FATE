@@ -8,7 +8,6 @@
 #include <io_utils.h>
 #include <cassert>
 
-
 namespace plant{
 
 /// \ingroup physiology

@@ -1,8 +1,10 @@
 #ifndef PLANT_FATE_PLANT_ASSIMILATION_H_
 #define PLANT_FATE_PLANT_ASSIMILATION_H_
 
-#include "uptake.h"
 #include <phydro.h>
+
+#include "traits_params.h"
+#include "plant_architecture.h"
 
 namespace plant{
 
