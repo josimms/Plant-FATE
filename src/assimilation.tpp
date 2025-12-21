@@ -34,7 +34,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 	double Iabs_day    = fipar * C.clim_inst.ppfd / f_day_length;
 	double Iabs_24hr   = fipar * C.clim_inst.ppfd;
 	
-	double leaf_nitrogen = 1000 * G->potential_nitrogen_leaf;
+	double leaf_nitrogen = 1000 * G->potential_nitrogen_leaf; // kg to g
 
 	auto out_phydro_acclim = phydro::phydro_nitrogen(
 		C.clim_acclim.tc,     // current temperature
@@ -124,7 +124,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 	// 	Iabs_24hr,                 // 24-hr mean incident PAR [umol m-2 s-1]
 	// 	C.clim_inst.rn,            // mean net radiation [W m-2] (only used for LE calculations which we dont use)
 	// 	C.clim_inst.vpd,           // vpd [kPa]
-	// 	C.clim_inst.co2,	       // co2 [ppm]
+	// 	C.clim_inst.co2,	         // co2 [ppm]
 	// 	C.clim_inst.pa,            // surface pressure [Pa]
 	// 	fapar,                     // fraction of absorbed PAR
 	// 	par.kphio,                 // phi0 - quantum yield
