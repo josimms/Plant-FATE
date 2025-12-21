@@ -30,7 +30,7 @@ public:
   double nitrogen_gate(const PlantArchitecture& G, PlantTraits& T);
   
   template<class _Climate>
-  void nitrogen_plant(_Climate C, PlantArchitecture& G, PlantTraits& T);
+  void nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& par, PlantTraits& T);
   /// @}
   
   // Initialisation function
