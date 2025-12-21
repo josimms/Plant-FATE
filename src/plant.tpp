@@ -157,7 +157,10 @@ template<class Env>
 void Plant::calc_demographic_rates(Env& env, double t){
 
   // Nitrogen uptake and partitioning calculated here
- 	uptake.nitrogen_plant(env, geometry, traits); // g N per kg Biomass to kg
+ 	uptake.nitrogen_plant(env, geometry, par, traits); // g N per kg Biomass to kg
+ 	
+ 	// Uptake + retranslocation
+ 	G.potential_nitrogen_leaf = traits.k_10 * (G.nitrogen_uptake + traits.k_14 * (res.tleaf * 0.5 * traits.nc_leaf + res.troot * 0.5 * traits.nc_roots)) / (G.crown_area * G.lai);
 	
 	// Photosynthesis with nitrogen limitation
 	res = assimilator.net_production(env, &geometry, par, traits, t);
@@ -191,13 +194,7 @@ void Plant::calc_demographic_rates(Env& env, double t){
 
 	// Update nitrogen balance
 	// As the biomass is in kg the nitrogen used is also in kg!
-	geometry.nitrogen_tree -= (rates.dnitrogen_dt - traits.k_14 * (res.tleaf * 0.5 * traits.nc_leaf + res.troot * 0.5 * traits.nc_root));
-  geometry.nitrogen_in_biomass += rates.dnitrogen_dt - traits.k_14 * (res.tleaf * 0.5 * traits.nc_leaf + res.troot * 0.5 * traits.nc_root);
-	if (geometry.nitrogen_tree < 0.0) {
-	  geometry.nitrogen_tree = 0.0;
-	  std::cout << " Nitrogen in the tree was negative, made into 0.";
-	}
-
+	std::cout << " after " << rates.dnitrogen_dt << " " << res.tleaf << " " << res.troot;
 }
 
 // Shorthand is used for biomass partitioning into geometric growth and LAI growth
