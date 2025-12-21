@@ -125,7 +125,7 @@ blank <- function() {
   
   dt <- 1/12
   start_year <- 1960
-  end_year <- 2022+120
+  end_year <- 2022
   years_seq <- seq(start_year, end_year, dt)
   
   df <- df_2 <- df_3 <- data.frame(matrix(ncol = length(lho$get_header()), nrow = 0))
@@ -266,7 +266,7 @@ blank <- function() {
   points(as.Date(as.character(1960 + prebas$multiOut[3,,7,,1]), format = "%Y")[1:62], 
          prebas$multiOut[3,,10,,1][1:62], col = "green", pch = 17)
   legend("topleft", legend = c(N_labels, "Eddy Covariance", "Preles", "Hyytiälä Data"), 
-         col = c(cols, "black", "green", "blue"), lty = c(1,1,1,NA,NA, NA), pch = c(NA,NA,NA,16,17, 4), bty = "n")
+         col = c(cols, "black", "green", "blue"), lty = c(1,1,1,NA,NA,NA), pch = c(NA,NA,NA,16,17,4), bty = "n")
   
   # 2. NPP (assim_net)
   plot(df$date, df$assim_net, type = "l", col = cols[1],
@@ -348,7 +348,7 @@ blank <- function() {
   points(df_3$date, df_3$optimal_leaf_nitrogen, col = cols[3], pch = ".")
   points(df$date, 1000 * df$potential_leaf_nitrogen, col = cols[1], pch = "-")
   points(df_2$date, 1000 * df_2$potential_leaf_nitrogen, col = cols[2], pch = "-")
-  points(df_3$date, df_3$potential_leaf_nitrogen, col = cols[3], pch = "-")
+  points(df_3$date, 1000 * df_3$potential_leaf_nitrogen, col = cols[3], pch = "-")
   abline(h = 0.0151, col = "blue", lty = 1)
   legend("topright", legend = c("Potential", "Optimal"), col = "black", pch = c("-", "."), bty = "n", title = "Leaf Nitrogen")
   title(sub = "Korhonen 2012: Socts Pine Needle N", col.sub = "blue")
@@ -867,7 +867,7 @@ blank <- function() {
   
   df_long_sub <- df_long %>%
     filter(Dates >= start_date & Dates <= end_date)
-
+  
   # Join modeled + GPP validation by Month and Variable
   df_scatter <- df_long_sub %>%
     filter(Variable == "a", Version %in% c("1","1.5","0.5")) %>%
@@ -891,7 +891,7 @@ blank <- function() {
       color = "Version"
     ) +
     theme_minimal()
-
+  
 }
 
 Testing_the_architecture <- function() {
