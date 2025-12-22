@@ -5,8 +5,8 @@ using namespace std;
 namespace pfate{
 
 ErgodicEnvironment::ErgodicEnvironment() : LightEnvironment(), Climate(){
-	z_star = {15, 10, 5, 0};
-	canopy_openness = {1, exp(-0.5 * 1.8), exp(-0.5 * 3.5), exp(-0.5 * 5.5)};
+	z_star = {20, 15, 10, 5, 0};
+	canopy_openness = {1, exp(-0.5 * 0.7), exp(-0.5 * 1.8), exp(-0.5 * 2.8), exp(-0.5 * 3.5)};
 }
 
 void ErgodicEnvironment::print(double t){
