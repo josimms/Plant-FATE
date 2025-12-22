@@ -159,8 +159,11 @@ void Plant::calc_demographic_rates(Env& env, double t){
   // Nitrogen uptake and partitioning calculated here
  	uptake.nitrogen_plant(env, geometry, par, traits); // g N per kg Biomass to kg
  	
+ 	// Update nitrogen balance
+	geometry.nitrogen_tree += geometry.nitrogen_uptake + traits.k_14 * (res.tleaf * 0.5 * traits.nc_leaf + res.troot * 0.5 * traits.nc_root);
+ 	
  	// Uptake + retranslocation
- 	geometry.potential_nitrogen_leaf = traits.k_10 * (geometry.nitrogen_uptake + traits.k_14 * (res.tleaf * 0.5 * traits.nc_leaf + res.troot * 0.5 * traits.nc_root)) / (geometry.crown_area * geometry.lai);
+ 	geometry.potential_nitrogen_leaf = traits.k_10 * geometry.nitrogen_tree / (geometry.crown_area * geometry.lai);
 	
 	// Photosynthesis with nitrogen limitation
 	res = assimilator.net_production(env, &geometry, par, traits, t);
@@ -191,6 +194,9 @@ void Plant::calc_demographic_rates(Env& env, double t){
 	// rates.dseeds_dt_pool =  -state.seed_pool/par.ll_seed  +  fec * p_survival_dispersal(env);  // seeds that survive dispersal enter seed pool
 	// rates.dseeds_dt_germ =   state.seed_pool/par.ll_seed;   // seeds that leave seed pool proceed for germincation
 	rates.dseeds_dt = fec;
+	
+	// Nitrogen in biomass
+	geometry.nitrogen_in_biomass += rates.dnitrogen_dt - (1 - traits.k_14) * (res.tleaf * 0.5 * traits.nc_leaf + res.troot * 0.5 * traits.nc_root);
 }
 
 // Shorthand is used for biomass partitioning into geometric growth and LAI growth
