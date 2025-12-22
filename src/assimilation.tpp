@@ -34,7 +34,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 	double Iabs_day    = fipar * C.clim_inst.ppfd / f_day_length;
 	double Iabs_24hr   = fipar * C.clim_inst.ppfd;
 	
-	double leaf_nitrogen = 1000 * G->potential_nitrogen_leaf; // kg to g
+	double leaf_nitrogen = 1000.0 * G->potential_nitrogen_leaf; // kg to g
 
 	auto out_phydro_acclim = phydro::phydro_nitrogen(
 		C.clim_acclim.tc,     // current temperature
