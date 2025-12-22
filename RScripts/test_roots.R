@@ -102,30 +102,30 @@ blank <- function() {
   # Add a third simulation (lho_3) for set_soil_nitrogen(0.5)
   # ------------------------------------------------------------
   
-  lho <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
-  lho$set_i_metFile("tests/data/ERAS_Monthly.csv")
-  lho$set_a_metFile("tests/data/ERAS_Monthly.csv")
+  lho <- new(LifeHistoryOptimizer, "tests/params/p_test_v2.ini")
+  lho$set_i_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
+  lho$set_a_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
   lho$set_co2File("")
   lho$set_soil_nitrogen(1.1)
   lho$init()
   
-  lho_2 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
-  lho_2$set_i_metFile("tests/data/ERAS_Monthly.csv")
-  lho_2$set_a_metFile("tests/data/ERAS_Monthly.csv")
+  lho_2 <- new(LifeHistoryOptimizer, "tests/params/p_test_v2.ini")
+  lho_2$set_i_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
+  lho_2$set_a_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
   lho_2$set_co2File("")
   lho_2$set_soil_nitrogen(0.9)
   lho_2$init()
   
-  lho_3 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
-  lho_3$set_i_metFile("tests/data/ERAS_Monthly.csv")
-  lho_3$set_a_metFile("tests/data/ERAS_Monthly.csv")
+  lho_3 <- new(LifeHistoryOptimizer, "tests/params/p_test_v2.ini")
+  lho_3$set_i_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
+  lho_3$set_a_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
   lho_3$set_co2File("")
   lho_3$set_soil_nitrogen(0.7)
   lho_3$init()
   
   dt <- 1/12
   start_year <- 1960
-  end_year <- 2022
+  end_year <- 2022+120
   years_seq <- seq(start_year, end_year, dt)
   
   df <- df_2 <- df_3 <- data.frame(matrix(ncol = length(lho$get_header()), nrow = 0))
@@ -974,8 +974,8 @@ Testing_the_architecture <- function() {
   
   a = 150
   c = 450
-  m = 10
-  n = 4.25
+  m = 2.0
+  n = 1.5
   H_m = 30
   
   out <- geom_from_cpp(a, c, m, n, fg = 0.15, H_m)
@@ -1600,6 +1600,14 @@ original_life_histroy <- function() {
   date_point <- as.Date("2007-06-21")
   
   par(mfrow = c(3, 2))
+  plot(df$date, df$vcmax, type = "l", col = cols[1], main = "Vcmax", ylab = "µmol m⁻² s⁻¹", xlab = "Date",
+       ylim = range(df$vcmax, df_2$vcmax, df_3$vcmax, 0, 30, na.rm = TRUE))
+  lines(df_2$date, df_2$vcmax, col = cols[2])
+  lines(df_3$date, df_3$vcmax, col = cols[3])
+  abline(h = 0, col = "blue")
+  abline(h = 30, col = "blue")
+  title(sub = "Thum 2008: Hyytiälä Vcmax Range", col.sub = "blue")
+  
   plot(df$date, df$tree_nitrogen, type = "l", col = cols[1],
        ylab = "kg N", main = "Free Tree Nitrogen", xlab = "Date",
        ylim = range(df$tree_nitrogen, df_2$tree_nitrogen, df_3$tree_nitrogen, na.rm = TRUE))
@@ -1621,14 +1629,6 @@ original_life_histroy <- function() {
   abline(h = 0.0151, col = "blue", lty = 1)
   legend("topright", legend = c("Potential", "Optimal"), col = "black", pch = c("-", "."), bty = "n", title = "Leaf Nitrogen")
   title(sub = "Korhonen 2012: Socts Pine Needle N", col.sub = "blue")
-  
-  plot(df$date, df$vcmax, type = "l", col = cols[1], main = "Vcmax", ylab = "µmol m⁻² s⁻¹", xlab = "Date",
-       ylim = range(df$vcmax, df_2$vcmax, df_3$vcmax, na.rm = TRUE))
-  lines(df_2$date, df_2$vcmax, col = cols[2])
-  lines(df_3$date, df_3$vcmax, col = cols[3])
-  abline(h = 0, col = "blue")
-  abline(h = 30, col = "blue")
-  title(sub = "Thum 2008: Hyytiälä Vcmax Range", col.sub = "blue")
   
   plot(df$date, df$optimal_leaf_nitrogen, type = "p", col = cols[1], pch = ".",
        ylab = "Leaf N Dynamics (g g⁻¹)", main = "Optimal Leaf N", xlab = "Date",
