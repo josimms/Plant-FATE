@@ -102,21 +102,21 @@ blank <- function() {
   # Add a third simulation (lho_3) for set_soil_nitrogen(0.5)
   # ------------------------------------------------------------
   
-  lho <- new(LifeHistoryOptimizer, "tests/params/p_test_v2.ini")
+  lho <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
   lho$set_i_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
   lho$set_a_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
   lho$set_co2File("")
   lho$set_soil_nitrogen(1.1)
   lho$init()
   
-  lho_2 <- new(LifeHistoryOptimizer, "tests/params/p_test_v2.ini")
+  lho_2 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
   lho_2$set_i_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
   lho_2$set_a_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
   lho_2$set_co2File("")
   lho_2$set_soil_nitrogen(0.9)
   lho_2$init()
   
-  lho_3 <- new(LifeHistoryOptimizer, "tests/params/p_test_v2.ini")
+  lho_3 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
   lho_3$set_i_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
   lho_3$set_a_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
   lho_3$set_co2File("")
