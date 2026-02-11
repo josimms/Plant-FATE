@@ -6,81 +6,103 @@ using namespace std;
 
 namespace plant {
 
-  double Uptake::uptake_myco(double N, PlantArchitecture& G) {
-    // G.ectomycorrhiza_mass kg
-    // k_12 per biomass
-    // u_c_B 
+  // Uptake function
+  void Uptake::init(io::Initializer& I){
     
-    double biomass_limitation = G.ectomycorrhiza_mass / (G.ectomycorrhiza_mass + k_12);
-    double nitrogen_uptake = (u_c_B * N * e_u_myco) / (u_c_B + N * e_u_myco);
+    // Nitrogen parameters
+    myco_diameter     = I.get<double>("myco_diameter");
+    rho_myco          = I.get<double>("rho_myco");
+    D                 = I.get<double>("D");
+    N_s               = I.get<double>("N_s");
+    u_max             = I.get<double>("u_max");
+    u_max_kg          = I.get<double>("u_max_kg");
+    C_r               = I.get<double>("C_r");
+    depth             = I.get<double>("depth");
+    k8                = I.get<double>("k8");
+    k20               = I.get<double>("k20");
+    k21               = I.get<double>("k21");
+    k23               = I.get<double>("k23");
     
-    double nitrogen_capacity = G.ectomycorrhiza_mass * biomass_limitation * nitrogen_uptake; 
-    
-    // NOTE this is for all of the ectomycorrhizal biomass.
-    // kg N per kg C
-    return nitrogen_capacity * N / (nitrogen_capacity + N);
   }
-  
-  double Uptake::uptake_roots(double N, PlantArchitecture& G, PlantTraits& T) {
-    double root_length = G.root_length;
-    double root_no = G.root_no;
-    
-    // kg / m3 * mm2 * mm * no * 1e-9 * no = kg C
-    double one_root_mass = G.root_density(T) * pow(G.root_diameter(T)/2.0, 2.0) * root_length * M_PI * root_no * 1e-9;
-    double surface_area = root_no * M_PI * (root_length * 1e-3) * (G.root_diameter(T) * 1e-3); // m
-      
-    // TODO: I think that this doesn't make sense with the units as the G.root_mass is for the whole root system, but the surface area transformation is for the surface area
-    double biomass_conversion = 4.0 * one_root_mass / (G.root_density(T) * G.root_diameter(T) * 1e-3); // kg / (kg-1/m3 * mm * 1e-3) = m2
-    double biomass_limitation = surface_area / (surface_area + 2.0 * k_13);
-    double nitrogen_uptake = (u_c_B * N * e_u_root) / (u_c_B + N * e_u_root);
-    
-    double nitrogen_capacity = biomass_conversion * biomass_limitation * nitrogen_uptake;
-    
-    // gN per kg C
-    return nitrogen_capacity * N / (nitrogen_capacity + N);
-  }
-  
+
+  // Uptake with age reduction
   double Uptake::uptake_age(const PlantArchitecture& G, PlantTraits& T) {
     return 1/(1 + exp(G.root_lifespan(T)) - k_8);
   }
   
+  // Nitrogen uptake gate
   double Uptake::nitrogen_gate(const PlantArchitecture& G, PlantTraits& T) {
     double surface_area = G.root_no * M_PI * G.root_length * G.root_diameter(T);
     
     return surface_area/(surface_area + k_9);
   }
 
-  void Uptake::init(io::Initializer& I){
-    
-    // Nitrogen parameters
-    k_8                   = I.get<double>("k_8");
-    k_9                   = I.get<double>("k_9");
-    k_11                  = I.get<double>("k_11");
-    k_12                  = I.get<double>("k_12");
-    k_13                  = I.get<double>("k_13");
-    mycorrhized           = I.get<double>("mycorrhized");
-    investment_from_myco  = I.get<double>("investment_from_myco");
-    u_c_B                 = I.get<double>("u_c_B");
-    e_u_root              = I.get<double>("e_u_root");
-    e_u_myco              = I.get<double>("e_u_myco");
-    q                     = I.get<double>("q");
-    
+  // Depletion radius calculation
+  double Uptake::rd() {
+    return D * N_flux / u_max;
   }
 
-  void Uptake::nitrogen_based_root_optimisation(PlantArchitecture& G, PlantTraits& T, Uptake& U) {
+  // Surface area explored per root biomass
+  double Uptake::e_u_root(double r_d, double root_diameter_mm, double root_density) {
+    double d_m <- root_diameter_mm / 1000;
+    return 4.0 * pow(r_d, 2.0) / (root_density * pow(d_m, 2.0));
+  }
+
+  // Surface area explored per mycorrhizal biomass
+  double Uptake::e_u_myco(double r_d, double myco_diameter_m, double myco_density) {
+    return 4.0 * pow(r_d, 2.0) / (myco_density * pow(myco_diameter_m, 2.0));
+  }
+
+  // Crowding function
+  double Uptake::S_crowding(double B_root, double B_myco, double rho_root, double e_root, double e_myco) {
+
+    // --- Ellipsoid soil volume ---
+    V_soil = (4.0/3.0) * pi * pow(k20 * C_r, 2.0) * depth;
+      
+    // --- Free soil volume corrected for porosity and existing biomass ---
+    V_free = k21 * V_soil - B_root / rho_root - B_myco / rho_myco;
+      
+    // --- Total explored volume --- TODO: coarse roots
+    V_explored = B_root * e_root + B_myco * e_myco;
+      
+    // --- Saturation function ---
+    S <- if (V_explored > V_free) {
+      V_free/V_explored;
+    } else 1;
+      
+    return(S)
+  }
+
+  // Core uptake function
+  UptakeResult Uptake::uptake_core(const PlantArchitecture& G, PlantTraits& traits) {
     
-    double cost = 0.0;
-    double assimilation = 0.0;
+    // --- Generate biomass ---
+    B_root = root_mass(traits);
+    d_root_m = root_diameter(traits); // TODO check units
+    rho_root = root_density(traits);
     
-    // Optimisation
-    double optimisation = assimilation - U.q * cost;
+    // --- Depletion ratio ---
+    deplition_radius = r_d(D, N_s, u_max);
     
-    // TODO: calculate the zeta term and feed that to the outputs
+    // Soil surface per root biomass
+    e_root = e_u_root(deplition_radius, d_root_m, rho_root);
+    e_myco = e_u_myco(deplition_radius, myco_diameter, rho_myco);
     
-    
-    // These are the initial conditions, whilst this isn't working just have constant roots
-    G.root_length = 1e5;
-    G.root_no = 20;
+    // --- Compute saturation factor ---
+    Sval = S_crowding(B_root, G.ectomycorrhiza_mass, e_root, e_myco);
+        
+    // --- Final uptake ---
+    U_root_c = B_root * u_max_kg * Sval;
+    U_myco_c = G.ectomycorrhiza_mass * u_max_kg * Sval;
+        
+    U_s_root = N_s * e_root / (N_s * e_root + k23);
+    U_s_myco = N_s * e_myco / (N_s * e_myco + k23);
+          
+    U_root = U_root_c * U_s_root;
+    U_myco = U_myco_c * U_s_myco;
+        
+    // --- Return all relevant info ---
+    return {U_root, U_myco, Sval, deplition_radius, e_root, e_myco};
   }
 
 } // End namespace

@@ -8,26 +8,41 @@
 namespace plant {
 
 class Uptake {
+  struct UptakeResult {
+    double U_root;
+    double U_myco;
+    double Sval;
+    double rd;
+    double e_root;
+    double e_myco;
+  };
+  
+  
 public:
-  // Parameters
-  double k_8;
-  double k_9;
-  double k_11;
-  double k_12;
-  double k_13;
-  double mycorrhized;
-  double investment_from_myco;
-  double u_c_B;
-  double e_u_root;
-  double e_u_myco;
-  double q;
+  double myco_diameter;
+  double rho_myco;
+  double D;
+  double N_s;
+  double u_max; 
+  double u_max_kg; 
+  double C_r;
+  double depth;
+  double k8;
+  double k20;
+  double k21;
+  double k23;
   
   // Uptake equations
   /// @{brief Uptake Functions
-  double uptake_myco(double N, PlantArchitecture& G);
-  double uptake_roots(double N, PlantArchitecture& G, PlantTraits& T);
   double uptake_age(const PlantArchitecture& G, PlantTraits& T);
   double nitrogen_gate(const PlantArchitecture& G, PlantTraits& T);
+  
+  double rd();
+  double e_u_root(double r_d, double root_diameter_mm, double root_density);
+  double e_u_myco(double r_d, double myco_diameter_m, double myco_density);
+  double S_crowding(double B_root, double B_myco, double rho_root, double e_root, double e_myco);
+  UptakeCoreResult Uptake::uptake_core(const PlantArchitecture& G, PlantTraits& traits);
+    
   
   template<class _Climate>
   void nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& par, PlantTraits& T);
@@ -35,9 +50,6 @@ public:
   
   // Initialisation function
   void init(io::Initializer& I);
-  
-  // Process function
-  void nitrogen_based_root_optimisation(PlantArchitecture& G, PlantTraits& T, Uptake& U);
 };
 
 } // end of namespace
