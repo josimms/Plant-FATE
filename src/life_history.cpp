@@ -6,7 +6,8 @@ namespace pfate{
 
 ErgodicEnvironment::ErgodicEnvironment() : LightEnvironment(), Climate(){
 	z_star = {20, 15, 10, 5, 0};
-	canopy_openness = {1, exp(-0.5 * 0.7), exp(-0.5 * 1.8), exp(-0.5 * 2.8), exp(-0.5 * 3.5)};
+	// canopy_openness = {1, exp(-0.5 * 0.7), exp(-0.5 * 1.8), exp(-0.5 * 2.8), exp(-0.5 * 3.5)};
+	canopy_openness = {1.0, 0.87, 0.75, 0.63, 0.4};
 }
 
 void ErgodicEnvironment::print(double t){
@@ -142,6 +143,12 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
     , "root_no"
     , "root_length"
     , "nitrogen_uptake"
+    , "root_uptake"
+    , "myco_uptake"
+    , "crowding"
+    , "deplition_radius"
+    , "soil_area_per_biomass_root"
+    , "soil_area_per_biomass_myco"
 	};
 }
 
@@ -199,6 +206,12 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
     , P.geometry.root_no
     , P.geometry.root_length
     , P.geometry.nitrogen_uptake
+    , P.uptake.U_root
+    , P.uptake.U_myco
+    , P.uptake.Sval
+    , P.uptake.rd
+    , P.uptake.e_root
+    , P.uptake.e_myco
 	};
 }
 

@@ -63,7 +63,7 @@ class Plant{
 	//std::ofstream fmuh; // Cannot use streams here because we need copy-constructor for Plants, which in turn would need a copy constructor for streams, which is deleted.
 	PlantTraits traits;   ///< Collection of all functional traits
 	PlantParameters par;  ///< Collection of all model parameters that are not traits
-	Uptake uptake;        ///< Collection of all uptake / nitrogen parameters
+	Uptake uptake;   ///< Collection of all uptake / nitrogen parameters
 
 	Assimilator assimilator;
 	PlantArchitecture geometry;

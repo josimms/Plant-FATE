@@ -50,7 +50,7 @@ class PlantArchitecture{
 	
 	double nitrogen_tree;                ///< Nitrogen in the tree [g]
 	double potential_nitrogen_leaf;      ///< Potential nitrogen in the leaf for the optimisation [g]
-	double nitrogen_uptake;              ///< Nitrogen uptake [kgN per mounth]
+	double nitrogen_uptake;              ///< Nitrogen uptake [kgN per time unit]
 	double nitrogen_in_biomass;          ///< Nitrogen in the tree's biomass [kg N]
 	
 	// ode-based calculations of sapwood and heartwood (for debug)
