@@ -1,0 +1,199 @@
+---
+title: "Publication Plots"
+author: "Joanna"
+date: "2026-02-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(lubridate)  # convenient for date operations
+library(ggplot2)
+library(zoo)
+library(data.table)
+library(rphydro)
+library(Rprebasso)
+library(patchwork)
+library(PlantFATE)
+library(akima)
+library(here)
+```
+
+## Simulations
+
+```{r pressure, echo=FALSE}
+
+# --- Nitrogen values you want to test
+nitrogen_values <- seq(0.0001, 100, length.out = 10)
+
+dt <- 1/12
+start_year <- 1960
+end_year <- 2022
+years_seq <- seq(start_year, end_year, dt)
+
+# Store all simulations here
+all_results <- vector("list", length(nitrogen_values))
+
+param_file <- here("tests", "params", "p_test_boreal.ini")
+weather_file <- here("tests", "data", "ERAS_Monthly.csv")
+
+for (n_idx in seq_along(nitrogen_values)) {
+  
+  cat("Running simulation for soil nitrogen =", nitrogen_values[n_idx], "\n")
+  
+  # --- Create optimizer
+  lho <- new(LifeHistoryOptimizer, param_file)
+  lho$set_i_metFile(weather_file)
+  lho$set_a_metFile(weather_file)
+  lho$set_co2File("")
+  lho$set_soil_nitrogen(nitrogen_values[n_idx])
+  lho$init()
+  
+  col_names <- lho$get_header()
+  results <- vector("list", length(years_seq))
+  
+  i <- 1
+  
+  for (t in years_seq) {
+    
+    results[[i]] <- tryCatch({
+      lho$grow_for_dt(t, dt)
+      state <- lho$get_state(t + dt)
+      df_row <- as.data.frame(t(state))
+      names(df_row) <- col_names
+      df_row
+    }, error = function(e) {
+      message("Error at t=", t, ": ", e$message)
+      setNames(as.data.frame(as.list(rep(NA, length(col_names)))), col_names)
+    })
+    
+    i <- i + 1
+  }
+  
+  # Combine results
+  df <- do.call(rbind, results)
+  names(df) <- col_names
+  
+  # Add date column
+  dates <- seq(as.Date(paste0(start_year, "-01-01")),
+               as.Date(paste0(end_year, "-01-01")), by = "month")[1:nrow(df)]
+  
+  df$date <- dates
+  df$soil_nitrogen <- nitrogen_values[n_idx]
+  
+  all_results[[n_idx]] <- df
+}
+
+# --- Combine ALL nitrogen simulations into one data frame
+final_df <- do.call(rbind, all_results)
+
+```
+
+## Fitness
+
+```{r}
+
+fitness <- function(costs, nitrogen) {
+  out <- costs - nitrogen
+  return(out)
+}
+
+
+final_df$fitness <- fitness(
+  costs = final_df$total_mass + 
+    final_df$rs + final_df$rr + final_df$rl +
+    final_df$tl + final_df$tr,
+  nitrogen = final_df$nitrogen_uptake
+)
+
+```
+
+## Trade offs: Root traits
+
+```{r}
+# First plot
+p1 <- ggplot(final_df, aes(x = soil_nitrogen, y = root_no, color = fitness)) +
+  geom_jitter(width = 0.5, height = 0, alpha = 0.8) +
+  scale_color_viridis_c(option = "plasma") +
+  labs(
+    x = "Soil Nitrogen",
+    y = "Root Number",
+    color = "Fitness",
+    title = "Fitness vs Root Number"
+  ) +
+  theme_minimal()
+
+# Second plot
+p2 <- ggplot(final_df, aes(x = soil_nitrogen, y = root_length, color = fitness)) +
+  geom_jitter(width = 0.5, height = 0, alpha = 0.8) +
+  scale_color_viridis_c(option = "plasma") +
+  labs(
+    x = "Soil Nitrogen",
+    y = "Root Length",
+    color = "Fitness",
+    title = "Fitness vs Root Length"
+  ) +
+  theme_minimal()
+
+# Display side by side
+p1 + p2
+
+
+```
+
+## Trade offs: Ectomycorrhizal biomass
+
+```{r}
+
+ggplot(final_df, aes(x = soil_nitrogen, y = ectomycorrhiza_mass, color = fitness)) +
+  geom_jitter(width = 0.5, height = 0, alpha = 0.8) +  # small random jitter
+  scale_color_viridis_c(option = "plasma") +
+  labs(
+    x = "Soil Nitrogen",
+    y = "Ectomycorrhiza Biomass",
+    color = "Fitness",
+    title = "Fitness over Biomass and Soil Nitrogen"
+  ) +
+  theme_minimal()
+
+
+interp_grid <- with(final_df[!is.na(final_df$ectomycorrhiza_mass),], akima::interp(
+  x = soil_nitrogen,
+  y = ectomycorrhiza_mass,
+  z = fitness,
+  nx = 100, ny = 100,
+  duplicate = TRUE
+))
+
+grid_df <- expand.grid(
+  soil_nitrogen = interp_grid$x,
+  ectomycorrhiza_mass = interp_grid$y
+)
+grid_df$fitness <- as.vector(interp_grid$z)
+
+ggplot(grid_df, aes(x = soil_nitrogen, y = ectomycorrhiza_mass, z = fitness)) +
+  geom_contour_filled() +
+  scale_fill_viridis_d(option = "plasma") +
+  labs(
+    x = "Soil Nitrogen",
+    y = "Ectomycorrhiza Biomass",
+    fill = "Fitness",
+    title = "Contour Plot of Fitness"
+  ) +
+  theme_minimal()
+
+
+```
+## Diffusion differences to mimmic different speeds of nitrogen transfer
+
+```{r}
+
+```
+
+## ??
+
+```{r}
+
+```
