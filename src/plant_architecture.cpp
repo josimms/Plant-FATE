@@ -121,7 +121,7 @@ double PlantArchitecture::dmass_dt_lai(double& dL_dt, double dmass_dt_max, Plant
 }
 
 // **
-// ** root allometry
+// ** Root allometry
 // **
 
 double PlantArchitecture::root_diameter(const PlantTraits& traits) const {
@@ -136,7 +136,7 @@ double PlantArchitecture::root_density(const PlantTraits& traits) const {
 }
 
 double PlantArchitecture::root_lifespan(const PlantTraits& traits) const {
-  return traits.k_6 * (1 - exp(- traits.k_7 * root_diameter(traits)));
+  return traits.k_6 * (1.0 - exp(- traits.k_7 * root_diameter(traits)));
 }
 
 // **
