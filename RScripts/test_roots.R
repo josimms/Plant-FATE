@@ -103,29 +103,29 @@ blank <- function() {
   # ------------------------------------------------------------
   
   lho <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
-  lho$set_i_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
-  lho$set_a_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
+  lho$set_i_metFile("tests/data/ERAS_Monthly.csv")
+  lho$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_co2File("")
-  lho$set_soil_nitrogen(1.1)
+  lho$set_soil_nitrogen(100)
   lho$init()
   
   lho_2 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
-  lho_2$set_i_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
-  lho_2$set_a_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
+  lho_2$set_i_metFile("tests/data/ERAS_Monthly.csv")
+  lho_2$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho_2$set_co2File("")
-  lho_2$set_soil_nitrogen(0.9)
+  lho_2$set_soil_nitrogen(0.5)
   lho_2$init()
   
   lho_3 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
-  lho_3$set_i_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
-  lho_3$set_a_metFile("tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
+  lho_3$set_i_metFile("tests/data/ERAS_Monthly.csv")
+  lho_3$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho_3$set_co2File("")
-  lho_3$set_soil_nitrogen(0.7)
+  lho_3$set_soil_nitrogen(0.0001)
   lho_3$init()
   
   dt <- 1/12
   start_year <- 1960
-  end_year <- 2022+120
+  end_year <- 2022
   years_seq <- seq(start_year, end_year, dt)
   
   df <- df_2 <- df_3 <- data.frame(matrix(ncol = length(lho$get_header()), nrow = 0))
@@ -302,7 +302,7 @@ blank <- function() {
   lines(df_2$date, df_2$diameter, col = cols[2])
   lines(df_3$date, df_3$diameter, col = cols[3])
   points(as.Date(paste0(loaded_data$smearII_data$date[loaded_data$smearII_data$variable == "pine diameter BA weighted mean"], "-01-01")), 0.01*loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "pine diameter BA weighted mean"], col = "blue", pch = "x")
-  points(as.Date(as.character(1960 + prebas$multiOut[3,,7,,1]), format = "%Y")[1:62], prebas$multiOut[3,,12,,1][1:62]/100, col = "green", pch = 17)
+  #points(as.Date(as.character(1960 + prebas$multiOut[3,,7,,1]), format = "%Y")[1:62], prebas$multiOut[3,,12,,1][1:62]/100, col = "green", pch = 17)
   title(sub = "SMEAR Biomass Data", col.sub = "blue")
   
   plot(df$date, df$root_mass, type = "l", col = cols[1],
@@ -337,7 +337,7 @@ blank <- function() {
   title(sub = "This is \"free\" nitrogen not used nitrogen")
   lines(df_2$date, df_2$tree_nitrogen, col = cols[2])
   lines(df_3$date, df_3$tree_nitrogen, col = cols[3])
-  legend("topleft", legend = c(N_labels), col = c(cols), lty = 1, bty = "n")
+  legend("topleft", legend = c("N = High", "N = Medium", "N = Low"), col = c(cols), lty = 1, bty = "n")
   
   plot(df$date, df$optimal_leaf_nitrogen, type = "p", col = cols[1], pch = ".",
        ylab = "Leaf N Dynamics (g g⁻¹)", main = "Optimal Leaf N", xlab = "Date",
@@ -452,6 +452,22 @@ blank <- function() {
        ylim = range(df$fineroot_lifespan, df_2$fineroot_lifespan, df_3$fineroot_lifespan, na.rm = TRUE))
   lines(df_2$date, df_2$fineroot_lifespan, col = cols[2])
   lines(df_3$date, df_3$fineroot_lifespan, col = cols[3])
+  
+  # ----------------------------
+  # 2.75. Mycorrhiza and roots behaviour
+  # ----------------------------
+  
+  par(mfrow = c(2, 3))
+  plot(df$date, df$soil_area_per_biomass_myco, xlab = "Date", ylab = "m3 per kg", main = "Soil Area Reached: Myco")
+  plot(df$date, df$soil_area_per_biomass_root, xlab = "Date", ylab = "m3 per kg", main = "Soil Area Reached: Root")
+  plot(df$date, df$deplition_radius, xlab = "Date", ylab = "m", main = "Depletion Radius")
+  plot(df$date, df$crowding, xlab = "Date", ylab = "%", main = "Crowding")
+  plot(df$date, df$root_uptake, xlab = "Date", ylab = "kg N per kg Biomass", main = "Root Uptake")
+  plot(df$date, df$myco_uptake, xlab = "Date", ylab = "kg N per kg Biomass", main = "Myco Uptake")
+  
+  par(mfrow = c(1, 1))
+  plot(df$date, df$soil_area_per_biomass_myco/df$soil_area_per_biomass_root, 
+       xlab = "Date", ylab = "", main = "Ratio of uptake", sub = "Myco / Root")
   
   # ----------------------------
   # 3. Respiration
