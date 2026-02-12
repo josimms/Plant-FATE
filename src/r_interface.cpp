@@ -79,6 +79,8 @@ RCPP_MODULE(plantfate_module){
     .field("alpha", &plant::PlantParameters::alpha)
     .field("gamma", &plant::PlantParameters::gamma)
     .field("a_jmax", &plant::PlantParameters::a_jmax)
+    .field("root_no0", &plant::PlantParameters::root_no0)
+    .field("root_length0", &plant::PlantParameters::root_length0)
 
 		.constructor()
 		.method("print", &plant::PlantParameters::print)
