@@ -64,6 +64,11 @@ void LifeHistoryOptimizer::set_soil_nitrogen(double _N){
   C.set_soil_nitrogen(_N);
 }
 
+void LifeHistoryOptimizer::root_override(double _rn, double _rl) {
+  P.geometry.root_no = _rn;
+  P.geometry.root_length = _rl;
+}
+
 void LifeHistoryOptimizer::init(){
 	rep = 0;
 	litter_pool = 0;

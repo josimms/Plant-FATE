@@ -23,7 +23,6 @@ std::unordered_map<std::string, double PlantTraits::*> PlantTraits::members{
 };
 
 void PlantTraits::init(io::Initializer& I){
-  // TODO: should I add the 
 	lma = I.get<double>("lma");
 	zeta = I.get<double>("zeta");
 	fcr = I.get<double>("fcr");

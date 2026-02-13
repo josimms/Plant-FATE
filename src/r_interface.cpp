@@ -79,9 +79,7 @@ RCPP_MODULE(plantfate_module){
     .field("alpha", &plant::PlantParameters::alpha)
     .field("gamma", &plant::PlantParameters::gamma)
     .field("a_jmax", &plant::PlantParameters::a_jmax)
-    .field("root_no0", &plant::PlantParameters::root_no0)
-    .field("root_length0", &plant::PlantParameters::root_length0)
-
+    
 		.constructor()
 		.method("print", &plant::PlantParameters::print)
 		;
@@ -160,6 +158,7 @@ RCPP_MODULE(plantfate_module){
 		.method("set_co2File", &pfate::LifeHistoryOptimizer::set_co2File)
 		.method("init_co2", &pfate::LifeHistoryOptimizer::init_co2)
     .method("set_soil_nitrogen", &pfate::LifeHistoryOptimizer::set_soil_nitrogen)
+    .method("root_override", &pfate::LifeHistoryOptimizer::root_override)
 
 		.method("get_header", &pfate::LifeHistoryOptimizer::get_header)
 		.method("get_state", &pfate::LifeHistoryOptimizer::get_state)
