@@ -19,81 +19,68 @@ library(patchwork)
 library(PlantFATE)
 library(akima)
 library(here)
+library(akima)  # for interpolation if needed
+library(future.apply)
 ```
 
 ## Simulations
 
 ```{r pressure, echo=FALSE}
+plan(multisession, workers = parallel::detectCores()-1)  # Adjust to your CPU cores
 
-# --- Nitrogen values you want to test
-nitrogen_values <- seq(0.0001, 100, length.out = 10)
+root_length_values = seq(1, 2, length.out = 21)
+root_no_values = 3*10^seq(3, 8, length.out = 21)
+nitrogen_values = seq(0.1, 100, length.out = 21)
 
-dt <- 1/12
-start_year <- 1960
-end_year <- 2022
-years_seq <- seq(start_year, end_year, dt)
+# Create all combinations first
+sim_grid <- expand.grid(
+  root_length = root_length_values,
+  root_no = root_no_values,
+  soil_nitrogen = nitrogen_values
+)
 
-# Store all simulations here
-all_results <- vector("list", length(nitrogen_values))
-
-param_file <- here("tests", "params", "p_test_boreal.ini")
-weather_file <- here("tests", "data", "ERAS_Monthly.csv")
-
-for (n_idx in seq_along(nitrogen_values)) {
+all_results <- future_lapply(seq_len(nrow(sim_grid)), function(i) {
   
-  cat("Running simulation for soil nitrogen =", nitrogen_values[n_idx], "\n")
+  rl <- sim_grid$root_length[i]
+  rn <- sim_grid$root_no[i]
+  n  <- sim_grid$soil_nitrogen[i]
   
-  # --- Create optimizer
   lho <- new(LifeHistoryOptimizer, param_file)
   lho$set_i_metFile(weather_file)
   lho$set_a_metFile(weather_file)
   lho$set_co2File("")
-  lho$set_soil_nitrogen(nitrogen_values[n_idx])
+  lho$set_soil_nitrogen(n)
   lho$init()
+  lho$root_override(rn, rl)
   
-  col_names <- lho$get_header()
-  results <- vector("list", length(years_seq))
-  
-  i <- 1
-  
-  for (t in years_seq) {
-    
-    results[[i]] <- tryCatch({
+  # simulate all months at once if possible
+  results <- lapply(years_seq, function(t) {
+    tryCatch({
       lho$grow_for_dt(t, dt)
       state <- lho$get_state(t + dt)
       df_row <- as.data.frame(t(state))
-      names(df_row) <- col_names
+      names(df_row) <- lho$get_header()
       df_row
     }, error = function(e) {
-      message("Error at t=", t, ": ", e$message)
-      setNames(as.data.frame(as.list(rep(NA, length(col_names)))), col_names)
+      setNames(as.data.frame(as.list(rep(NA, length(lho$get_header())))), lho$get_header())
     })
-    
-    i <- i + 1
-  }
+  })
   
-  # Combine results
   df <- do.call(rbind, results)
-  names(df) <- col_names
-  
-  # Add date column
-  dates <- seq(as.Date(paste0(start_year, "-01-01")),
-               as.Date(paste0(end_year, "-01-01")), by = "month")[1:nrow(df)]
-  
-  df$date <- dates
-  df$soil_nitrogen <- nitrogen_values[n_idx]
-  
-  all_results[[n_idx]] <- df
-}
+  df$date <- seq(as.Date(paste0(start_year, "-01-01")), as.Date(paste0(end_year, "-01-01")), by = "month")[1:nrow(df)]
+  df$soil_nitrogen <- n
+  df
+})
 
-# --- Combine ALL nitrogen simulations into one data frame
+# Combine parallel output
 final_df <- do.call(rbind, all_results)
-
 ```
 
 ## Fitness
 
 ```{r}
+
+final_df_no_na <- final_df[!is.na(final_df$root_length), ]
 
 fitness <- function(costs, nitrogen) {
   out <- costs - nitrogen
@@ -101,11 +88,11 @@ fitness <- function(costs, nitrogen) {
 }
 
 
-final_df$fitness <- fitness(
-  costs = final_df$total_mass + 
-    final_df$rs + final_df$rr + final_df$rl +
-    final_df$tl + final_df$tr,
-  nitrogen = final_df$nitrogen_uptake
+final_df_no_na$fitness <- fitness(
+  costs = final_df_no_na$total_mass + 
+    final_df_no_na$rs + final_df_no_na$rr + final_df_no_na$rl +
+    final_df_no_na$tl + final_df_no_na$tr,
+  nitrogen = final_df_no_na$nitrogen_uptake
 )
 
 ```
@@ -113,78 +100,322 @@ final_df$fitness <- fitness(
 ## Trade offs: Root traits
 
 ```{r}
-# First plot
-p1 <- ggplot(final_df, aes(x = soil_nitrogen, y = root_no, color = fitness)) +
-  geom_jitter(width = 0.5, height = 0, alpha = 0.8) +
-  scale_color_viridis_c(option = "plasma") +
+# Subset
+
+subset_df1 <- final_df_no_na %>%
+  filter(root_length == 1.5) %>%
+  filter(date == "1960-01-01")
+
+subset_df2 <- final_df_no_na %>%
+  filter(root_no == 3e5) %>%
+  filter(date == "1960-01-01")
+
+## Range
+
+fitness_range <- range(
+  c(subset_df1$fitness, subset_df2$fitness),
+  na.rm = TRUE
+)
+
+## plots
+
+# ---- Compute max lines for subset_df1 (fixed root length) ----
+max_line_df1 <- subset_df1 %>%
+  group_by(soil_nitrogen) %>%
+  slice_max(fitness, n = 1, with_ties = FALSE) %>%
+  ungroup()
+
+# ---- Compute max lines for subset_df2 (fixed root number) ----
+max_line_df2 <- subset_df2 %>%
+  group_by(soil_nitrogen) %>%
+  slice_max(fitness, n = 1, with_ties = FALSE) %>%
+  ungroup()
+
+# ---- Plot 1: Root Number Heatmap with max line ----
+p1 <- ggplot(subset_df1, aes(x = soil_nitrogen, y = root_no, fill = fitness)) +
+  geom_tile() +
+  geom_line(data = max_line_df1, aes(x = soil_nitrogen, y = root_no), color = "red", size = 1.2) +
+  scale_y_log10() +
+  scale_fill_viridis_c(option = "cividis", limits = fitness_range) +
+  labs(x = "Soil N (g m⁻³)",
+       y = "Root Number\nper Unit Crown Area (log)",
+       fill = "Fitness") +
+  pub_theme
+
+# ---- Plot 2: Root Length Heatmap with max line ----
+p2 <- ggplot(subset_df2, aes(x = soil_nitrogen, y = root_length, fill = fitness)) +
+  geom_tile() +
+  geom_line(data = max_line_df2, aes(x = soil_nitrogen, y = root_length), color = "red", size = 1.2) +
+  scale_fill_viridis_c(option = "cividis", limits = fitness_range) +
+  labs(x = "Soil N (g m⁻³)",
+       y = "Root Length (mm)",
+       fill = "Start Fitness") +
+  pub_theme
+
+# ---- Display plots ----
+p1
+p2
+```
+```{r}
+# Subset
+
+subset_df1 <- final_df_no_na %>%
+  filter(root_length == 1.5) %>%
+  filter(date == "1980-01-01")
+
+subset_df2 <- final_df_no_na %>%
+  filter(root_no == 3e5) %>%
+  filter(date == "1980-01-01")
+
+## Range
+
+# ---- Compute max lines for subset_df1 (fixed root length) ----
+max_line_df1 <- subset_df1 %>%
+  group_by(soil_nitrogen) %>%
+  slice_max(fitness, n = 1, with_ties = FALSE) %>%
+  ungroup()
+
+# ---- Compute max lines for subset_df2 (fixed root number) ----
+max_line_df2 <- subset_df2 %>%
+  group_by(soil_nitrogen) %>%
+  slice_max(fitness, n = 1, with_ties = FALSE) %>%
+  ungroup()
+
+# ---- Plot 1: Root Number Heatmap with max line ----
+p1 <- ggplot(subset_df1, aes(x = soil_nitrogen, y = root_no, fill = fitness)) +
+  geom_tile() +
+  geom_line(data = max_line_df1, aes(x = soil_nitrogen, y = root_no), color = "red", size = 1.2) +
+  scale_y_log10() +
+  scale_fill_viridis_c(option = "cividis", limits = fitness_range) +
+  labs(x = "Soil N (g m⁻³)",
+       y = "Root Number\nper Unit Crown Area (log)",
+       fill = "Fitness") +
+  pub_theme
+
+# ---- Plot 2: Root Length Heatmap with max line ----
+p2 <- ggplot(subset_df2, aes(x = soil_nitrogen, y = root_length, fill = fitness)) +
+  geom_tile() +
+  geom_line(data = max_line_df2, aes(x = soil_nitrogen, y = root_length), color = "red", size = 1.2) +
+  scale_fill_viridis_c(option = "cividis", limits = fitness_range) +
+  labs(x = "Soil N (g m⁻³)",
+       y = "Root Length (mm)",
+       fill = "Fitness") +
+  pub_theme
+
+# ---- Display plots ----
+p1
+p2
+```
+
+# Final
+
+```{r}
+# Subset
+
+subset_df1 <- final_df_no_na %>%
+  filter(root_length == 1.5) %>%
+  filter(date == "2022-01-01")
+
+subset_df2 <- final_df_no_na %>%
+  filter(root_no == 3e5) %>%
+  filter(date == "2022-01-01")
+
+## Range
+
+fitness_range <- range(
+  c(subset_df1$fitness, subset_df2$fitness),
+  na.rm = TRUE
+)
+
+## plots
+# ---- Compute max lines for subset_df1 (fixed root length) ----
+max_line_df1 <- subset_df1 %>%
+  group_by(soil_nitrogen) %>%
+  slice_max(fitness, n = 1, with_ties = FALSE) %>%
+  ungroup()
+
+# ---- Compute max lines for subset_df2 (fixed root number) ----
+max_line_df2 <- subset_df2 %>%
+  group_by(soil_nitrogen) %>%
+  slice_max(fitness, n = 1, with_ties = FALSE) %>%
+  ungroup()
+
+# ---- Plot 1: Root Number Heatmap with max line ----
+p1 <- ggplot(subset_df1, aes(x = soil_nitrogen, y = root_no, fill = fitness)) +
+  geom_tile() +
+  geom_line(data = max_line_df1, aes(x = soil_nitrogen, y = root_no), color = "red", size = 1.2) +
+  scale_y_log10() +
+  scale_fill_viridis_c(option = "cividis", limits = fitness_range) +
+  labs(x = "Soil N (g m⁻³)",
+       y = "Root Number\nper Unit Crown Area (log)",
+       fill = "Fitness") +
+  pub_theme
+
+# ---- Plot 2: Root Length Heatmap with max line ----
+p2 <- ggplot(subset_df2, aes(x = soil_nitrogen, y = root_length, fill = fitness)) +
+  geom_tile() +
+  geom_line(data = max_line_df2, aes(x = soil_nitrogen, y = root_length), color = "red", size = 1.2) +
+  scale_fill_viridis_c(option = "cividis", limits = fitness_range) +
+  labs(x = "Soil N (g m⁻³)",
+       y = "Root Length (mm)",
+       fill = "Final Fitness") +
+  pub_theme
+
+# ---- Display plots ----
+p1
+p2
+```
+## Trajectory
+
+```{r}
+# Soil N values to plot
+soilN_values <- nitrogen_values
+
+# ---- Maximum-Fitness Root Number Trajectory (all ties) ----
+trajectory_max_root_no <- final_df_no_na %>%
+  filter(soil_nitrogen %in% soilN_values) %>%
+  group_by(date, soil_nitrogen) %>%
+  slice_max(fitness, with_ties = TRUE) %>%  # <- keep all tied maxima
+  ungroup() %>%
+  select(date, soil_nitrogen, root_no)
+
+# ---- Maximum-Fitness Root Length Trajectory (all ties) ----
+trajectory_max_root_length <- final_df_no_na %>%
+  filter(soil_nitrogen %in% soilN_values) %>%
+  group_by(date, soil_nitrogen) %>%
+  slice_max(fitness, with_ties = TRUE) %>%  # <- keep all tied maxima
+  ungroup() %>%
+  select(date, soil_nitrogen, root_length)
+
+# ---- Plot Root Number with ties ----
+ggplot(trajectory_max_root_no, aes(x = date, y = root_no, color = factor(soil_nitrogen))) +
+  geom_line(size = 1.2) +
+  geom_point(alpha = 0.5, size = 1.5) +  # show multiple maxima if they exist
+  scale_y_log10(limits = root_no_range) +
   labs(
-    x = "Soil Nitrogen",
-    y = "Root Number",
-    color = "Fitness",
-    title = "Fitness vs Root Number"
+    x = "Date",
+    y = "Maximum Root Number\nper Unit Crown Area (log)",
+    color = "Soil N (g m⁻³)",
+    title = ""
   ) +
-  theme_minimal()
+  pub_theme
 
-# Second plot
-p2 <- ggplot(final_df, aes(x = soil_nitrogen, y = root_length, color = fitness)) +
-  geom_jitter(width = 0.5, height = 0, alpha = 0.8) +
-  scale_color_viridis_c(option = "plasma") +
+# ---- Plot Root Length with ties ----
+ggplot(trajectory_max_root_length, aes(x = date, y = root_length, color = factor(soil_nitrogen))) +
+  geom_line(size = 1.2) +
+  geom_point(alpha = 0.5, size = 1.5) +  # show multiple maxima if they exist
+  scale_y_continuous(limits = root_length_range) +
   labs(
-    x = "Soil Nitrogen",
-    y = "Root Length",
-    color = "Fitness",
-    title = "Fitness vs Root Length"
+    x = "Date",
+    y = "Maximum Root Length (mm)",
+    color = "Soil N (g m⁻³)",
+    title = ""
   ) +
-  theme_minimal()
+  pub_theme
+```
 
-# Display side by side
-p1 + p2
+## mean
 
+```{r}
+mean_df <- final_df_no_na %>%
+  group_by(soil_nitrogen, root_no, root_length) %>%
+  summarise(
+    fitness = mean(fitness, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+mean_subset_df1 <- mean_df %>%
+  filter(abs(root_length - 1.5) < 1e-6)
+
+mean_subset_df2 <- mean_df %>%
+  filter(abs(root_no - 3e5) < 1e-6 * 3e5)
+
+p1_mean <- ggplot(mean_subset_df1,
+                  aes(x = soil_nitrogen,
+                      y = root_no,
+                      fill = fitness)) +
+  geom_tile() +
+  scale_y_log10() +
+  scale_fill_viridis_c(option = "cividis",
+                       limits = fitness_range_mean) +
+  labs(x = "Soil N (g m⁻³)",
+       y = "Root Number\nper Unit Crown Area (log)",
+       fill = "Mean Fitness") +
+  pub_theme
+
+p2_mean <- ggplot(mean_subset_df2,
+                  aes(x = soil_nitrogen,
+                      y = root_length,
+                      fill = fitness)) +
+  geom_tile() +
+  scale_fill_viridis_c(option = "cividis",
+                       limits = fitness_range_mean) +
+  labs(x = "Soil N (g m⁻³)",
+       y = "Root Length (mm)",
+       fill = "Mean Fitness") +
+  pub_theme
+
+# Compute maximum fitness at each soil nitrogen
+max_line_df2 <- mean_subset_df2 %>%
+  group_by(soil_nitrogen) %>%
+  slice_max(fitness, n = 1, with_ties = FALSE) %>%
+  ungroup()
+
+# Compute maximum fitness at each soil nitrogen
+max_line_df1 <- mean_subset_df1 %>%
+  group_by(soil_nitrogen) %>%
+  slice_max(fitness, n = 1, with_ties = FALSE) %>%
+  ungroup()
+
+p1_mean + 
+  geom_line(data = max_line_df1, 
+            aes(x = soil_nitrogen, y = root_no), 
+            color = "red", size = 1.2)
+
+p2_mean + 
+  geom_line(data = max_line_df2, 
+            aes(x = soil_nitrogen, y = root_length), 
+            color = "red", size = 1.2)
+
+fitness_range_mean <- range(
+  c(mean_subset_df1$fitness, mean_subset_df2$fitness),
+  na.rm = TRUE
+)
 
 ```
 
 ## Trade offs: Ectomycorrhizal biomass
 
 ```{r}
+subset_df <- final_df_no_na %>%
+  filter(root_length == 1.5, root_no == 3e5)
 
-ggplot(final_df, aes(x = soil_nitrogen, y = ectomycorrhiza_mass, color = fitness)) +
-  geom_jitter(width = 0.5, height = 0, alpha = 0.8) +  # small random jitter
-  scale_color_viridis_c(option = "plasma") +
+heatmap_ecm <- subset_df %>%
+  mutate(
+    bin_soilN = cut(soil_nitrogen, breaks = 50),
+    bin_ecm   = cut(log10(ectomycorrhiza_mass), breaks = 50)
+  ) %>%
+  group_by(bin_soilN, bin_ecm) %>%
+  summarise(
+    fitness = mean(fitness, na.rm = TRUE),
+    soil_nitrogen = mean(soil_nitrogen),
+    ectomycorrhiza_mass = mean(ectomycorrhiza_mass),
+    .groups = "drop"
+  )
+
+ggplot(heatmap_ecm,
+       aes(x = soil_nitrogen,
+           y = ectomycorrhiza_mass,
+           fill = fitness)) +
+  geom_tile() +
+  scale_y_log10() +   # log axis if biomass spans orders
+  scale_fill_viridis_c(option = "plasma") +
   labs(
-    x = "Soil Nitrogen",
-    y = "Ectomycorrhiza Biomass",
-    color = "Fitness",
-    title = "Fitness over Biomass and Soil Nitrogen"
+    x = "Soil Nitrogen (g N m⁻³)",
+    y = "Ectomycorrhiza Biomass (kg)",
+    fill = "Fitness"
   ) +
-  theme_minimal()
-
-
-interp_grid <- with(final_df[!is.na(final_df$ectomycorrhiza_mass),], akima::interp(
-  x = soil_nitrogen,
-  y = ectomycorrhiza_mass,
-  z = fitness,
-  nx = 100, ny = 100,
-  duplicate = TRUE
-))
-
-grid_df <- expand.grid(
-  soil_nitrogen = interp_grid$x,
-  ectomycorrhiza_mass = interp_grid$y
-)
-grid_df$fitness <- as.vector(interp_grid$z)
-
-ggplot(grid_df, aes(x = soil_nitrogen, y = ectomycorrhiza_mass, z = fitness)) +
-  geom_contour_filled() +
-  scale_fill_viridis_d(option = "plasma") +
-  labs(
-    x = "Soil Nitrogen",
-    y = "Ectomycorrhiza Biomass",
-    fill = "Fitness",
-    title = "Contour Plot of Fitness"
-  ) +
-  theme_minimal()
-
-
+  pub_theme
 ```
 ## Diffusion differences to mimmic different speeds of nitrogen transfer
 
