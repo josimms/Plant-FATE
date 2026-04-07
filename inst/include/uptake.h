@@ -19,7 +19,7 @@ public:
   double e_myco;
 
   double mycorrhized;
-  double investment_from_myco;
+  double mycorrhizal_root_reduction;
   double myco_diameter;
   double rho_myco;
   double D;
