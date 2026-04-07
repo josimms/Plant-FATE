@@ -39,6 +39,7 @@ RCPP_MODULE(plantfate_module){
 	class_ <plant::PlantTraits>("PlantTraits")
 		.field("lma", &plant::PlantTraits::lma)
 		.field("zeta", &plant::PlantTraits::zeta)
+    .field("investment_from_tree", &plant::PlantTraits::investment_from_tree)
 		.field("fcr", &plant::PlantTraits::fcr)
 		.field("hmat", &plant::PlantTraits::hmat)
 		.field("fhmat", &plant::PlantTraits::fhmat)
