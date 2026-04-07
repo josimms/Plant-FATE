@@ -57,6 +57,7 @@ double Plant::p_survival_dispersal(Env& env){
 template<class Env>
 std::vector<double> Plant::size_growth_rate(double _dmass_dt_growth, Env& env){
 	double dsize_dt = geometry.dsize_dmass(traits)[0] * _dmass_dt_growth;
+	// TODO: nitrogen fail safe?
 	double dnitrogen_dt = geometry.dsize_dmass(traits)[1] * _dmass_dt_growth;
 	rates.rgr = dsize_dt / geometry.get_size();
 	
@@ -158,12 +159,8 @@ void Plant::calc_demographic_rates(Env& env, double t){
 
   // Nitrogen uptake and partitioning calculated here
  	uptake.nitrogen_plant(env, geometry, par, traits); // g N per kg Biomass to kg
- 	
- 	// Update nitrogen balance
-	geometry.nitrogen_tree += geometry.nitrogen_uptake + traits.k_14 * (res.tleaf * 0.5 * traits.nc_leaf + res.troot * 0.5 * traits.nc_root);
- 	
- 	// Uptake + retranslocation
- 	geometry.potential_nitrogen_leaf = traits.k_10 * geometry.nitrogen_tree / (geometry.crown_area * geometry.lai);
+	
+	// TODO: initalisation
 	
 	// Photosynthesis with nitrogen limitation
 	res = assimilator.net_production(env, &geometry, par, traits, t);
@@ -171,10 +168,12 @@ void Plant::calc_demographic_rates(Env& env, double t){
 	// Take a percentage of the total npp and allocate this to mycorrhiza
 	double res_all = std::max(res.npp, 0.0);
 	double res_after_myco = res_all * (1 - traits.investment_from_tree);
-
-	// Ectomycorrhiza,
-	// Note, the res_all tree investment is applied in the function
-	geometry.get_ectomycorrhiza_mass(res_all, traits);
+	
+	// Calculate ectomycorrhizal growth and resulting flux
+ 	geometry.resolve_myco_fluxes(res_all * traits.investment_from_tree, traits, uptake.U_myco); // TODO: other arguments
+ 	geometry.update_ectomycorrhizal_fluxes(traits, par, uptake.mycorrhizal_root_reduction);
+ 	
+ 	geometry.nitrogen_tree += geometry.nitrogen_uptake + traits.k_14*(res.tleaf*0.5*traits.nc_leaf + res.troot*0.5*traits.nc_root);
 
 	bp.dmass_dt_tot = std::max(res_after_myco, 0.0);  // No biomass growth if npp is negative
 	if (std::isnan(bp.dmass_dt_tot)) throw std::runtime_error("biomass production is nan");

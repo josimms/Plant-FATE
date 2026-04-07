@@ -17,11 +17,12 @@ void Uptake::nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& p
   
   // UPTAKE
   double uptake_roots_term = (1.0 - mycorrhized) * U_root;
-  double uptake_mycorrhiza_term = mycorrhized * investment_from_myco * nitrogen_gate(G, T) * U_myco;
   
   // CORRECTED FOR TIMESTEP
-  G.nitrogen_uptake = age_factor * (uptake_roots_term + uptake_mycorrhiza_term) * par.years_per_tunit_avg; // kg per year
-
+  G.nitrogen_uptake = age_factor * uptake_roots_term * par.years_per_tunit_avg; // kg per year
+  
+  // Mycorrhizal reduction due to root sturcture
+  mycorrhizal_root_reduction = age_factor * nitrogen_gate(G, T) * mycorrhized;
 }
 
 } // namespace plant
