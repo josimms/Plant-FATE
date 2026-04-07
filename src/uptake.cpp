@@ -11,7 +11,6 @@ namespace plant {
     
     // Nitrogen parameters
     mycorrhized           = I.get<double>("mycorrhized");
-    investment_from_myco  = I.get<double>("investment_from_myco");
     u_max                 = I.get<double>("u_max");
     u_max_kg              = I.get<double>("u_max_kg");
     myco_diameter         = I.get<double>("myco_diameter");

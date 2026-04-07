@@ -155,97 +155,51 @@ double PlantArchitecture::root_mass(const PlantTraits& traits) const{
   return density_root * pow(diameter_root/2.0, 2.0) * root_length * M_PI * root_no * 1e-9 * crown_area * lai;
 }
 
-void PlantArchitecture::get_ectomycorrhiza_mass(
-    double exudates, 
-    PlantTraits& traits, 
-    double& N_to_tree, 
-    double U_m // N uptake allocated to fungus this timestep
+void PlantArchitecture::resolve_myco_fluxes(
+    double exudates,
+    const PlantTraits& traits,
+    double U_myco
 ) {
-  // --- Step 1: Carbon-driven potential fungal growth ---
-  double growth_C_potential = exudates * traits.investment_from_tree * traits.mycorrhizal_biomass_conversion * 0.44;
   
-  // --- Step 2: Nitrogen needed to build new biomass at target N:C ---
+  // --- Carbon-driven potential growth ---
+  double growth_C_potential = exudates * traits.mycorrhizal_biomass_conversion * 0.44;
+  
+  // --- Nitrogen demand ---
   double N_needed = growth_C_potential * traits.nc_myco;
   
-  // --- Step 3: Total available N for growth ---
-  double N_available_for_growth = ectomycorrhiza_N_free + U_m;
+  // --- Available nitrogen ---
+  N_available = ectomycorrhiza_N_free + U_myco;
   
-  // --- Step 4: Growth limitation by available N ---
-  double fN = (N_needed > 0.0) ? std::min(1.0, N_available_for_growth / N_needed) : 1.0;
+  // --- Nitrogen limitation ---
+  double fN = (N_needed > 0.0) ? std::min(1.0, N_available / N_needed) : 1.0;
   
-  double growth_real_C = growth_C_potential * fN;
-  double growth_real_N = growth_real_C * traits.nc_myco;
-  
-  // --- Step 5: Update structural N pool (locked in biomass) ---
-  ectomycorrhiza_N_structural = (1.0 - traits.mycorrhizal_turnover) * ectomycorrhiza_N_structural + growth_real_N;
-  
-  // --- Step 6: Update fungal C mass ---
-  ectomycorrhiza_mass = retained_fraction * ectomycorrhiza_mass + growth_real_C;
-  
-  // --- Step 7: Retranslocation: update free N ---
-  // Turnover releases structural N
-  ectomycorrhiza_N_free = (1.0 - fN) * N_available_for_growth + traits.mycorrhizal_turnover * ectomycorrhiza_N_structural * traits.k_14; // remaining unused N + released N
-  
-  // --- Step 8: Export excess N to tree ---
-  double N_excess = std::max(0.0, ectomycorrhiza_N_free - growth_real_N);
-  // TODO: how does this link to the rest of the code?
-  ectomycorrhiza_N_to_tree += N_excess;
-  ectomycorrhiza_N_free -= N_excess;
-  
-  // --- Safety check with warning ---
-  if (ectomycorrhiza_mass < 0.0) {
-    std::cerr << "[Warning] ectomycorrhiza_mass < 0. Clamping to 0.\n";
-    ectomycorrhiza_mass = 0.0;
-  }
-  
-  if (ectomycorrhiza_N_structural < 0.0) {
-    std::cerr << "[Warning] ectomycorrhiza_N_structural < 0. Clamping to 0.\n";
-    ectomycorrhiza_N_structural = 0.0;
-  }
-  
-  if (ectomycorrhiza_N_free < 0.0) {
-    std::cerr << "[Warning] ectomycorrhiza_N_free < 0. Clamping to 0.\n";
-    ectomycorrhiza_N_free = 0.0;
-  }
+  growth_C = growth_C_potential * fN;
+  growth_N = growth_C * traits.nc_myco;
 }
 
-// TODO: put the structures elsewhere
-void PlantArchitecture::get_ectomycorrhiza_mass(
-    double exudates, 
-    PlantTraits& traits, 
-    double& N_to_tree, 
-    double U_m // N uptake allocated to fungus this timestep
+void PlantArchitecture::update_ectomycorrhizal_fluxes(
+    const PlantTraits& traits,
+    const PlantParameters& par,
+    double mycorrhizal_root_reduction
 ) {
-  // --- Step 1: Carbon-driven potential fungal growth ---
-  double growth_C_potential = exudates * traits.investment_from_tree * traits.mycorrhizal_biomass_conversion * 0.44;
+  // --- Update structural N ---
+  ectomycorrhiza_N_structural = (1.0 - traits.mycorrhizal_turnover) * ectomycorrhiza_N_structural + growth_N;
   
-  // --- Step 2: Nitrogen needed to build new biomass at target N:C ---
-  double N_needed = growth_C_potential * traits.nc_myco;
+  // --- Update fungal biomass ---
+  ectomycorrhiza_mass = (1.0 - traits.mycorrhizal_turnover) * ectomycorrhiza_mass + growth_C;
   
-  // --- Step 3: Total available N for growth ---
-  double N_available_for_growth = ectomycorrhiza_N_free + U_m;
+  // --- Update free N ---
+  ectomycorrhiza_N_free = (N_available - growth_N) + ectomycorrhiza_N_structural * traits.mycorrhizal_turnover * traits.k_14;
   
-  // --- Step 4: Growth limitation by available N ---
-  double fN = (N_needed > 0.0) ? std::min(1.0, N_available_for_growth / N_needed) : 1.0;
+  // --- Export to plant ---
+  N_export = std::max(0.0, ectomycorrhiza_N_free) * mycorrhizal_root_reduction;
   
-  double growth_real_C = growth_C_potential * fN;
-  double growth_real_N = growth_real_C * traits.nc_myco;
+  N_to_tree += N_export;
+  ectomycorrhiza_N_free -= N_export;
   
-  // --- Step 5: Update structural N pool (locked in biomass) ---
-  ectomycorrhiza_N_structural = (1.0 - traits.mycorrhizal_turnover) * ectomycorrhiza_N_structural + growth_real_N;
+  nitrogen_uptake = nitrogen_uptake + N_export * par.years_per_tunit_avg; // kg per year
   
-  // --- Step 6: Update fungal C mass ---
-  ectomycorrhiza_mass = retained_fraction * ectomycorrhiza_mass + growth_real_C;
-  
-  // --- Step 7: Update free N ---
-  ectomycorrhiza_N_free = (N_available_for_growth - growth_real_N) + ectomycorrhiza_N_structural * traits.mycorrhizal_turnover * traits.k_14;
-  
-  // --- Step 8: Export excess N to tree ---
-  double N_excess = std::max(0.0, ectomycorrhiza_N_free);
-  N_to_tree += N_excess;                 // update external reference
-  ectomycorrhiza_N_free -= N_excess;
-  
-  // --- Step 9: Safety checks ---
+  // --- Safety checks ---
   if (ectomycorrhiza_mass < 0.0) {
     std::cerr << "[Warning] ectomycorrhiza_mass < 0. Clamping to 0.\n";
     ectomycorrhiza_mass = 0.0;
