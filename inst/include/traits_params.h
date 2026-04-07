@@ -55,6 +55,7 @@ class PlantTraits{
 	double nc_leaf;         ///< Korhonen 2013
 	double nc_root;         ///< Ding data, root order 1-3
 	double nc_wood;         ///< Korhonen 2013
+	double nc_myco;         ///< TODO
 	
 	// Ectomycorrhizal parameters
 	double mycorrhizal_biomass_conversion;  ///< The biomass created per carbon unit from photosynthesis
