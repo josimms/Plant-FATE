@@ -40,6 +40,14 @@ class PlantArchitecture{
 	double root_no;              ///< Number of root tips [no]
 	double root_length;          ///< Root length, [mm]
 	double ectomycorrhiza_mass;  ///< Mycorrhizal biomass [kg]
+	
+	// Ectomycorrhizal states
+	double growth_C;
+	double growth_N;
+	double ectomycorrhiza_N_free;
+	double ectomycorrhiza_N_structural;
+	double N_export;
+	double N_available;
 
 	// variables calculated from state variables
 	double height;                       ///< Plant height
@@ -109,9 +117,11 @@ class PlantArchitecture{
 	double total_mass(const PlantTraits& traits) const;
 	/// @}
 	
-	///@brief Nitrogen value of biomass
+	///@brief Nitrogen value of biomass and ectomycorrhizal operations
 	/// @{
 	double total_mass_nitrogen(const PlantTraits& traits) const;
+	void resolve_myco_fluxes(double exudates, const PlantTraits& traits, double U_myco);
+	void update_ectomycorrhizal_fluxes(const PlantTraits& traits, const PlantParameters& par, double mycorrhizal_root_reduction);
 	/// @}
 
 	// These functions are used to get and set state variables
@@ -127,7 +137,6 @@ class PlantArchitecture{
 	/// Set size and lai, the two state variables that define plant geometry
 	/// And nor also size and nitrogen
 	std::vector<double>::iterator set_state(std::vector<double>::iterator S, PlantTraits& traits);
-	void get_ectomycorrhiza_mass(double exudates, PlantTraits& traits);
 	/// @}
 
 
