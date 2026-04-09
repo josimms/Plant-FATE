@@ -171,6 +171,7 @@ void Plant::calc_demographic_rates(Env& env, double t){
 	
 	// Calculate ectomycorrhizal growth and resulting flux
  	geometry.resolve_myco_fluxes(res_all * traits.investment_from_tree, traits, uptake.U_myco); // TODO: other arguments
+ 	// Note: the nitrogen in the tree is updated with the ectomycorrhizal transfer in the next function
  	geometry.update_ectomycorrhizal_fluxes(traits, par, uptake.mycorrhizal_root_reduction);
  	
  	geometry.nitrogen_tree += geometry.nitrogen_uptake + traits.k_14*(res.tleaf*0.5*traits.nc_leaf + res.troot*0.5*traits.nc_root);
