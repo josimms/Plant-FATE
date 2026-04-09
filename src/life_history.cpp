@@ -148,6 +148,7 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
     , "root_no"
     , "root_length"
     , "nitrogen_uptake"
+    , "mycorrhizal_export_to_tree"
     , "root_uptake"
     , "myco_uptake"
     , "crowding"
@@ -211,6 +212,7 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
     , P.geometry.root_no
     , P.geometry.root_length
     , P.geometry.nitrogen_uptake
+    , P.geometry.N_export
     , P.uptake.U_root
     , P.uptake.U_myco
     , P.uptake.Sval
