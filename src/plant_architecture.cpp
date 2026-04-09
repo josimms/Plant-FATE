@@ -194,7 +194,6 @@ void PlantArchitecture::update_ectomycorrhizal_fluxes(
   // --- Export to plant ---
   N_export = std::max(0.0, ectomycorrhiza_N_free) * mycorrhizal_root_reduction;
   
-  N_to_tree += N_export;
   ectomycorrhiza_N_free -= N_export;
   
   nitrogen_uptake = nitrogen_uptake + N_export * par.years_per_tunit_avg; // kg per year
@@ -275,6 +274,7 @@ void PlantArchitecture::set_root(double _rn, double _rl, PlantTraits& traits){
   root_no = _rn;
   root_length = _rl;
   ectomycorrhiza_mass = root_mass(traits);
+  ectomycorrhiza_N_structural = root_mass(traits) * traits.nc_myco; // TODO: needs initalisation?
 };
 
 /// @details Sets the following properties: nitrogen_tree, nitrogen_uptake, potential_nitrogen_leaf, ectomycorrhiza_mass 
@@ -283,6 +283,7 @@ void PlantArchitecture::set_nitrogen(double _nt, double _nu, PlantTraits& traits
   nitrogen_uptake = _nu;
   potential_nitrogen_leaf = traits.k_10 * nitrogen_tree;
   nitrogen_in_biomass = total_mass_nitrogen(traits);
+  ectomycorrhiza_N_free = 0;
 }
 
 /// @details Sets the following properties: diameter, height, crown area, sapwood fraction 
