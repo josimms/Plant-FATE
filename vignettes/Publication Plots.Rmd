@@ -24,6 +24,16 @@ library(future.apply)
 library(future)
 ```
 
+## Data reading
+
+```{r}
+hyde_all = "~/Documents/Austria/Hyytiala_all_data/"
+data <- lapply(paste0(hyde_all, list.files(hyde_all))[1:9], read.csv)
+names(data) <- list.files(hyde_all)[1:9]
+useful_data <- merge(data[[2]], data[[5]], c('plotID', 'eventID', 'eventYear'), all=TRUE)
+
+```
+
 ## Simulations
 
 ```{r pressure, echo=FALSE}
