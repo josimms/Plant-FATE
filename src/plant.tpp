@@ -197,6 +197,7 @@ void Plant::calc_demographic_rates(Env& env, double t){
 	
 	// Nitrogen in biomass
 	geometry.nitrogen_in_biomass += rates.dnitrogen_dt - (1 - traits.k_14) * (res.tleaf * 0.5 * traits.nc_leaf + res.troot * 0.5 * traits.nc_root);
+	geometry.nitrogen_tree -= rates.dnitrogen_dt
 }
 
 // Shorthand is used for biomass partitioning into geometric growth and LAI growth
