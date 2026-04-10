@@ -1020,8 +1020,8 @@ Testing_the_architecture <- function() {
     points(x, A_c, pch = "x", col = "blue")
   }
   
-  legend("bottomright",
-         legend = "Halme 2022 (max crown width transformed)",
+  legend("topleft",
+         legend = "Halme 2022\n(max crown width transformed)",
          col = "blue", pch = "x", bty = "n")
   
   
