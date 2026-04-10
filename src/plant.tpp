@@ -197,7 +197,7 @@ void Plant::calc_demographic_rates(Env& env, double t){
 	
 	// Nitrogen in biomass
 	geometry.nitrogen_in_biomass += rates.dnitrogen_dt - (1 - traits.k_14) * (res.tleaf * 0.5 * traits.nc_leaf + res.troot * 0.5 * traits.nc_root);
-	geometry.nitrogen_tree -= rates.dnitrogen_dt
+	geometry.nitrogen_tree -= rates.dnitrogen_dt;
 	if (geometry.nitrogen_tree < 0) {
 	  geometry.nitrogen_tree = 0;
 	  std::cerr << "[Warning] nitrogen_tree < 0. Clamping to 0.\n";
