@@ -106,21 +106,21 @@ blank <- function() {
   lho$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_co2File("")
-  lho$set_soil_nitrogen(100)
+  lho$set_soil_nitrogen(0.001)
   lho$init()
   
   lho_2 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
   lho_2$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho_2$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho_2$set_co2File("")
-  lho_2$set_soil_nitrogen(0.5)
+  lho_2$set_soil_nitrogen(0.00001)
   lho_2$init()
   
   lho_3 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
   lho_3$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho_3$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho_3$set_co2File("")
-  lho_3$set_soil_nitrogen(0.0001)
+  lho_3$set_soil_nitrogen(0.0000001)
   lho_3$init()
   
   dt <- 1/12
@@ -376,11 +376,13 @@ blank <- function() {
   # Plot your lines
   low  <- 210 / 1010    # kg tree-1
   high <- 210 / 2000    # kg tree-1
-  plot(df$date, df$nitrogen_uptake, type = "l", col = cols[1],
+  plot(df$date, df$mycorrhizal_export_to_tree + df$root_uptake, type = "l", col = cols[1],
        ylab = "kg N per kg biomass", main = "Nitrogen Uptake", xlab = "Date",
-       ylim = range(df$nitrogen_uptake, df_2$nitrogen_uptake, df_3$nitrogen_uptake, high, low, na.rm = TRUE))
-  lines(df_2$date, df_2$nitrogen_uptake, col = cols[2])
-  lines(df_3$date, df_3$nitrogen_uptake, col = cols[3])
+       ylim = range(df$mycorrhizal_export_to_tree + df$root_uptake, 
+                    df_2$mycorrhizal_export_to_tree + df_2$root_uptake, 
+                    df_3$mycorrhizal_export_to_tree + df_3$root_uptake, high, low, na.rm = TRUE))
+  lines(df_2$date, df_2$mycorrhizal_export_to_tree + df_2$root_uptake, col = cols[2])
+  lines(df_3$date, df_3$mycorrhizal_export_to_tree + df_3$root_uptake, col = cols[3])
   points(date_point, 12 / 1000,  pch = "x", col = "blue")
   # Optional: draw a vertical line between them to show the full range
   legend(
@@ -418,7 +420,7 @@ blank <- function() {
   title(sub = "Would expect a limit here (Hagenbo, 2015)")
   
   plot(df$date, df$ectomycorrhiza_mass/df$root_mass, type = "l", col = cols[1],
-       ylab = "kg C", main = "Ectomycorrhizal Mass / Fine Root Mass", xlab = "Date",
+       ylab = "kg C / kg C", main = "Ectomycorrhizal Mass / Fine Root Mass", xlab = "Date",
        ylim = range(df$ectomycorrhiza_mass/df$root_mass, 
                     df_2$ectomycorrhiza_mass/df_2$root_mass, 
                     df_3$ectomycorrhiza_mass/df_3$root_mass, na.rm = TRUE))
@@ -431,6 +433,7 @@ blank <- function() {
        ylab = "kg C", main = "Nitrogen uptake", xlab = "Date",
        ylim = range(df$nitrogen_uptake, df_2$nitrogen_uptake, df_3$nitrogen_uptake, na.rm = TRUE))
   lines(df_2$date, df_2$nitrogen_uptake, col = cols[2])
+  
   lines(df_3$date, df_3$nitrogen_uptake, col = cols[3])
   points(date_point, 12 / 1000,  pch = "x", col = "blue")
   title(sub = "Korhonen 2012: Scots Pine Needle N", col.sub = "blue")
@@ -457,13 +460,61 @@ blank <- function() {
   # 2.75. Mycorrhiza and roots behaviour
   # ----------------------------
   
-  par(mfrow = c(2, 3))
-  plot(df$date, df$soil_area_per_biomass_myco, xlab = "Date", ylab = "m3 per kg", main = "Soil Area Reached: Myco")
-  plot(df$date, df$soil_area_per_biomass_root, xlab = "Date", ylab = "m3 per kg", main = "Soil Area Reached: Root")
-  plot(df$date, df$deplition_radius, xlab = "Date", ylab = "m", main = "Depletion Radius")
-  plot(df$date, df$crowding, xlab = "Date", ylab = "%", main = "Crowding")
-  plot(df$date, df$root_uptake, xlab = "Date", ylab = "kg N per kg Biomass", main = "Root Uptake")
-  plot(df$date, df$myco_uptake, xlab = "Date", ylab = "kg N per kg Biomass", main = "Myco Uptake")
+  par(mfrow = c(2, 3), mar = c(4, 4.5, 2.5, 1),
+      family = "serif", las = 1, tcl = -0.3, mgp = c(2.8, 0.6, 0))
+  
+  # (a) Soil area reached: Mycorrhiza
+  ylim_em <- range(df$soil_area_per_biomass_myco, df_2$soil_area_per_biomass_myco,
+                   df_3$soil_area_per_biomass_myco, na.rm = TRUE)
+  plot(df$date, df$soil_area_per_biomass_myco, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_em, xlab = "Date", ylab = expression("m"^3*" kg"^{-1}))
+  lines(df_2$date, df_2$soil_area_per_biomass_myco, col = cols[2], lwd = lwd_model)
+  lines(df_3$date, df_3$soil_area_per_biomass_myco, col = cols[3], lwd = lwd_model)
+  mtext("(a) Soil exploration: ECM", side = 3, adj = 0, line = 0.3, font = 2, cex = 0.85)
+  
+  # (b) Soil area reached: Roots
+  ylim_er <- range(df$soil_area_per_biomass_root, df_2$soil_area_per_biomass_root,
+                   df_3$soil_area_per_biomass_root, na.rm = TRUE)
+  plot(df$date, df$soil_area_per_biomass_root, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_er, xlab = "Date", ylab = expression("m"^3*" kg"^{-1}))
+  lines(df_2$date, df_2$soil_area_per_biomass_root, col = cols[2], lwd = lwd_model)
+  lines(df_3$date, df_3$soil_area_per_biomass_root, col = cols[3], lwd = lwd_model)
+  mtext("(b) Soil exploration: roots", side = 3, adj = 0, line = 0.3, font = 2, cex = 0.85)
+  
+  # (c) Depletion radius
+  ylim_rd <- range(df$deplition_radius, df_2$deplition_radius,
+                   df_3$deplition_radius, na.rm = TRUE)
+  plot(df$date, df$deplition_radius, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_rd, xlab = "Date", ylab = "Depletion radius (m)")
+  lines(df_2$date, df_2$deplition_radius, col = cols[2], lwd = lwd_model)
+  lines(df_3$date, df_3$deplition_radius, col = cols[3], lwd = lwd_model)
+  mtext("(c) Depletion radius", side = 3, adj = 0, line = 0.3, font = 2, cex = 0.85)
+  
+  # (d) Crowding
+  ylim_cr <- range(df$crowding, df_2$crowding, df_3$crowding, na.rm = TRUE)
+  plot(df$date, df$crowding, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_cr, xlab = "Date", ylab = "Saturation factor (–)")
+  lines(df_2$date, df_2$crowding, col = cols[2], lwd = lwd_model)
+  lines(df_3$date, df_3$crowding, col = cols[3], lwd = lwd_model)
+  mtext("(d) Crowding", side = 3, adj = 0, line = 0.3, font = 2, cex = 0.85)
+  
+  # (e) Root uptake
+  ylim_ru <- range(df$root_uptake, df_2$root_uptake, df_3$root_uptake, na.rm = TRUE)
+  plot(df$date, df$root_uptake, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_ru, xlab = "Date",
+       ylab = expression("Root uptake (kg N kg"^{-1}*" year"^{-1}*")"))
+  lines(df_2$date, df_2$root_uptake, col = cols[2], lwd = lwd_model)
+  lines(df_3$date, df_3$root_uptake, col = cols[3], lwd = lwd_model)
+  mtext("(e) Root uptake", side = 3, adj = 0, line = 0.3, font = 2, cex = 0.85)
+  
+  # (f) Mycorrhizal uptake
+  ylim_mu <- range(df$myco_uptake, df_2$myco_uptake, df_3$myco_uptake, na.rm = TRUE)
+  plot(df$date, df$myco_uptake, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_mu, xlab = "Date",
+       ylab = expression("ECM uptake (kg N kg"^{-1}*" year"^{-1}*")"))
+  lines(df_2$date, df_2$myco_uptake, col = cols[2], lwd = lwd_model)
+  lines(df_3$date, df_3$myco_uptake, col = cols[3], lwd = lwd_model)
+  mtext("(f) ECM uptake", side = 3, adj = 0, line = 0.3, font = 2, cex = 0.85)
   
   par(mfrow = c(1, 1))
   plot(df$date, df$soil_area_per_biomass_myco/df$soil_area_per_biomass_root, 
@@ -907,7 +958,6 @@ blank <- function() {
       color = "Version"
     ) +
     theme_minimal()
-  
 }
 
 Testing_the_architecture <- function() {
@@ -1894,6 +1944,173 @@ original_life_histroy <- function() {
   lines(df_2$date, df_2$mortality_inst, col = cols[2])
   lines(df_3$date, df_3$mortality_inst, col = cols[3])
   
+  ## ---------------------------------------------------
+  ## ---------------------------------------------------
   
+  hyde_all = "~/Documents/Austria/Hyytiala_all_data/"
+  data <- lapply(paste0(hyde_all, list.files(hyde_all))[1:9], read.csv)
+  names(data) <- list.files(hyde_all)[1:9]
+  useful_data <- merge(data[[2]], data[[5]], c('plotID', 'eventID', 'eventYear'), all=TRUE)
+  
+  # ============================================================================
+  # Boreal Calibration — Combined Figure
+  # 8 panels (2 × 4)
+  # ============================================================================
+  
+  par(mfrow = c(4, 2), mar = c(4, 6, 3, 1), oma = c(4, 0, 2, 0),
+      family = "serif", las = 1, tcl = -0.4, mgp = c(4, 1, 0))
+  
+  cex_axis   <- 1.5
+  cex_lab    <- 1.6
+  cex_main   <- 1.7
+  cex_legend <- 1.3
+  lwd_model  <- 3
+  lwd_obs    <- 2
+  pch_obs    <- 16
+  pch_lit    <- 17
+  
+  # (a) GPP
+  ylim_gpp <- range(df$assim_gross, df_2$assim_gross, df_3$assim_gross,
+                    Eddy_covariance$GPP_mean_kg, na.rm = TRUE)
+  plot(df$date, df$assim_gross, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_gpp, xlab = "", ylab = expression("GPP (kg C tree"^{-1}*" month"^{-1}*")"),
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  lines(df_2$date, df_2$assim_gross, col = cols[2], lwd = lwd_model)
+  lines(df_3$date, df_3$assim_gross, col = cols[3], lwd = lwd_model)
+  points(Eddy_covariance$MonthlyDate, Eddy_covariance$GPP_mean_kg,
+         col = col_obs, pch = pch_obs, cex = 0.8)
+  mtext("(a)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  box(bty = "l")
+  
+  # (b) NPP
+  ylim_npp <- range(df$assim_net, df_2$assim_net, df_3$assim_net,
+                    -Eddy_covariance$NEE_mean_kg, na.rm = TRUE)
+  plot(df$date, df$assim_net, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_npp, xlab = "", ylab = expression("NPP (kg C tree"^{-1}*" month"^{-1}*")"),
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  lines(df_2$date, df_2$assim_net, col = cols[2], lwd = lwd_model)
+  lines(df_3$date, df_3$assim_net, col = cols[3], lwd = lwd_model)
+  points(Eddy_covariance$MonthlyDate, -Eddy_covariance$NEE_mean_kg,
+         col = col_obs, pch = pch_obs, cex = 0.8)
+  mtext("(b)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  box(bty = "l")
+  
+  # (c) Height
+  smear_h_idx <- loaded_data$smearII_data$variable == "pine height BA weighted mean"
+  smear_h_val <- loaded_data$smearII_data$amount[smear_h_idx]
+  smear_h_date <- as.Date(paste0(loaded_data$smearII_data$date[smear_h_idx], "-01-01"))
+  ylim_h <- range(df$height, df_2$height, df_3$height, smear_h_val,
+                  halme_et_al_2022$height, na.rm = TRUE)
+  
+  plot(df$date, df$height, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_h, xlab = "", ylab = "Height (m)",
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  points(smear_h_date, smear_h_val, col = col_obs, pch = 4, cex = 1.5, lwd = lwd_obs)
+  add_range(as.Date("2017-06-01"),
+            min(halme_et_al_2022$height, na.rm = TRUE),
+            max(halme_et_al_2022$height, na.rm = TRUE))
+  for (id in unique(useful_data$plotID)) {
+    sub <- useful_data[useful_data$plotID == id, ]
+    lines(as.Date(as.character(sub$eventYear), format = "%Y"), sub$averageTreeHeight, 
+          col = col_obs, pch = 4, cex = 1.5, lwd = lwd_obs)
+  }
+  mtext("(c)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  box(bty = "l")
+  lines(df$date, df$height, col = cols[2], lwd = lwd_model)
+  lines(df_2$date, df_2$height, col = cols[2], lwd = lwd_model)
+  lines(df_3$date, df_3$height, col = cols[3], lwd = lwd_model)
+  
+  # (d) Diameter
+  smear_d_idx <- loaded_data$smearII_data$variable == "pine diameter BA weighted mean"
+  smear_d_val <- 0.01 * loaded_data$smearII_data$amount[smear_d_idx]
+  smear_d_date <- as.Date(paste0(loaded_data$smearII_data$date[smear_d_idx], "-01-01"))
+  ylim_d <- range(df$diameter, df_2$diameter, df_3$diameter, smear_d_val, na.rm = TRUE)
+  
+  plot(df$date, df$diameter, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_d, xlab = "", ylab = "Diameter (m)",
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  lines(df_2$date, df_2$diameter, col = cols[2], lwd = lwd_model)
+  lines(df_3$date, df_3$diameter, col = cols[3], lwd = lwd_model)
+  points(smear_d_date, smear_d_val, col = col_obs, pch = 4, cex = 1.5, lwd = lwd_obs)
+  for (id in unique(useful_data$plotID)) {
+    sub <- useful_data[useful_data$plotID == id, ]
+    lines(as.Date(as.character(sub$eventYear), format = "%Y"), 0.01*sub$averageTreeDiameter, 
+          col = col_obs, pch = 4, cex = 1.5, lwd = lwd_obs)
+  }
+  mtext("(d)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  box(bty = "l")
+  lines(df$date, df$diameter, col = cols[1], lwd = lwd_model)
+  lines(df_2$date, df_2$diameter, col = cols[2], lwd = lwd_model)
+  lines(df_3$date, df_3$diameter, col = cols[3], lwd = lwd_model)
+  
+  # (e) Vcmax
+  ylim_vc <- range(df$vcmax, df_2$vcmax, df_3$vcmax, na.rm = TRUE)
+  plot(df$date, df$vcmax, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_vc, xlab = "",
+       ylab = expression("V"[cmax]*"\n("*mu*"mol m"^{-2}*" s"^{-1}*")"),
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  lines(df_2$date, df_2$vcmax, col = cols[2], lwd = lwd_model)
+  lines(df_3$date, df_3$vcmax, col = cols[3], lwd = lwd_model)
+  abline(h = c(0, 30), col = col_range, lty = 2, lwd = lwd_obs)
+  mtext("(e)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  box(bty = "l")
+  
+  # (f) Optimal leaf nitrogen
+  ylim_oln <- range(df$optimal_leaf_nitrogen, df_2$optimal_leaf_nitrogen,
+                    df_3$optimal_leaf_nitrogen, na.rm = TRUE)
+  plot(df$date, df$optimal_leaf_nitrogen, type = "p", col = cols[1], pch = 20, cex = 0.3,
+       ylim = ylim_oln, xlab = "",
+       ylab = expression("Optimal leaf N (g g"^{-1}*")"),
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  points(df_2$date, df_2$optimal_leaf_nitrogen, col = cols[2], pch = 20, cex = 0.3)
+  points(df_3$date, df_3$optimal_leaf_nitrogen, col = cols[3], pch = 20, cex = 0.3)
+  abline(h = 12 / 1000, col = col_range, lty = 2, lwd = lwd_obs)
+  mtext("(f)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  box(bty = "l")
+  
+  # (g) Nitrogen uptake
+  uptake_1 <- df$mycorrhizal_export_to_tree + df$root_uptake
+  uptake_2 <- df_2$mycorrhizal_export_to_tree + df_2$root_uptake
+  uptake_3 <- df_3$mycorrhizal_export_to_tree + df_3$root_uptake
+  ylim_nu <- range(uptake_1, uptake_2, uptake_3, 12 / 1000, na.rm = TRUE)
+  
+  plot(df$date, uptake_1, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_nu, xlab = "",
+       ylab = expression("N uptake (kg N tree"^{-1}*" month"^{-1}*")"),
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  lines(df_2$date, uptake_2, col = cols[2], lwd = lwd_model)
+  lines(df_3$date, uptake_3, col = cols[3], lwd = lwd_model)
+  points(as.Date("2007-06-21"), 12 / 1000, col = col_obs, pch = pch_lit, cex = 1.8)
+  mtext("(g)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  box(bty = "l")
+  
+  # (h) Nitrogen in biomass
+  date_point <- as.Date("2007-06-21")
+  low  <- 210 / 1010
+  high <- 210 / 2000
+  ylim_nb <- range(df$nitrogen_in_biomass, df_2$nitrogen_in_biomass,
+                   df_3$nitrogen_in_biomass, low, high, na.rm = TRUE)
+  
+  plot(df$date, df$nitrogen_in_biomass, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_nb, xlab = "",
+       ylab = expression("N in biomass (kg N tree"^{-1}*")"),
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  lines(df_2$date, df_2$nitrogen_in_biomass, col = cols[2], lwd = lwd_model)
+  lines(df_3$date, df_3$nitrogen_in_biomass, col = cols[3], lwd = lwd_model)
+  add_range(date_point, low, high, col = col_obs)
+  mtext("(h)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  box(bty = "l")
+  
+  # Shared legend
+  par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
+  plot(0, 0, type = "n", bty = "n", xaxt = "n", yaxt = "n")
+  legend("bottom", horiz = FALSE, bty = "n", cex = cex_legend, ncol = 4,
+         legend = c(N_labels, "Eddy covariance", "SMEAR II",
+                    "Halme et al. 2022", "Korhonen et al. 2013",
+                    "Thum et al. 2008"),
+         col = c(cols, col_obs, col_obs, col_range, col_obs, col_range),
+         lty = c(1, 1, 1, NA, NA, NA, NA, 2),
+         pch = c(NA, NA, NA, pch_obs, 4, 95, pch_lit, NA),
+         lwd = c(rep(lwd_model, 3), NA, lwd_obs, 2.5, NA, lwd_obs))
 }
 
