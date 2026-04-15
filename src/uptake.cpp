@@ -78,7 +78,7 @@ namespace plant {
   }
 
   // Core uptake function
-  void Uptake::uptake_core(const PlantArchitecture& G, PlantTraits& traits) {
+  void Uptake::uptake_core(const PlantArchitecture& G, PlantTraits& traits, PlantParameters& par) {
     
     // --- Generate biomass ---
     double B_root = G.root_mass(traits);
@@ -102,8 +102,8 @@ namespace plant {
     double U_s_root = N_s * e_root / (N_s * e_root + k_23);
     double U_s_myco = N_s * e_myco / (N_s * e_myco + k_23);
           
-    U_root = U_root_c * U_s_root;
-    U_myco = U_myco_c * U_s_myco;
+    U_root = U_root_c * U_s_root * par.years_per_tunit_avg;
+    U_myco = U_myco_c * U_s_myco * par.years_per_tunit_avg;
     
   }
 

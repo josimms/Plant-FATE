@@ -13,13 +13,13 @@ void Uptake::nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& p
   double age_factor = uptake_age(G, T);
   
   // CORE UPTAKE
-  uptake_core(G, T);
+  uptake_core(G, T, par);
   
   // UPTAKE
   double uptake_roots_term = (1.0 - mycorrhized) * U_root;
   
   // CORRECTED FOR TIMESTEP
-  G.nitrogen_uptake = age_factor * uptake_roots_term * par.years_per_tunit_avg; // kg per year
+  G.nitrogen_uptake_roots = age_factor * uptake_roots_term; // kg per year
   
   // Mycorrhizal reduction due to root sturcture
   mycorrhizal_root_reduction = age_factor * nitrogen_gate(G, T) * mycorrhized;

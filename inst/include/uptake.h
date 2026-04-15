@@ -44,7 +44,7 @@ public:
   double e_u_myco(double r_d, double myco_diameter_m, double myco_density);
   double S_crowding(double B_root, double B_myco, double rho_root, double e_root, double e_myco, double crown_area);
   
-  void uptake_core(const PlantArchitecture& G, PlantTraits& traits);
+  void uptake_core(const PlantArchitecture& G, PlantTraits& traits, PlantParameters& par);
     
   template<class _Climate>
   void nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& par, PlantTraits& T);
