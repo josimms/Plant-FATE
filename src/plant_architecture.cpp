@@ -29,6 +29,13 @@ void PlantArchitecture::init(PlantParameters& par, PlantTraits& traits){
 //	set_size(diameter_0, traits);
 }
 
+void PlantArchitecture::init_nitrogen(double _nu, double _nt, PlantTraits& traits){
+  nitrogen_uptake_roots = _nu;
+  ectomycorrhiza_N_free = 0.01 * _nu;
+  
+  set_nitrogen(_nt, traits);
+}
+
 // **
 // ** Crown geometry
 // **
@@ -85,7 +92,7 @@ double PlantArchitecture::diameter_at_height(double z, PlantTraits& traits){
 // **
 // ** Biomass partitioning
 // **
-std::vector<double> PlantArchitecture::dsize_dmass(PlantTraits& traits) const{
+double PlantArchitecture::dsize_dmass(PlantTraits& traits) const{
 	double dh_dd = geom.a * exp(-geom.a * diameter / traits.hmat);
 	double dmleaf_dd = traits.lma * lai * geom.pic_4a * (height + diameter * dh_dd);	// LAI variation is accounted for in biomass production rate
 	double dmtrunk_dd = (geom.eta_c * M_PI * traits.wood_density / 4) * (2 * height + diameter * dh_dd) * diameter;
@@ -94,12 +101,9 @@ std::vector<double> PlantArchitecture::dsize_dmass(PlantTraits& traits) const{
 	double dmcroot_dd = (dmbranches_dd + dmtrunk_dd) * traits.fcr;
 
 	double dmass_dd = dmleaf_dd + dmtrunk_dd + dmbranches_dd + dmroot_dd + dmcroot_dd;
-	double dnitrogen_dd = dmleaf_dd * traits.nc_leaf + dmtrunk_dd * traits.nc_wood + dmbranches_dd * traits.nc_wood + dmroot_dd * traits.nc_root + dmcroot_dd * traits.nc_wood;
+	// double dnitrogen_dd = dmleaf_dd * traits.nc_leaf + dmtrunk_dd * traits.nc_wood + dmbranches_dd * traits.nc_wood + dmcroot_dd * traits.nc_wood + dmroot_dd * traits.nc_root;
 	
-	std::vector<double> out(2);
-	out[0] = 1 / dmass_dd;
-	out[1] = 1 / dnitrogen_dd;
-	return out;
+	return 1 / dmass_dd;
 }
 
 double PlantArchitecture::dreproduction_dmass(PlantParameters& par, PlantTraits& traits){
@@ -155,64 +159,25 @@ double PlantArchitecture::root_mass(const PlantTraits& traits) const{
   return density_root * pow(diameter_root/2.0, 2.0) * root_length * M_PI * root_no * 1e-9 * crown_area * lai;
 }
 
-void PlantArchitecture::resolve_myco_fluxes(
+void PlantArchitecture::dmyco_dt(
     double exudates,
     const PlantTraits& traits,
-    double U_myco
+    double U_myco,
+    double mycorrhizal_root_reduction
 ) {
-  
   // --- Carbon-driven potential growth ---
   double growth_C_potential = exudates * traits.mycorrhizal_biomass_conversion * 0.44;
   
   // --- Nitrogen demand ---
   double N_needed = growth_C_potential * traits.nc_myco;
   
-  // --- Available nitrogen ---
-  N_available = ectomycorrhiza_N_free + U_myco;
-  
   // --- Nitrogen limitation ---
-  double fN = (N_needed > 0.0) ? std::min(1.0, N_available / N_needed) : 1.0;
+  double fN = (N_needed > 0.0) ? std::min(1.0, (ectomycorrhiza_N_free + U_myco) / N_needed) : 1.0;
   
-  growth_C = growth_C_potential * fN;
-  growth_N = growth_C * traits.nc_myco;
-}
-
-void PlantArchitecture::update_ectomycorrhizal_fluxes(
-    const PlantTraits& traits,
-    const PlantParameters& par,
-    double mycorrhizal_root_reduction
-) {
-  // --- Update structural N ---
-  ectomycorrhiza_N_structural = (1.0 - traits.mycorrhizal_turnover) * ectomycorrhiza_N_structural + growth_N;
-  
-  // --- Update fungal biomass ---
-  ectomycorrhiza_mass = (1.0 - traits.mycorrhizal_turnover) * ectomycorrhiza_mass + growth_C;
-  
-  // --- Update free N ---
-  ectomycorrhiza_N_free = (N_available - growth_N) + ectomycorrhiza_N_structural * traits.mycorrhizal_turnover * traits.k_14;
-  
-  // --- Export to plant ---
   N_export = std::max(0.0, ectomycorrhiza_N_free) * mycorrhizal_root_reduction;
   
-  ectomycorrhiza_N_free -= N_export;
-  
-  nitrogen_uptake = nitrogen_uptake + N_export * par.years_per_tunit_avg; // kg per year
-  
-  // --- Safety checks ---
-  if (ectomycorrhiza_mass < 0.0) {
-    std::cerr << "[Warning] ectomycorrhiza_mass < 0. Clamping to 0.\n";
-    ectomycorrhiza_mass = 0.0;
-  }
-  
-  if (ectomycorrhiza_N_structural < 0.0) {
-    std::cerr << "[Warning] ectomycorrhiza_N_structural < 0. Clamping to 0.\n";
-    ectomycorrhiza_N_structural = 0.0;
-  }
-  
-  if (ectomycorrhiza_N_free < 0.0) {
-    std::cerr << "[Warning] ectomycorrhiza_N_free < 0. Clamping to 0.\n";
-    ectomycorrhiza_N_free = 0.0;
-  }
+  dmass_myco_dt = growth_C_potential * fN - ectomycorrhiza_mass * traits.mycorrhizal_turnover;
+  dN_myco_dt_free = U_myco - growth_C_potential * fN * traits.nc_myco - N_export + ectomycorrhiza_mass * traits.nc_myco * traits.mycorrhizal_turnover * traits.k_14;
 }
 
 double PlantArchitecture::coarse_root_mass(const PlantTraits& traits) const{
@@ -274,16 +239,13 @@ void PlantArchitecture::set_root(double _rn, double _rl, PlantTraits& traits){
   root_no = _rn;
   root_length = _rl;
   ectomycorrhiza_mass = root_mass(traits);
-  ectomycorrhiza_N_structural = root_mass(traits) * traits.nc_myco; // TODO: needs initalisation?
 };
 
 /// @details Sets the following properties: nitrogen_tree, nitrogen_uptake, potential_nitrogen_leaf, ectomycorrhiza_mass 
-void PlantArchitecture::set_nitrogen(double _nt, double _nu, PlantTraits& traits) {
+void PlantArchitecture::set_nitrogen(double _nt, PlantTraits& traits) {
   nitrogen_tree = _nt;
-  nitrogen_uptake = _nu;
   potential_nitrogen_leaf = traits.k_10 * nitrogen_tree;
   nitrogen_in_biomass = total_mass_nitrogen(traits);
-  ectomycorrhiza_N_free = 0;
 }
 
 /// @details Sets the following properties: diameter, height, crown area, sapwood fraction 
@@ -326,7 +288,7 @@ void PlantArchitecture::grow_for_dt(double t, double dt, double& prod, double& l
 		// TODO: nitrogen here?
 		double dG_dt = dB_dt - std::max(dLA_dt, 0.0); // biomass going into geometric growth
 		double dN_dd = 0; // NOTE: not relevant in this function! Used for the nitrogen balance calculated in the Life History
-		double dD_dt = dsize_dmass(traits)[0] * dG_dt;	// size (diameter) growth rate
+		double dD_dt = dsize_dmass(traits) * dG_dt;	// size (diameter) growth rate
 
 		dSdt[0] = dB_dt;	// biomass that goes into allometric increments
 		dSdt[1] = dD_dt;

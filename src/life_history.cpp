@@ -90,7 +90,7 @@ void LifeHistoryOptimizer::init(){
 	P.geometry.set_root(P.par.root_no0, P.par.root_length0, P.traits);
 	P.set_size(0.01);
 	// Simulation below starts at seedling stage. So account for survival until seedling stage
-	P.geometry.set_nitrogen(P.par.nitrogen_start0, P.par.nitrogen_uptake0, P.traits);
+	P.geometry.init_nitrogen(P.par.nitrogen_uptake0, P.par.nitrogen_start0, P.traits);
 	// set_nitrogen after set_size as crown area is defined in set_size
 	
 	// TODO: temperarily set the day of the year to midyear in case
@@ -147,7 +147,6 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
 		, "fineroot_lifespan"
     , "root_no"
     , "root_length"
-    , "nitrogen_uptake"
     , "mycorrhizal_export_to_tree"
     , "root_uptake"
     , "myco_uptake"
@@ -211,7 +210,6 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
 		, P.geometry.root_lifespan(P.traits)
     , P.geometry.root_no
     , P.geometry.root_length
-    , P.geometry.nitrogen_uptake
     , P.geometry.N_export
     , P.uptake.U_root
     , P.uptake.U_myco
@@ -253,6 +251,9 @@ void LifeHistoryOptimizer::set_state(vector<double>::iterator it){
 //		P.state.seed_pool = *it++;
 	seeds = *it++;
 	P.state.mortality = *it++;
+	P.geometry.ectomycorrhiza_mass      = *it++;
+	P.geometry.ectomycorrhiza_N_free    = *it++;
+	P.set_nitrogen(*it++);
 }
 
 void LifeHistoryOptimizer::get_rates(vector<double>::iterator it){
@@ -264,6 +265,9 @@ void LifeHistoryOptimizer::get_rates(vector<double>::iterator it){
 //		*it++ = P.rates.dseeds_dt_pool;
 	*it++ = P.rates.dseeds_dt;
 	*it++ = P.rates.dmort_dt;
+	*it++ = P.rates.dmass_myco_dt;
+	*it++ = P.rates.dN_myco_dt_free;
+	*it++ = P.rates.dnitrogen_dt_free;
 }
 
 
@@ -291,7 +295,11 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 		get_rates(dSdt.begin());
 		};
 
-	std::vector<double> S = {P.geometry.lai, P.geometry.get_size(), prod, litter_pool, rep, seeds, P.state.mortality};
+	std::vector<double> S = {P.geometry.lai, P.geometry.get_size(), 
+                          prod, litter_pool, rep, seeds, P.state.mortality, 
+                          P.geometry.ectomycorrhiza_mass,
+                          P.geometry.ectomycorrhiza_N_free,
+                          P.geometry.nitrogen_tree};
 	RK4(t, dt, S, derivs);
 	//Euler(t, dt, S, derivs);
 	set_state(S.begin());

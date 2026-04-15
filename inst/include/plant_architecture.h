@@ -40,14 +40,12 @@ class PlantArchitecture{
 	double root_no;              ///< Number of root tips [no]
 	double root_length;          ///< Root length, [mm]
 	double ectomycorrhiza_mass;  ///< Mycorrhizal biomass [kg]
+	double ectomycorrhiza_N_free;  ///< Mycorrhizal free nitrogen [kg]
 	
-	// Ectomycorrhizal states
-	double growth_C;
-	double growth_N;
-	double ectomycorrhiza_N_free;
-	double ectomycorrhiza_N_structural;
-	double N_export;
-	double N_available;
+	// nitrogen state
+	double nitrogen_tree;                ///< Nitrogen in the tree [g] TODO: is this in kg rather than g
+	double potential_nitrogen_leaf;      ///< Potential nitrogen in the leaf for the optimisation [g]
+	double nitrogen_in_biomass;          ///< Nitrogen in the tree's biomass [kg N]
 
 	// variables calculated from state variables
 	double height;                       ///< Plant height
@@ -56,10 +54,11 @@ class PlantArchitecture{
 	double functional_xylem_fraction;    ///< Fraction of functional xylem in sapwood
 	double rooting_depth;                ///< Rooting depth, calculated from coarse root biomass
 	
-	double nitrogen_tree;                ///< Nitrogen in the tree [g]
-	double potential_nitrogen_leaf;      ///< Potential nitrogen in the leaf for the optimisation [g]
-	double nitrogen_uptake;              ///< Nitrogen uptake [kgN per time unit]
-	double nitrogen_in_biomass;          ///< Nitrogen in the tree's biomass [kg N]
+	// mass rates
+	double nitrogen_uptake_roots;        ///< Nitrogen uptake [kgN per time unit]
+	double N_export;                     ///< Nitrogen transferred from mycorrhiza to tree [kg N per time unit]
+	double dmass_myco_dt;                ///< Mycorrhizal mass difference [kg C per time unit]
+	double dN_myco_dt_free;              ///< Nitrogen free changed [kg N per time unit]
 	
 	// ode-based calculations of sapwood and heartwood (for debug)
 	double sap_frac_ode = 1;
@@ -71,6 +70,7 @@ class PlantArchitecture{
 
 	/// @brief  Initialize geometry from traits, precompute any necessary variables
 	void init(PlantParameters& par, PlantTraits& traits);
+	void init_nitrogen(double _nu, double _nt, PlantTraits& traits);
 
 	/// @brief  The height at which crown radius is maximum.
 	double zm();
@@ -88,7 +88,7 @@ class PlantArchitecture{
 
 	/// @brief Derivatives required for biomass partitioning
 	/// @{  
-	std::vector<double> dsize_dmass(PlantTraits& traits) const;
+	double dsize_dmass(PlantTraits& traits) const;
 	double dreproduction_dmass(PlantParameters& par, PlantTraits& traits);
 	/// @}
 
@@ -120,8 +120,7 @@ class PlantArchitecture{
 	///@brief Nitrogen value of biomass and ectomycorrhizal operations
 	/// @{
 	double total_mass_nitrogen(const PlantTraits& traits) const;
-	void resolve_myco_fluxes(double exudates, const PlantTraits& traits, double U_myco);
-	void update_ectomycorrhizal_fluxes(const PlantTraits& traits, const PlantParameters& par, double mycorrhizal_root_reduction);
+	void dmyco_dt(double exudates, const PlantTraits& traits, double U_myco, double mycorrhizal_root_reduction);
 	/// @}
 
 	// These functions are used to get and set state variables
@@ -133,7 +132,7 @@ class PlantArchitecture{
 	/// Set plant size (diameter) and other variables that scale with size  
 	void set_root(double _rn, double _rl, PlantTraits& traits);
 	void set_size(double _x, PlantTraits& traits);
-	void set_nitrogen(double _nt, double _nu, PlantTraits& traits);
+	void set_nitrogen(double _nt, PlantTraits& traits);
 	/// Set size and lai, the two state variables that define plant geometry
 	/// And nor also size and nitrogen
 	std::vector<double>::iterator set_state(std::vector<double>::iterator S, PlantTraits& traits);

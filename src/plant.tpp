@@ -14,7 +14,7 @@ double Plant::lai_model(PlantAssimilationResult& res, double _dmass_dt_tot, Env&
 	double dnpp_dL = (res_plus.npp - res.npp) / geometry.crown_area / par.dl;
 	double dgpp_dL = (res_plus.gpp - res.gpp) / geometry.crown_area / par.dl;
 	double dE_dL = (res_plus.trans - res.trans) / geometry.crown_area / par.dl;
-//	double ddpsi_dL = dE_dL * viscosity / (traits.K_xylem * phydro::P(env.clim_inst.swp, traits.p50_xylem, traits.b_xylem)); // FIXME: Need proper unit conversion
+  // double ddpsi_dL = dE_dL * viscosity / (traits.K_xylem * phydro::P(env.clim_inst.swp, traits.p50_xylem, traits.b_xylem)); // FIXME: Need proper unit conversion
 
 	double dL_dt = 0;
 	if (par.optimize_lai) dL_dt = par.response_intensity * (dnpp_dL - par.Chyd * dE_dL - par.Cc * traits.lma); // FIXME: This condition can be applied to the whole block
@@ -55,16 +55,11 @@ double Plant::p_survival_dispersal(Env& env){
 
 // Demographics
 template<class Env>
-std::vector<double> Plant::size_growth_rate(double _dmass_dt_growth, Env& env){
-	double dsize_dt = geometry.dsize_dmass(traits)[0] * _dmass_dt_growth;
-	// TODO: nitrogen fail safe?
-	double dnitrogen_dt = geometry.dsize_dmass(traits)[1] * _dmass_dt_growth;
+double Plant::size_growth_rate(double _dmass_dt_growth, Env& env){
+	double dsize_dt = geometry.dsize_dmass(traits) * _dmass_dt_growth;
 	rates.rgr = dsize_dt / geometry.get_size();
 	
-	std::vector<double> out(2);
-	out[0] = dsize_dt;
-	out[1] = dnitrogen_dt;
-	return out;
+	return dsize_dt;
 }
 
 
@@ -160,8 +155,6 @@ void Plant::calc_demographic_rates(Env& env, double t){
   // Nitrogen uptake and partitioning calculated here
  	uptake.nitrogen_plant(env, geometry, par, traits); // g N per kg Biomass to kg
 	
-	// TODO: initalisation
-	
 	// Photosynthesis with nitrogen limitation
 	res = assimilator.net_production(env, &geometry, par, traits, t);
 
@@ -169,12 +162,10 @@ void Plant::calc_demographic_rates(Env& env, double t){
 	double res_all = std::max(res.npp, 0.0);
 	double res_after_myco = res_all * (1 - traits.investment_from_tree);
 	
-	// Calculate ectomycorrhizal growth and resulting flux
- 	geometry.resolve_myco_fluxes(res_all * traits.investment_from_tree, traits, uptake.U_myco); // TODO: other arguments
- 	// Note: the nitrogen in the tree is updated with the ectomycorrhizal transfer in the next function
- 	geometry.update_ectomycorrhizal_fluxes(traits, par, uptake.mycorrhizal_root_reduction);
- 	
- 	geometry.nitrogen_tree += geometry.nitrogen_uptake + traits.k_14*(res.tleaf*0.5*traits.nc_leaf + res.troot*0.5*traits.nc_root);
+	// Mycorrhizal rates
+	geometry.dmyco_dt(res_all * traits.investment_from_tree, traits, uptake.U_myco, uptake.mycorrhizal_root_reduction);
+	rates.dmass_myco_dt = geometry.dmass_myco_dt;
+  rates.dN_myco_dt_free = geometry.dN_myco_dt_free;
 
 	bp.dmass_dt_tot = std::max(res_after_myco, 0.0);  // No biomass growth if npp is negative
 	if (std::isnan(bp.dmass_dt_tot)) throw std::runtime_error("biomass production is nan");
@@ -186,22 +177,14 @@ void Plant::calc_demographic_rates(Env& env, double t){
 	partition_biomass(bp.dmass_dt_tot, bp.dmass_dt_lai, env);
 
 	// set core rates
-	rates.dsize_dt = size_growth_rate(bp.dmass_dt_growth, env)[0]; // also sets rates.rgr
-	rates.dnitrogen_dt = size_growth_rate(bp.dmass_dt_growth, env)[1];
+	rates.dsize_dt = size_growth_rate(bp.dmass_dt_growth, env); // also sets rates.rgr
+	rates.dnitrogen_dt_free = geometry.nitrogen_uptake_roots + geometry.N_export + traits.k_14 * (res.tleaf*0.5*traits.nc_leaf + res.troot*0.5*traits.nc_root);
 	rates.dmort_dt = mortality_rate(env, t);
 
 	double fec = fecundity_rate(bp.dmass_dt_rep, env);
 	// rates.dseeds_dt_pool =  -state.seed_pool/par.ll_seed  +  fec * p_survival_dispersal(env);  // seeds that survive dispersal enter seed pool
 	// rates.dseeds_dt_germ =   state.seed_pool/par.ll_seed;   // seeds that leave seed pool proceed for germincation
 	rates.dseeds_dt = fec;
-	
-	// Nitrogen in biomass
-	geometry.nitrogen_in_biomass += rates.dnitrogen_dt - (1 - traits.k_14) * (res.tleaf * 0.5 * traits.nc_leaf + res.troot * 0.5 * traits.nc_root);
-	geometry.nitrogen_tree -= rates.dnitrogen_dt;
-	if (geometry.nitrogen_tree < 0) {
-	  geometry.nitrogen_tree = 0;
-	  std::cerr << "[Warning] nitrogen_tree < 0. Clamping to 0.\n";
-	}
 }
 
 // Shorthand is used for biomass partitioning into geometric growth and LAI growth

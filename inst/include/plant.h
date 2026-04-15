@@ -29,14 +29,16 @@ class Plant{
 
 	/// @brief Core demographic rates
 	struct{
-		double dlai_dt;    ///< Rate of change of LAI
-		double dsize_dt;   ///< Growth rate
-		double dmort_dt;   ///< Mortality rate
-		double dseeds_dt;  ///< Fecundity rate 
-		double dnitrogen_dt;  ///< Nitrogen rate of change
-		double rgr;        ///< Relative growth rate (RGR)
+		double dlai_dt;       ///< Rate of change of LAI
+		double dsize_dt;      ///< Growth rate
+		double dmort_dt;      ///< Mortality rate
+		double dseeds_dt;     ///< Fecundity rate 
+		double rgr;           ///< Relative growth rate (RGR)
 		// double dseeds_dt_pool;
 		// double dseeds_dt_germ;
+		double dnitrogen_dt_free;  ///< Nitrogen free rate of change in tree
+		double dmass_myco_dt;   ///< Rate of change of mycorrhizal biomass
+		double dN_myco_dt_free; ///< Rate of change of free nitrogen in mycorrhiza
 	} rates;
 
 	/// @brief Mortality components
@@ -94,6 +96,8 @@ class Plant{
 
 	/// @brief  Set size (diameter and all associated variables) from x
 	void set_size(double x); // FIXME: Is this function really needed?!
+	/// @brief  Set nitrogen (all nitrogen related variables updated) from nt
+	void set_nitrogen(double nt);
 	/// @brief  Get plant biomass
 	double get_biomass() const; // FIXME: Is this function really needed?!
 
@@ -111,7 +115,7 @@ class Plant{
 	/// @addtogroup libpspm_interface
 	/// @{
 	template <class Env>
-	std::vector<double> size_growth_rate(double _dmass_dt_growth, Env& env);
+	double size_growth_rate(double _dmass_dt_growth, Env& env);
 
 	template <class Env>
 	double mortality_rate(Env& env, double t);
