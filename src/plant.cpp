@@ -10,7 +10,7 @@ void Plant::init(const PlantParameters& _par, const PlantTraits& _traits, const 
 	par = _par;
 	traits = _traits;
 	uptake = _uptake;
-	coordinateTraits();
+	// coordinateTraits();
 }
 
 
@@ -48,9 +48,12 @@ void Plant::coordinateTraits(){
 	// traits.print();
 }
 
-
 void Plant::set_size(double x){
 	geometry.set_size(x, traits);
+}
+
+void Plant::set_nitrogen(double nt){
+  geometry.set_nitrogen(nt, traits);
 }
 
 double Plant::get_biomass() const{
