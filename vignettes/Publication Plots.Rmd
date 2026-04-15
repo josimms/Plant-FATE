@@ -105,26 +105,61 @@ all_n_df <- future_lapply(nitrogen_values, function(n) {
   run_sim_parallel(fixed_root_length, fixed_root_no, n, fixed_ecto_allo)
 })
 
-# --- Sweep Root Number (nitrogen iterated each time) ---
-all_rn_df <- safe_future_lapply(root_no_values, function(rn) {
-  do.call(rbind, lapply(nitrogen_values, function(n) {
+# -------------------------------
+# Helper: safe wrapper for run_sim_parallel
+# -------------------------------
+run_sim_safe <- function(rl, rn, n, eb) {
+  result <- run_sim_parallel(rl, rn, n, eb)
+  if (is.null(result) || nrow(result) == 0) return(NULL)
+  result
+}
+
+# -------------------------------
+# Sweep Nitrogen (root traits fixed)
+# -------------------------------
+all_n_list <- future_lapply(nitrogen_values, function(n) {
+  run_sim_safe(fixed_root_length, fixed_root_no, n, fixed_ecto_allo)
+})
+all_n_df <- do.call(rbind, all_n_list[!sapply(all_n_list, is.null)])
+
+# -------------------------------
+# Sweep Root Number × Nitrogen
+# -------------------------------
+all_rn_list <- future_lapply(root_no_values, function(rn) {
+  inner <- lapply(nitrogen_values, function(n) {
     run_sim_safe(fixed_root_length, rn, n, fixed_ecto_allo)
-  })[!sapply(., is.null)])
+  })
+  do.call(rbind, inner[!sapply(inner, is.null)])
 })
+all_rn_df <- do.call(rbind, all_rn_list[!sapply(all_rn_list, is.null)])
 
-# --- Sweep Root Length (nitrogen iterated each time) ---
-all_rl_df <- safe_future_lapply(root_length_values, function(rl) {
-  do.call(rbind, lapply(nitrogen_values, function(n) {
+# -------------------------------
+# Sweep Root Length × Nitrogen
+# -------------------------------
+all_rl_list <- future_lapply(root_length_values, function(rl) {
+  inner <- lapply(nitrogen_values, function(n) {
     run_sim_safe(rl, fixed_root_no, n, fixed_ecto_allo)
-  })[!sapply(., is.null)])
+  })
+  do.call(rbind, inner[!sapply(inner, is.null)])
 })
+all_rl_df <- do.call(rbind, all_rl_list[!sapply(all_rl_list, is.null)])
 
-# --- Sweep Ectomycorrhizal Allocation (nitrogen iterated each time) ---
-all_eb_df <- safe_future_lapply(ecto_allo_values, function(eb) {
-  do.call(rbind, lapply(nitrogen_values, function(n) {
+# -------------------------------
+# Sweep Ectomycorrhizal Allocation × Nitrogen
+# -------------------------------
+all_eb_list <- future_lapply(ecto_allo_values, function(eb) {
+  inner <- lapply(nitrogen_values, function(n) {
     run_sim_safe(fixed_root_length, fixed_root_no, n, eb)
-  })[!sapply(., is.null)])
+  })
+  do.call(rbind, inner[!sapply(inner, is.null)])
 })
+all_eb_df <- do.call(rbind, all_eb_list[!sapply(all_eb_list, is.null)])
+
+# -------------------------------
+# Combine all sweeps into one dataframe
+# -------------------------------
+final_df <- rbind(all_rn_df, all_rl_df, all_eb_df)
+final_df_no_na <- final_df[!is.na(final_df$root_length), ]
 ```
 
 ## Fitness
