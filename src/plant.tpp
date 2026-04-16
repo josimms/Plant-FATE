@@ -55,11 +55,15 @@ double Plant::p_survival_dispersal(Env& env){
 
 // Demographics
 template<class Env>
-double Plant::size_growth_rate(double _dmass_dt_growth, Env& env){
-	double dsize_dt = geometry.dsize_dmass(traits) * _dmass_dt_growth;
+std::vector<double> Plant::size_growth_rate(double _dmass_dt_growth, Env& env){
+	double dsize_dt = geometry.dsize_dmass(traits)[0] * _dmass_dt_growth;
+	double dnitrogen_dt = geometry.dsize_dmass(traits)[1] * _dmass_dt_growth;
 	rates.rgr = dsize_dt / geometry.get_size();
 	
-	return dsize_dt;
+	std::vector<double> out(2);
+	out[0] = dsize_dt;
+	out[1] = dnitrogen_dt;
+	return out;
 }
 
 
@@ -152,39 +156,53 @@ double Plant::fecundity_rate(double _dmass_dt_rep, Env& env){
 template<class Env>
 void Plant::calc_demographic_rates(Env& env, double t){
 
-  // Nitrogen uptake and partitioning calculated here
- 	uptake.nitrogen_plant(env, geometry, par, traits); // g N per kg Biomass to kg
-	
-	// Photosynthesis with nitrogen limitation
-	res = assimilator.net_production(env, &geometry, par, traits, t);
+    // Nitrogen uptake and partitioning calculated here
+    uptake.nitrogen_plant(env, geometry, par, traits);
+    
+    // Photosynthesis with nitrogen limitation
+    if (geometry.potential_nitrogen_leaf <= 1e-3) {
+        // No photosynthesis possible — return zero assimilation
+        res = PlantAssimilationResult{};  // default-constructed, all zeros
+        res.c_open_avg = 1.0;  // canopy stays open even without assim - safety placeholder for the no-photosynthesis case
+    } else {
+        res = assimilator.net_production(env, &geometry, par, traits, t);
+    }
 
-	// Take a percentage of the total npp and allocate this to mycorrhiza
-	double res_all = std::max(res.npp, 0.0);
-	double res_after_myco = res_all * (1 - traits.investment_from_tree);
-	
-	// Mycorrhizal rates
-	geometry.dmyco_dt(res_all * traits.investment_from_tree, traits, uptake.U_myco, uptake.mycorrhizal_root_reduction);
-	rates.dmass_myco_dt = geometry.dmass_myco_dt;
-  rates.dN_myco_dt_free = geometry.dN_myco_dt_free;
+    // Mycorrhizal allocation
+    double res_all = std::max(res.npp, 0.0);
+    double res_after_myco = res_all * (1 - traits.investment_from_tree);
+    
+    geometry.dmyco_dt(res_all * traits.investment_from_tree, traits, uptake.U_myco, uptake.mycorrhizal_root_reduction);
+    rates.dmass_myco_dt = geometry.dmass_myco_dt;
+    rates.dN_myco_dt_free = geometry.dN_myco_dt_free;
 
-	bp.dmass_dt_tot = std::max(res_after_myco, 0.0);  // No biomass growth if npp is negative
-	if (std::isnan(bp.dmass_dt_tot)) throw std::runtime_error("biomass production is nan");
+    bp.dmass_dt_tot = std::max(res_after_myco, 0.0);
+    if (std::isnan(bp.dmass_dt_tot)) throw std::runtime_error("biomass production is nan");
 
-	// set rates.dlai_dt and bp.dmass_dt_lai
-	rates.dlai_dt = lai_model(res, bp.dmass_dt_tot, env, t);   // also sets rates.dmass_dt_lai
+    // set rates.dlai_dt and bp.dmass_dt_lai
+    rates.dlai_dt = lai_model(res, bp.dmass_dt_tot, env, t);
 
-	// set all of bp.dmass_dt_xxx
-	partition_biomass(bp.dmass_dt_tot, bp.dmass_dt_lai, env);
+    // set all of bp.dmass_dt_xxx
+    partition_biomass(bp.dmass_dt_tot, bp.dmass_dt_lai, env);
 
-	// set core rates
-	rates.dsize_dt = size_growth_rate(bp.dmass_dt_growth, env); // also sets rates.rgr
-	rates.dnitrogen_dt_free = geometry.nitrogen_uptake_roots + geometry.N_export + traits.k_14 * (res.tleaf*0.5*traits.nc_leaf + res.troot*0.5*traits.nc_root);
-	rates.dmort_dt = mortality_rate(env, t);
+    // Nitrogen demand for the LAI changes
+    double N_demand_lai = std::max(bp.dmass_dt_lai, 0.0) * geometry.n_demand_per_lai_biomass(traits);
 
-	double fec = fecundity_rate(bp.dmass_dt_rep, env);
-	// rates.dseeds_dt_pool =  -state.seed_pool/par.ll_seed  +  fec * p_survival_dispersal(env);  // seeds that survive dispersal enter seed pool
-	// rates.dseeds_dt_germ =   state.seed_pool/par.ll_seed;   // seeds that leave seed pool proceed for germincation
-	rates.dseeds_dt = fec;
+    // set core rates
+    auto growth_rates = size_growth_rate(bp.dmass_dt_growth, env);
+    rates.dsize_dt = growth_rates[0];
+    
+    rates.dnitrogen_dt_free = geometry.nitrogen_uptake_roots 
+                            + geometry.N_export 
+                            + traits.k_14 * (res.tleaf * 0.5 * traits.nc_leaf 
+                                           + res.troot * 0.5 * traits.nc_root)
+                            - growth_rates[1]
+                            - N_demand_lai;
+    
+    rates.dmort_dt = mortality_rate(env, t);
+
+    double fec = fecundity_rate(bp.dmass_dt_rep, env);
+    rates.dseeds_dt = fec;
 }
 
 // Shorthand is used for biomass partitioning into geometric growth and LAI growth

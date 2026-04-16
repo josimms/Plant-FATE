@@ -30,9 +30,8 @@ void PlantArchitecture::init(PlantParameters& par, PlantTraits& traits){
 }
 
 void PlantArchitecture::init_nitrogen(double _nu, double _nt, PlantTraits& traits){
-  nitrogen_uptake_roots = _nu;
+  nitrogen_uptake_roots = _nu; 
   ectomycorrhiza_N_free = 0.01 * _nu;
-  
   set_nitrogen(_nt, traits);
 }
 
@@ -89,10 +88,19 @@ double PlantArchitecture::diameter_at_height(double z, PlantTraits& traits){
 	return sqrt(4 * a_z / M_PI);
 }
 
+// In plant_architecture.h/cpp
+double PlantArchitecture::n_demand_per_lai_biomass(const PlantTraits& traits) const {
+  double fine_root_per_unit_lai = M_PI * pow(root_diameter(traits)/2.0, 2.0) * root_length * root_density(traits) * 1e-9 * root_no;
+  double l2m_total = traits.lma + fine_root_per_unit_lai;
+  double leaf_fraction = traits.lma / l2m_total;
+  double root_fraction = 1.0 - leaf_fraction;
+  return 0.5 * (leaf_fraction * traits.nc_leaf + root_fraction * traits.nc_root);
+}
+
 // **
 // ** Biomass partitioning
 // **
-double PlantArchitecture::dsize_dmass(PlantTraits& traits) const{
+std::vector<double> PlantArchitecture::dsize_dmass(PlantTraits& traits) const{
 	double dh_dd = geom.a * exp(-geom.a * diameter / traits.hmat);
 	double dmleaf_dd = traits.lma * lai * geom.pic_4a * (height + diameter * dh_dd);	// LAI variation is accounted for in biomass production rate
 	double dmtrunk_dd = (geom.eta_c * M_PI * traits.wood_density / 4) * (2 * height + diameter * dh_dd) * diameter;
@@ -101,9 +109,12 @@ double PlantArchitecture::dsize_dmass(PlantTraits& traits) const{
 	double dmcroot_dd = (dmbranches_dd + dmtrunk_dd) * traits.fcr;
 
 	double dmass_dd = dmleaf_dd + dmtrunk_dd + dmbranches_dd + dmroot_dd + dmcroot_dd;
-	// double dnitrogen_dd = dmleaf_dd * traits.nc_leaf + dmtrunk_dd * traits.nc_wood + dmbranches_dd * traits.nc_wood + dmcroot_dd * traits.nc_wood + dmroot_dd * traits.nc_root;
+	double dnitrogen_dd = dmleaf_dd * traits.nc_leaf + dmtrunk_dd * traits.nc_wood + dmbranches_dd * traits.nc_wood + dmcroot_dd * traits.nc_wood + dmroot_dd * traits.nc_root;
 	
-	return 1 / dmass_dd;
+	std::vector<double> out(2);
+	out[0] = 1 / dmass_dd;
+	out[1] = 1 / dnitrogen_dd;
+	return out;
 }
 
 double PlantArchitecture::dreproduction_dmass(PlantParameters& par, PlantTraits& traits){
@@ -243,7 +254,7 @@ void PlantArchitecture::set_root(double _rn, double _rl, PlantTraits& traits){
 
 /// @details Sets the following properties: nitrogen_tree, nitrogen_uptake, potential_nitrogen_leaf, ectomycorrhiza_mass 
 void PlantArchitecture::set_nitrogen(double _nt, PlantTraits& traits) {
-  nitrogen_tree = _nt;
+  nitrogen_tree = std::max(_nt, 0.0);  // FIXME: prevent negative free N, but can create a nitrogen debt
   potential_nitrogen_leaf = traits.k_10 * nitrogen_tree;
   nitrogen_in_biomass = total_mass_nitrogen(traits);
 }
@@ -288,7 +299,7 @@ void PlantArchitecture::grow_for_dt(double t, double dt, double& prod, double& l
 		// TODO: nitrogen here?
 		double dG_dt = dB_dt - std::max(dLA_dt, 0.0); // biomass going into geometric growth
 		double dN_dd = 0; // NOTE: not relevant in this function! Used for the nitrogen balance calculated in the Life History
-		double dD_dt = dsize_dmass(traits) * dG_dt;	// size (diameter) growth rate
+		double dD_dt = dsize_dmass(traits)[0] * dG_dt;	// size (diameter) growth rate
 
 		dSdt[0] = dB_dt;	// biomass that goes into allometric increments
 		dSdt[1] = dD_dt;

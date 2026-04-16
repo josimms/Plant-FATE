@@ -83,12 +83,13 @@ class PlantArchitecture{
 	double crown_area_extent_projected(double z, PlantTraits& traits);
 	/// @brief  Realized crown projection area at height z. 
 	double crown_area_above(double z, PlantTraits& traits);
+	double n_demand_per_lai_biomass(const PlantTraits& traits) const;
 	/// @}
 
 
 	/// @brief Derivatives required for biomass partitioning
 	/// @{  
-	double dsize_dmass(PlantTraits& traits) const;
+	std::vector<double> dsize_dmass(PlantTraits& traits) const;
 	double dreproduction_dmass(PlantParameters& par, PlantTraits& traits);
 	/// @}
 

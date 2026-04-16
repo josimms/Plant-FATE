@@ -115,7 +115,7 @@ class Plant{
 	/// @addtogroup libpspm_interface
 	/// @{
 	template <class Env>
-	double size_growth_rate(double _dmass_dt_growth, Env& env);
+	std::vector<double> size_growth_rate(double _dmass_dt_growth, Env& env);
 
 	template <class Env>
 	double mortality_rate(Env& env, double t);
