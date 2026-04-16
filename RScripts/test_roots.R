@@ -106,21 +106,21 @@ blank <- function() {
   lho$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_co2File("")
-  lho$set_soil_nitrogen(0.001)
+  lho$set_soil_nitrogen(1)
   lho$init()
   
   lho_2 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
   lho_2$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho_2$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho_2$set_co2File("")
-  lho_2$set_soil_nitrogen(0.00001)
+  lho_2$set_soil_nitrogen(0.5)
   lho_2$init()
   
   lho_3 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
   lho_3$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho_3$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho_3$set_co2File("")
-  lho_3$set_soil_nitrogen(0.0000001)
+  lho_3$set_soil_nitrogen(0.25)
   lho_3$init()
   
   dt <- 1/12
@@ -189,8 +189,8 @@ blank <- function() {
   df_3$date <- dates
   
   # Set color scheme
-  cols <- c("red", "orange", "yellow")
-  N_labels <- c("N = 0.9", "N = 0.7", "N = 0.5")
+  cols <- c("#0072B2", "#E69F00", "#D55E00")
+  N_labels <- c("N = High", "N = Medium", "N = Low")
   
   #####
   # Weather
@@ -2005,14 +2005,14 @@ original_life_histroy <- function() {
   plot(df$date, df$height, type = "l", col = cols[1], lwd = lwd_model,
        ylim = ylim_h, xlab = "", ylab = "Height (m)",
        cex.axis = cex_axis, cex.lab = cex_lab)
-  points(smear_h_date, smear_h_val, col = col_obs, pch = 4, cex = 1.5, lwd = lwd_obs)
+  points(smear_h_date, smear_h_val, col = adjustcolor(col_range, alpha.f = 0.15), pch = 4, cex = 1.5, lwd = lwd_obs)
   add_range(as.Date("2017-06-01"),
             min(halme_et_al_2022$height, na.rm = TRUE),
             max(halme_et_al_2022$height, na.rm = TRUE))
   for (id in unique(useful_data$plotID)) {
     sub <- useful_data[useful_data$plotID == id, ]
     lines(as.Date(as.character(sub$eventYear), format = "%Y"), sub$averageTreeHeight, 
-          col = col_obs, pch = 4, cex = 1.5, lwd = lwd_obs)
+          col = adjustcolor(col_range, alpha.f = 0.15), pch = 4, cex = 1.5, lwd = lwd_obs)
   }
   mtext("(c)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
@@ -2031,11 +2031,11 @@ original_life_histroy <- function() {
        cex.axis = cex_axis, cex.lab = cex_lab)
   lines(df_2$date, df_2$diameter, col = cols[2], lwd = lwd_model)
   lines(df_3$date, df_3$diameter, col = cols[3], lwd = lwd_model)
-  points(smear_d_date, smear_d_val, col = col_obs, pch = 4, cex = 1.5, lwd = lwd_obs)
+  points(smear_d_date, smear_d_val, col = adjustcolor(col_range, alpha.f = 0.15), pch = 4, cex = 1.5, lwd = lwd_obs)
   for (id in unique(useful_data$plotID)) {
     sub <- useful_data[useful_data$plotID == id, ]
     lines(as.Date(as.character(sub$eventYear), format = "%Y"), 0.01*sub$averageTreeDiameter, 
-          col = col_obs, pch = 4, cex = 1.5, lwd = lwd_obs)
+          col = adjustcolor(col_range, alpha.f = 0.15), pch = 4, cex = 1.5, lwd = lwd_obs)
   }
   mtext("(d)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
@@ -2045,26 +2045,30 @@ original_life_histroy <- function() {
   
   # (e) Vcmax
   ylim_vc <- range(df$vcmax, df_2$vcmax, df_3$vcmax, na.rm = TRUE)
-  plot(df$date, df$vcmax, type = "l", col = cols[1], lwd = lwd_model,
+  plot(df$date, df$vcmax, type = "n", col = cols[1], lwd = lwd_model,
        ylim = ylim_vc, xlab = "",
        ylab = expression("V"[cmax]*"\n("*mu*"mol m"^{-2}*" s"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
+  rect(par("usr")[1], 0, par("usr")[2], 30,
+       col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
+  lines(df$date, df$vcmax, col = cols[1], lwd = lwd_model)
   lines(df_2$date, df_2$vcmax, col = cols[2], lwd = lwd_model)
   lines(df_3$date, df_3$vcmax, col = cols[3], lwd = lwd_model)
-  abline(h = c(0, 30), col = col_range, lty = 2, lwd = lwd_obs)
   mtext("(e)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
   
   # (f) Optimal leaf nitrogen
   ylim_oln <- range(df$optimal_leaf_nitrogen, df_2$optimal_leaf_nitrogen,
                     df_3$optimal_leaf_nitrogen, na.rm = TRUE)
-  plot(df$date, df$optimal_leaf_nitrogen, type = "p", col = cols[1], pch = 20, cex = 0.3,
+  plot(df$date, df$optimal_leaf_nitrogen, type = "n", col = cols[1], pch = 20, cex = 0.3,
        ylim = ylim_oln, xlab = "",
        ylab = expression("Optimal leaf N (g g"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
+  rect(par("usr")[1], 11 / 1000, par("usr")[2], 13 / 1000,
+       col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
+  points(df$date, df$optimal_leaf_nitrogen, col = cols[1], pch = 20, cex = 0.3)
   points(df_2$date, df_2$optimal_leaf_nitrogen, col = cols[2], pch = 20, cex = 0.3)
   points(df_3$date, df_3$optimal_leaf_nitrogen, col = cols[3], pch = 20, cex = 0.3)
-  abline(h = 12 / 1000, col = col_range, lty = 2, lwd = lwd_obs)
   mtext("(f)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
   
@@ -2080,7 +2084,7 @@ original_life_histroy <- function() {
        cex.axis = cex_axis, cex.lab = cex_lab)
   lines(df_2$date, uptake_2, col = cols[2], lwd = lwd_model)
   lines(df_3$date, uptake_3, col = cols[3], lwd = lwd_model)
-  points(as.Date("2007-06-21"), 12 / 1000, col = col_obs, pch = pch_lit, cex = 1.8)
+  points(as.Date("2007-06-21"), 12 / 1000, col = col_range, pch = pch_lit, cex = 1.8)
   mtext("(g)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
   
@@ -2097,20 +2101,19 @@ original_life_histroy <- function() {
        cex.axis = cex_axis, cex.lab = cex_lab)
   lines(df_2$date, df_2$nitrogen_in_biomass, col = cols[2], lwd = lwd_model)
   lines(df_3$date, df_3$nitrogen_in_biomass, col = cols[3], lwd = lwd_model)
-  add_range(date_point, low, high, col = col_obs)
+  add_range(date_point, low, high, col = col_range)
   mtext("(h)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
   
   # Shared legend
   par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
   plot(0, 0, type = "n", bty = "n", xaxt = "n", yaxt = "n")
-  legend("bottom", horiz = FALSE, bty = "n", cex = cex_legend, ncol = 4,
-         legend = c(N_labels, "Eddy covariance", "SMEAR II",
-                    "Halme et al. 2022", "Korhonen et al. 2013",
-                    "Thum et al. 2008"),
-         col = c(cols, col_obs, col_obs, col_range, col_obs, col_range),
-         lty = c(1, 1, 1, NA, NA, NA, NA, 2),
-         pch = c(NA, NA, NA, pch_obs, 4, 95, pch_lit, NA),
-         lwd = c(rep(lwd_model, 3), NA, lwd_obs, 2.5, NA, lwd_obs))
+  legend("bottom", horiz = FALSE, bty = "n", cex = cex_legend, ncol = 3,
+         legend = c(N_labels, "Eddy covariance",
+                    "Range of realistic boreal observations"),
+         col = c(cols, col_obs, col_range),
+         lty = c(1, 1, 1, NA, 1),
+         pch = c(NA, NA, NA, pch_obs, NA),
+         lwd = c(rep(lwd_model, 3), NA, lwd_obs))
 }
 
