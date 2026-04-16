@@ -7,7 +7,7 @@ namespace pfate{
 ErgodicEnvironment::ErgodicEnvironment() : LightEnvironment(), Climate(){
 	z_star = {20, 15, 10, 5, 0};
 	// canopy_openness = {1, exp(-0.5 * 0.7), exp(-0.5 * 1.8), exp(-0.5 * 2.8), exp(-0.5 * 3.5)};
-	canopy_openness = {1.0, 0.87, 0.75, 0.63, 0.4};
+	canopy_openness = {0.8, 0.8, 0.75, 0.55, 0.43};
 }
 
 void ErgodicEnvironment::print(double t){
@@ -91,7 +91,6 @@ void LifeHistoryOptimizer::init(){
 	P.set_size(0.01);
 	// Simulation below starts at seedling stage. So account for survival until seedling stage
 	P.geometry.init_nitrogen(P.par.nitrogen_uptake0, P.par.nitrogen_start0, P.traits);
-	// set_nitrogen after set_size as crown area is defined in set_size
 	
 	// TODO: temperarily set the day of the year to midyear in case
 	P.state.mortality = -log(P.p_survival_dispersal(C) * P.p_survival_germination(C, 182)); // p{fresh seed is still alive after germination} = p{it survives dispersal}*p{it survives germination}
