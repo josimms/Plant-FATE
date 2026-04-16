@@ -106,21 +106,21 @@ blank <- function() {
   lho$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_co2File("")
-  lho$set_soil_nitrogen(1)
+  lho$set_soil_nitrogen(1.65)
   lho$init()
   
   lho_2 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
   lho_2$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho_2$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho_2$set_co2File("")
-  lho_2$set_soil_nitrogen(0.5)
+  lho_2$set_soil_nitrogen(0.85)
   lho_2$init()
   
   lho_3 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
   lho_3$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho_3$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho_3$set_co2File("")
-  lho_3$set_soil_nitrogen(0.25)
+  lho_3$set_soil_nitrogen(0.05)
   lho_3$init()
   
   dt <- 1/12
@@ -1973,7 +1973,7 @@ original_life_histroy <- function() {
   ylim_gpp <- range(df$assim_gross, df_2$assim_gross, df_3$assim_gross,
                     Eddy_covariance$GPP_mean_kg, na.rm = TRUE)
   plot(df$date, df$assim_gross, type = "l", col = cols[1], lwd = lwd_model,
-       ylim = ylim_gpp, xlab = "", ylab = expression("GPP (kg C tree"^{-1}*" month"^{-1}*")"),
+       ylim = ylim_gpp, xlab = "", ylab = expression("GPP (kg C tree"^{-1}*" year"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
   lines(df_2$date, df_2$assim_gross, col = cols[2], lwd = lwd_model)
   lines(df_3$date, df_3$assim_gross, col = cols[3], lwd = lwd_model)
@@ -1986,7 +1986,7 @@ original_life_histroy <- function() {
   ylim_npp <- range(df$assim_net, df_2$assim_net, df_3$assim_net,
                     -Eddy_covariance$NEE_mean_kg, na.rm = TRUE)
   plot(df$date, df$assim_net, type = "l", col = cols[1], lwd = lwd_model,
-       ylim = ylim_npp, xlab = "", ylab = expression("NPP (kg C tree"^{-1}*" month"^{-1}*")"),
+       ylim = ylim_npp, xlab = "", ylab = expression("NPP (kg C tree"^{-1}*" year"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
   lines(df_2$date, df_2$assim_net, col = cols[2], lwd = lwd_model)
   lines(df_3$date, df_3$assim_net, col = cols[3], lwd = lwd_model)
@@ -2047,7 +2047,7 @@ original_life_histroy <- function() {
   ylim_vc <- range(df$vcmax, df_2$vcmax, df_3$vcmax, na.rm = TRUE)
   plot(df$date, df$vcmax, type = "n", col = cols[1], lwd = lwd_model,
        ylim = ylim_vc, xlab = "",
-       ylab = expression("V"[cmax]*"\n("*mu*"mol m"^{-2}*" s"^{-1}*")"),
+       ylab = expression("V"[cmax]*" ("*mu*"mol m"^{-2}*" s"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
   rect(par("usr")[1], 0, par("usr")[2], 30,
        col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
@@ -2080,7 +2080,7 @@ original_life_histroy <- function() {
   
   plot(df$date, uptake_1, type = "l", col = cols[1], lwd = lwd_model,
        ylim = ylim_nu, xlab = "",
-       ylab = expression("N uptake (kg N tree"^{-1}*" month"^{-1}*")"),
+       ylab = expression("N uptake (kg N tree"^{-1}*" year"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
   lines(df_2$date, uptake_2, col = cols[2], lwd = lwd_model)
   lines(df_3$date, uptake_3, col = cols[3], lwd = lwd_model)
