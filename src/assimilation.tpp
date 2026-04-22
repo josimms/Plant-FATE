@@ -35,9 +35,9 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 	double Iabs_24hr   = fipar * C.clim_inst.ppfd;
 	
 	double leaf_nitrogen = 100 * G->potential_nitrogen_leaf / G->crown_area; // kg to g per unit crown area
-	if (leaf_nitrogen < 0.0) {
+	if (leaf_nitrogen < 1.0/par.a_jmax) {
 	  leaf_nitrogen = 0;
-	  std::cout << "leaf_nitrogen was negative, made 0\n";
+	  std::cout << "leaf_nitrogen was less than one unit of Jmax, made leaf nitrogen 0\n";
 	}
 
 	auto out_phydro_acclim = phydro::phydro_nitrogen(
