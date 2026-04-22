@@ -62,6 +62,7 @@ void LifeHistoryOptimizer::init_co2(double _co2){
 
 void LifeHistoryOptimizer::set_soil_nitrogen(double _N){
   C.set_soil_nitrogen(_N);
+  uptake0.N_s = _N;
 }
 
 void LifeHistoryOptimizer::root_override(double _rn, double _rl) {
