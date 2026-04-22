@@ -172,7 +172,7 @@ void Plant::calc_demographic_rates(Env& env, double t){
     double res_all = std::max(res.npp, 0.0);
     double res_after_myco = res_all * (1 - traits.investment_from_tree);
     
-    geometry.dmyco_dt(res_all * traits.investment_from_tree, traits, uptake.U_myco, uptake.mycorrhizal_root_reduction);
+    geometry.dmyco_dt(res_all * traits.investment_from_tree, traits, uptake.U_myco, uptake.mycorrhizal_root_reduction, par);
     rates.dmass_myco_dt = geometry.dmass_myco_dt;
     rates.dN_myco_dt_free = geometry.dN_myco_dt_free;
 
