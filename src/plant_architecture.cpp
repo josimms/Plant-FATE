@@ -184,14 +184,14 @@ void PlantArchitecture::dmyco_dt(
   double N_needed = growth_C_potential * traits.nc_myco;
   
   // --- Nitrogen limitation ---
-  double nitrogen_transfer = ectomycorrhiza_N_free * traits.mycorrhizal_turnover * par.years_per_tunit;
+  double nitrogen_transfer = ectomycorrhiza_N_free * traits.mycorrhizal_turnover * par.years_per_tunit_avg;
   double fN = (N_needed > 0.0) ? std::min(1.0, (nitrogen_transfer + U_myco) / N_needed) : 1.0;
   
   N_export = std::max(0.0, nitrogen_transfer) * mycorrhizal_root_reduction;
   
   dmass_myco_dt = growth_C_potential * fN - ectomycorrhiza_mass * traits.mycorrhizal_turnover;
   // TODO: is this kg biomass or kg carbon?
-  dN_myco_dt_free = U_myco - growth_C_potential * fN * traits.nc_myco - N_export + ectomycorrhiza_mass * traits.nc_myco * traits.mycorrhizal_turnover * traits.k_14 * par.years_per_tunit;
+  dN_myco_dt_free = U_myco - growth_C_potential * fN * traits.nc_myco - N_export + ectomycorrhiza_mass * traits.nc_myco * traits.mycorrhizal_turnover * traits.k_14 * par.years_per_tunit_avg;
 }
 
 double PlantArchitecture::coarse_root_mass(const PlantTraits& traits) const{
