@@ -6,6 +6,12 @@ namespace plant{
 template<class _Climate>
 void Uptake::nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& par, PlantTraits& T) {
   
+  // Efficiency of N transfer from mycorrhiza to tree (lagged one timestep)
+  // eta = N actually exported to tree / N taken up by mycorrhiza
+  transfer_efficiency_photosynthesis = (U_myco > 1e-10) 
+      ? std::min(1.0, G.N_export / U_myco) 
+      : 0.0;
+  
   // PARAMETERS
   double N = C.clim_acclim.nitrogen;
   
@@ -19,9 +25,9 @@ void Uptake::nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& p
   double uptake_roots_term = (1.0 - mycorrhized) * U_root;
   
   // CORRECTED FOR TIMESTEP
-  G.nitrogen_uptake_roots = age_factor * uptake_roots_term; // kg per year
+  G.nitrogen_uptake_roots = age_factor * uptake_roots_term;
   
-  // Mycorrhizal reduction due to root sturcture
+  // Mycorrhizal reduction due to root structure
   mycorrhizal_root_reduction = age_factor * nitrogen_gate(G, T) * mycorrhized;
 }
 

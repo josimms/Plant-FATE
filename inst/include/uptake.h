@@ -20,6 +20,7 @@ public:
 
   double mycorrhized;
   double mycorrhizal_root_reduction;
+  double transfer_efficiency_photosynthesis;
   double myco_diameter;
   double rho_myco;
   double D;
