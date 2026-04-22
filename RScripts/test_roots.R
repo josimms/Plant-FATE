@@ -2058,14 +2058,14 @@ original_life_histroy <- function() {
   lho_2$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho_2$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho_2$set_co2File("")
-  lho_2$set_soil_nitrogen(0.5)
+  lho_2$set_soil_nitrogen(0.8)
   lho_2$init()
   
   lho_3 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
   lho_3$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho_3$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho_3$set_co2File("")
-  lho_3$set_soil_nitrogen(0.05)
+  lho_3$set_soil_nitrogen(0.1)
   lho_3$init()
   
   dt <- 1/12
@@ -2244,8 +2244,8 @@ original_life_histroy <- function() {
        ylim = ylim_oln, xlab = "",
        ylab = expression("Optimal leaf N (g g"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
-  rect(par("usr")[1], 11 / 1000, par("usr")[2], 13 / 1000,
-       col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
+  #rect(par("usr")[1], 11 / 1000, par("usr")[2], 13 / 1000,
+  #     col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
   points(df$date, df$optimal_leaf_nitrogen, col = cols[1], pch = 20, cex = 0.3)
   points(df_2$date, df_2$optimal_leaf_nitrogen, col = cols[2], pch = 20, cex = 0.3)
   points(df_3$date, df_3$optimal_leaf_nitrogen, col = cols[3], pch = 20, cex = 0.3)
@@ -2265,7 +2265,7 @@ original_life_histroy <- function() {
        cex.axis = cex_axis, cex.lab = cex_lab)
   lines(df_2$date, uptake_2, col = cols[2], lwd = lwd_model)
   lines(df_3$date, uptake_3, col = cols[3], lwd = lwd_model)
-  points(as.Date("2007-06-21"), 12 / 1000, col = col_range, pch = pch_lit, cex = 1.8)
+  points(as.Date("2007-06-21"), 1.5, col = col_range, pch = pch_lit, cex = 1.8)
   mtext("(g)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
   
@@ -2296,5 +2296,13 @@ original_life_histroy <- function() {
          lty = c(1, 1, 1, NA, 1),
          pch = c(NA, NA, NA, pch_obs, NA),
          lwd = c(rep(lwd_model, 3), NA, lwd_obs))
+  
+  dev.off()
+  par(mfrow = c(2, 2))
+  plot(df$date, df$myco_uptake)
+  plot(df$date, df$myco_uptake/df$ectomycorrhiza_mass)
+  plot(df$date, df$root_uptake)
+  plot(df$date, df$root_uptake/df$root_mass)
+  
 }
 
