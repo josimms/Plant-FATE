@@ -11,12 +11,12 @@ class Uptake {
   
 public:
   
-  double U_root;
-  double U_myco;
-  double Sval;
-  double rd;
-  double e_root;
-  double e_myco;
+  double U_root  = 0.0;
+  double U_myco  = 0.0;
+  double Sval    = 1.0;
+  double rd      = 0.0;
+  double e_root  = 0.0;
+  double e_myco  = 0.0;
 
   double mycorrhized;
   double mycorrhizal_root_reduction;
@@ -26,7 +26,6 @@ public:
   double D;
   double N_s;
   double u_max; 
-  double u_max_kg; 
   double depth;
   
   double k_8;

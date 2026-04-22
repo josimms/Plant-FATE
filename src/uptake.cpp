@@ -12,7 +12,6 @@ namespace plant {
     // Nitrogen parameters
     mycorrhized           = I.get<double>("mycorrhized");
     u_max                 = I.get<double>("u_max");
-    u_max_kg              = I.get<double>("u_max_kg");
     myco_diameter         = I.get<double>("myco_diameter");
     rho_myco              = I.get<double>("rho_myco");
     D                     = I.get<double>("D");
@@ -40,7 +39,7 @@ namespace plant {
 
   // Depletion radius calculation
   double Uptake::deplition_radius() {
-    return D * N_s / u_max;
+    return D * (N_s + k_23) / u_max;
   }
 
   // Surface area explored per root biomass
@@ -55,10 +54,10 @@ namespace plant {
   }
 
   // Crowding function
-  double Uptake::S_crowding(double B_root, double B_myco, double rho_root, double e_root, double e_myco, double crown_area) {
+  double Uptake::S_crowding(double B_root, double B_myco, double rho_root, double e_root, double e_myco, double crown_radius) {
     
     // --- Ellipsoid soil volume ---
-    double V_soil = (4.0/3.0) * M_PI * pow(k_20 * crown_area, 2.0) * depth;
+    double V_soil = (2.0/3.0) * M_PI * pow(k_20 * crown_radius, 2.0) * depth;
       
     // --- Free soil volume corrected for porosity and existing biomass ---
     double V_free = k_21 * V_soil - B_root / rho_root - B_myco / rho_myco;
@@ -82,29 +81,27 @@ namespace plant {
     
     // --- Generate biomass ---
     double B_root = G.root_mass(traits);
-    double d_root_m = G.root_diameter(traits); // TODO check units
+    double d_root_mm = G.root_diameter(traits);
     double rho_root = G.root_density(traits);
+    double u_Bmax_fr  = 4.0 * u_max / (rho_root * d_root_mm/1000.0);
+    double u_Bmax_m   = 4.0 * u_max / (rho_myco * myco_diameter);
     
     // --- Depletion ratio ---
     rd = deplition_radius();
     
     // Soil surface per root biomass
-    e_root = e_u_root(rd, d_root_m, rho_root);
+    e_root = e_u_root(rd, d_root_mm, rho_root);
     e_myco = e_u_myco(rd, myco_diameter, rho_myco);
     
     // --- Compute saturation factor ---
-    Sval = S_crowding(B_root, G.ectomycorrhiza_mass, rho_root, e_root, e_myco, G.crown_area);
+    double crown_radius = std::sqrt(G.crown_area / M_PI);
+    Sval = S_crowding(B_root, G.ectomycorrhiza_mass, rho_root, e_root, e_myco, crown_radius);
     
-    // --- Final uptake ---
-    double U_root_c = B_root * u_max_kg * Sval;
-    double U_myco_c = G.ectomycorrhiza_mass * u_max_kg * Sval;
-        
-    double U_s_root = N_s * e_root / (N_s * e_root + k_23);
-    double U_s_myco = N_s * e_myco / (N_s * e_myco + k_23);
+    double U_s = N_s / (N_s + k_23);
+    
+    U_root = B_root * u_Bmax_fr * Sval * U_s * par.years_per_tunit_avg;
+    U_myco = G.ectomycorrhiza_mass * u_Bmax_m * Sval * U_s * par.years_per_tunit_avg;
           
-    U_root = U_root_c * U_s_root * par.years_per_tunit_avg;
-    U_myco = U_myco_c * U_s_myco * par.years_per_tunit_avg;
-    
   }
 
 } // End namespace
