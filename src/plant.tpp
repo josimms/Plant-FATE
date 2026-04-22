@@ -160,7 +160,7 @@ void Plant::calc_demographic_rates(Env& env, double t){
     uptake.nitrogen_plant(env, geometry, par, traits);
     
     // Photosynthesis with nitrogen limitation
-    if (geometry.potential_nitrogen_leaf <= 1e-3) {
+    if (geometry.potential_nitrogen_leaf <= 1e-10) {
         // No photosynthesis possible — return zero assimilation
         res = PlantAssimilationResult{};  // default-constructed, all zeros
         res.c_open_avg = 1.0;  // canopy stays open even without assim - safety placeholder for the no-photosynthesis case
