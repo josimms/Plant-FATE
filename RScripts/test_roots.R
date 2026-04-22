@@ -113,7 +113,7 @@ blank <- function() {
   lho_2$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho_2$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho_2$set_co2File("")
-  lho_2$set_soil_nitrogen(0.85)
+  lho_2$set_soil_nitrogen(0.5)
   lho_2$init()
   
   lho_3 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
@@ -1585,6 +1585,96 @@ original_life_histroy <- function() {
   # Model
   #####
   
+  lho <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
+  lho$set_i_metFile("tests/data/ERAS_Monthly.csv")
+  lho$set_a_metFile("tests/data/ERAS_Monthly.csv")
+  lho$set_co2File("")
+  lho$set_soil_nitrogen(1.65)
+  lho$init()
+  
+  lho_2 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
+  lho_2$set_i_metFile("tests/data/ERAS_Monthly.csv")
+  lho_2$set_a_metFile("tests/data/ERAS_Monthly.csv")
+  lho_2$set_co2File("")
+  lho_2$set_soil_nitrogen(0.5)
+  lho_2$init()
+  
+  lho_3 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
+  lho_3$set_i_metFile("tests/data/ERAS_Monthly.csv")
+  lho_3$set_a_metFile("tests/data/ERAS_Monthly.csv")
+  lho_3$set_co2File("")
+  lho_3$set_soil_nitrogen(0.05)
+  lho_3$init()
+  
+  dt <- 1/12
+  start_year <- 1960
+  end_year <- 2022
+  years_seq <- seq(start_year, end_year, dt)
+  
+  df <- df_2 <- df_3 <- data.frame(matrix(ncol = length(lho$get_header()), nrow = 0))
+  col_names <- lho$get_header()
+  
+  results  <- results_2 <- results_3 <- vector("list", length(years_seq))
+  i <- 1
+  
+  for (t in years_seq) {
+    # --- Simulation 1 (N = 0.9)
+    results[[i]] <- tryCatch({
+      lho$grow_for_dt(t, dt)
+      state <- lho$get_state(t + dt)
+      df_row <- as.data.frame(t(state))
+      names(df_row) <- col_names
+      df_row
+    }, error = function(e) {
+      message("Error at t=", t, " (lho): ", e$message)
+      setNames(as.data.frame(as.list(rep(NA, length(col_names)))), col_names)
+    })
+    
+    # --- Simulation 2 (N = 0.7)
+    results_2[[i]] <- tryCatch({
+      lho_2$grow_for_dt(t, dt)
+      state_2 <- lho_2$get_state(t + dt)
+      df_row_2 <- as.data.frame(t(state_2))
+      names(df_row_2) <- col_names
+      df_row_2
+    }, error = function(e) {
+      message("Error at t=", t, " (lho_2): ", e$message)
+      setNames(as.data.frame(as.list(rep(NA, length(col_names)))), col_names)
+    })
+    
+    # --- Simulation 3 (N = 0.5)
+    results_3[[i]] <- tryCatch({
+      lho_3$grow_for_dt(t, dt)
+      state_3 <- lho_3$get_state(t + dt)
+      df_row_3 <- as.data.frame(t(state_3))
+      names(df_row_3) <- col_names
+      df_row_3
+    }, error = function(e) {
+      message("Error at t=", t, " (lho_3): ", e$message)
+      setNames(as.data.frame(as.list(rep(NA, length(col_names)))), col_names)
+    })
+    
+    i <- i + 1
+  }
+  
+  # --- Combine to data frames
+  df   <- do.call(rbind, results)
+  df_2 <- do.call(rbind, results_2)
+  df_3 <- do.call(rbind, results_3)
+  names(df) <- names(df_2) <- names(df_3) <- col_names
+  
+  # --- Add date columns
+  dates <- seq(as.Date(paste0(start_year, "-01-01")),
+               as.Date(paste0(end_year, "-01-01")), by = "month")[1:nrow(df)]
+  
+  df$date   <- dates
+  df_2$date <- dates
+  df_3$date <- dates
+  
+  # Set color scheme
+  cols <- c("#0072B2", "#E69F00", "#D55E00")
+  N_labels <- c("N = High", "N = Medium", "N = Low")
+  
   # ----------------------------
   # 1. Gross Assimilation & Tree Growth
   # ----------------------------
@@ -1957,6 +2047,96 @@ original_life_histroy <- function() {
   # 8 panels (2 × 4)
   # ============================================================================
   
+  lho <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
+  lho$set_i_metFile("tests/data/ERAS_Monthly.csv")
+  lho$set_a_metFile("tests/data/ERAS_Monthly.csv")
+  lho$set_co2File("")
+  lho$set_soil_nitrogen(1.65)
+  lho$init()
+  
+  lho_2 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
+  lho_2$set_i_metFile("tests/data/ERAS_Monthly.csv")
+  lho_2$set_a_metFile("tests/data/ERAS_Monthly.csv")
+  lho_2$set_co2File("")
+  lho_2$set_soil_nitrogen(0.5)
+  lho_2$init()
+  
+  lho_3 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
+  lho_3$set_i_metFile("tests/data/ERAS_Monthly.csv")
+  lho_3$set_a_metFile("tests/data/ERAS_Monthly.csv")
+  lho_3$set_co2File("")
+  lho_3$set_soil_nitrogen(0.05)
+  lho_3$init()
+  
+  dt <- 1/12
+  start_year <- 1960
+  end_year <- 2022
+  years_seq <- seq(start_year, end_year, dt)
+  
+  df <- df_2 <- df_3 <- data.frame(matrix(ncol = length(lho$get_header()), nrow = 0))
+  col_names <- lho$get_header()
+  
+  results  <- results_2 <- results_3 <- vector("list", length(years_seq))
+  i <- 1
+  
+  for (t in years_seq) {
+    # --- Simulation 1 (N = 0.9)
+    results[[i]] <- tryCatch({
+      lho$grow_for_dt(t, dt)
+      state <- lho$get_state(t + dt)
+      df_row <- as.data.frame(t(state))
+      names(df_row) <- col_names
+      df_row
+    }, error = function(e) {
+      message("Error at t=", t, " (lho): ", e$message)
+      setNames(as.data.frame(as.list(rep(NA, length(col_names)))), col_names)
+    })
+    
+    # --- Simulation 2 (N = 0.7)
+    results_2[[i]] <- tryCatch({
+      lho_2$grow_for_dt(t, dt)
+      state_2 <- lho_2$get_state(t + dt)
+      df_row_2 <- as.data.frame(t(state_2))
+      names(df_row_2) <- col_names
+      df_row_2
+    }, error = function(e) {
+      message("Error at t=", t, " (lho_2): ", e$message)
+      setNames(as.data.frame(as.list(rep(NA, length(col_names)))), col_names)
+    })
+    
+    # --- Simulation 3 (N = 0.5)
+    results_3[[i]] <- tryCatch({
+      lho_3$grow_for_dt(t, dt)
+      state_3 <- lho_3$get_state(t + dt)
+      df_row_3 <- as.data.frame(t(state_3))
+      names(df_row_3) <- col_names
+      df_row_3
+    }, error = function(e) {
+      message("Error at t=", t, " (lho_3): ", e$message)
+      setNames(as.data.frame(as.list(rep(NA, length(col_names)))), col_names)
+    })
+    
+    i <- i + 1
+  }
+  
+  # --- Combine to data frames
+  df   <- do.call(rbind, results)
+  df_2 <- do.call(rbind, results_2)
+  df_3 <- do.call(rbind, results_3)
+  names(df) <- names(df_2) <- names(df_3) <- col_names
+  
+  # --- Add date columns
+  dates <- seq(as.Date(paste0(start_year, "-01-01")),
+               as.Date(paste0(end_year, "-01-01")), by = "month")[1:nrow(df)]
+  
+  df$date   <- dates
+  df_2$date <- dates
+  df_3$date <- dates
+  
+  # Set color scheme
+  cols <- c("#0072B2", "#E69F00", "#D55E00")
+  N_labels <- c("N = High", "N = Medium", "N = Low")
+  
   par(mfrow = c(4, 2), mar = c(4, 6, 3, 1), oma = c(4, 0, 2, 0),
       family = "serif", las = 1, tcl = -0.4, mgp = c(4, 1, 0))
   
@@ -2077,6 +2257,7 @@ original_life_histroy <- function() {
   uptake_2 <- df_2$mycorrhizal_export_to_tree + df_2$root_uptake
   uptake_3 <- df_3$mycorrhizal_export_to_tree + df_3$root_uptake
   ylim_nu <- range(uptake_1, uptake_2, uptake_3, 12 / 1000, na.rm = TRUE)
+  # 1.432125
   
   plot(df$date, uptake_1, type = "l", col = cols[1], lwd = lwd_model,
        ylim = ylim_nu, xlab = "",
