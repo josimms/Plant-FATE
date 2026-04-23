@@ -72,16 +72,18 @@ blank <- function() {
   setorder(F_H2O_leaf_out, Monthly)
   setorder(ET_out, Monthly)
   
+  area_per_tree = 1 # 10000 / 1500  # ≈ 6.67 m²
+  
   GPP_out$GPP_mean = GPP_out$GPP_mean
-  GPP_out$GPP_mean_kg = GPP_out$GPP_mean * 12.11 * 1e-9 * 60 * 60 * 24 * 365.25 # kg per year, as in PlantFATE
+  GPP_out$GPP_mean_kg = GPP_out$GPP_mean * 12.11 * 1e-9 * 60 * 60 * 24 * 365.25 * area_per_tree # kg per year per tree, as in PlantFATE
   NEE_out$NEE_mean = NEE_out$NEE_mean
-  NEE_out$NEE_mean_kg = NEE_out$NEE_mean * 12.11 * 1e-9 * 60 * 60 * 24 * 365.25 # kg per year, as in PlantFATE
+  NEE_out$NEE_mean_kg = NEE_out$NEE_mean * 12.11 * 1e-9 * 60 * 60 * 24 * 365.25 * area_per_tree # kg per year per tree, as in PlantFATE
   F_CO2_leaf_out$F_CO2_leaf_mean = F_CO2_leaf_out$F_CO2_leaf_mean
-  F_CO2_leaf_out$F_CO2_leaf_mean_kg = F_CO2_leaf_out$F_CO2_leaf_mean * 2.45e-8 * 60 * 60 * 24 * 365.25 # kg per year, as in PlantFATE
+  F_CO2_leaf_out$F_CO2_leaf_mean_kg = F_CO2_leaf_out$F_CO2_leaf_mean * 2.45e-8 * 60 * 60 * 24 * 365.25 * area_per_tree # kg per year per tree, as in PlantFATE
   F_H2O_leaf_out$F_H2O_leaf_mean = F_H2O_leaf_out$F_H2O_leaf_mean
-  F_H2O_leaf_out$F_H2O_leaf_mean_kg = F_H2O_leaf_out$F_H2O_leaf_mean * 1.801528e-8 * 60 * 60 * 24 * 365.25 # kg per year, as in PlantFATE
+  F_H2O_leaf_out$F_H2O_leaf_mean_kg = F_H2O_leaf_out$F_H2O_leaf_mean * 1.801528e-8 * 60 * 60 * 24 * 365.25 * area_per_tree # kg per year per tree, as in PlantFATE
   ET_out$ET_mean = ET_out$ET_mean
-  ET_out$ET_mean_kg = ET_out$ET_mean * 1.801528e-8 * 60 * 60 * 24 * 365.25 # kg per year, as in PlantFATE
+  ET_out$ET_mean_kg = ET_out$ET_mean * 1.801528e-8 * 60 * 60 * 24 * 365.25 * area_per_tree # kg per year per tree, as in PlantFATE
   
   GPP_out$NEE_mean <- NEE_out$NEE_mean
   GPP_out$NEE_mean_kg <- NEE_out$NEE_mean_kg
@@ -120,7 +122,7 @@ blank <- function() {
   lho_3$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho_3$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho_3$set_co2File("")
-  lho_3$set_soil_nitrogen(0.05)
+  lho_3$set_soil_nitrogen(0.1)
   lho_3$init()
   
   dt <- 1/12
@@ -433,7 +435,6 @@ blank <- function() {
        ylab = "kg C", main = "Nitrogen uptake", xlab = "Date",
        ylim = range(df$nitrogen_uptake, df_2$nitrogen_uptake, df_3$nitrogen_uptake, na.rm = TRUE))
   lines(df_2$date, df_2$nitrogen_uptake, col = cols[2])
-  
   lines(df_3$date, df_3$nitrogen_uptake, col = cols[3])
   points(date_point, 12 / 1000,  pch = "x", col = "blue")
   title(sub = "Korhonen 2012: Scots Pine Needle N", col.sub = "blue")
@@ -597,6 +598,11 @@ blank <- function() {
        ylim = range(df$coarse_root_mass, df_2$coarse_root_mass, df_3$coarse_root_mass, na.rm = TRUE))
   lines(df_2$date, df_2$coarse_root_mass, col = cols[2])
   lines(df_3$date, df_3$coarse_root_mass, col = cols[3])
+  
+  plot(df$date, df$root_mass, type = "l", col = cols[1], main = "Root Mass", ylab = "kg", xlab = "Date",
+       ylim = range(df$root_mass, df_2$oot_mass, df_3$root_mass, na.rm = TRUE))
+  lines(df_2$date, df_2$root_mass, col = cols[2])
+  lines(df_3$date, df_3$root_mass, col = cols[3])
   
   # ----------------------------
   # 5. Additional variables: LAI, Crown, Lifespan, Mortality
@@ -1603,7 +1609,7 @@ original_life_histroy <- function() {
   lho_3$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho_3$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho_3$set_co2File("")
-  lho_3$set_soil_nitrogen(0.05)
+  lho_3$set_soil_nitrogen(0.1)
   lho_3$init()
   
   dt <- 1/12
@@ -2150,26 +2156,26 @@ original_life_histroy <- function() {
   pch_lit    <- 17
   
   # (a) GPP
-  ylim_gpp <- range(df$assim_gross, df_2$assim_gross, df_3$assim_gross,
+  ylim_gpp <- range(df$assim_gross/df$crown_area, df_2$assim_gross/df_2$crown_area, df_3$assim_gross/df_3$crown_area,
                     Eddy_covariance$GPP_mean_kg, na.rm = TRUE)
-  plot(df$date, df$assim_gross, type = "l", col = cols[1], lwd = lwd_model,
-       ylim = ylim_gpp, xlab = "", ylab = expression("GPP (kg C tree"^{-1}*" year"^{-1}*")"),
+  plot(df$date, df$assim_gross/df$crown_area, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_gpp, xlab = "", ylab = expression("GPP (kg C m"^{-2}*" year"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df_2$date, df_2$assim_gross, col = cols[2], lwd = lwd_model)
-  lines(df_3$date, df_3$assim_gross, col = cols[3], lwd = lwd_model)
+  lines(df_2$date, df_2$assim_gross/df_2$crown_area, col = cols[2], lwd = lwd_model)
+  lines(df_3$date, df_3$assim_gross/df_3$crown_area, col = cols[3], lwd = lwd_model)
   points(Eddy_covariance$MonthlyDate, Eddy_covariance$GPP_mean_kg,
          col = col_obs, pch = pch_obs, cex = 0.8)
   mtext("(a)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
   
   # (b) NPP
-  ylim_npp <- range(df$assim_net, df_2$assim_net, df_3$assim_net,
+  ylim_npp <- range(df$assim_net/df$crown_area, df_2$assim_net/df_2$crown_area, df_3$assim_net/df_3$crown_area,
                     -Eddy_covariance$NEE_mean_kg, na.rm = TRUE)
-  plot(df$date, df$assim_net, type = "l", col = cols[1], lwd = lwd_model,
-       ylim = ylim_npp, xlab = "", ylab = expression("NPP (kg C tree"^{-1}*" year"^{-1}*")"),
+  plot(df$date, df$assim_net/df$crown_area, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_npp, xlab = "", ylab = expression("NPP (kg C m"^{-2}*" year"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df_2$date, df_2$assim_net, col = cols[2], lwd = lwd_model)
-  lines(df_3$date, df_3$assim_net, col = cols[3], lwd = lwd_model)
+  lines(df_2$date, df_2$assim_net/df_2$crown_area, col = cols[2], lwd = lwd_model)
+  lines(df_3$date, df_3$assim_net/df_3$crown_area, col = cols[3], lwd = lwd_model)
   points(Eddy_covariance$MonthlyDate, -Eddy_covariance$NEE_mean_kg,
          col = col_obs, pch = pch_obs, cex = 0.8)
   mtext("(b)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
@@ -2248,6 +2254,7 @@ original_life_histroy <- function() {
   #     col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
   points(df$date, df$optimal_leaf_nitrogen, col = cols[1], pch = 20, cex = 0.3)
   points(df_2$date, df_2$optimal_leaf_nitrogen, col = cols[2], pch = 20, cex = 0.3)
+  
   points(df_3$date, df_3$optimal_leaf_nitrogen, col = cols[3], pch = 20, cex = 0.3)
   mtext("(f)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
@@ -2296,13 +2303,6 @@ original_life_histroy <- function() {
          lty = c(1, 1, 1, NA, 1),
          pch = c(NA, NA, NA, pch_obs, NA),
          lwd = c(rep(lwd_model, 3), NA, lwd_obs))
-  
-  dev.off()
-  par(mfrow = c(2, 2))
-  plot(df$date, df$myco_uptake)
-  plot(df$date, df$myco_uptake/df$ectomycorrhiza_mass)
-  plot(df$date, df$root_uptake)
-  plot(df$date, df$root_uptake/df$root_mass)
   
 }
 
