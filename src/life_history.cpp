@@ -5,9 +5,24 @@ using namespace std;
 namespace pfate{
 
 ErgodicEnvironment::ErgodicEnvironment() : LightEnvironment(), Climate(){
-	z_star = {20, 15, 10, 5, 0};
-	// canopy_openness = {1, exp(-0.5 * 0.7), exp(-0.5 * 1.8), exp(-0.5 * 2.8), exp(-0.5 * 3.5)};
-	canopy_openness = {0.8, 0.8, 0.75, 0.55, 0.43};
+	// z_star and canopy_openness set dynamically by updateBackgroundCanopy()
+}
+
+void ErgodicEnvironment::init(io::Initializer& I){
+	bg_z      = I.get<double>("bg_canopy_z");
+	bg_co_ini = I.get<double>("bg_canopy_openness_ini");
+	bg_co_eq  = I.get<double>("bg_canopy_openness_eq");
+	bg_tau    = I.get<double>("bg_canopy_tau");
+	bg_t0     = I.get<double>("bg_canopy_t0");
+}
+
+void ErgodicEnvironment::updateBackgroundCanopy(double t){
+	double elapsed = t - bg_t0;
+	double openness = (elapsed <= 0) ? bg_co_ini
+	                : bg_co_eq + (bg_co_ini - bg_co_eq) * exp(-elapsed / bg_tau);
+	n_layers = 1;
+	z_star = {bg_z, 0.0};
+	canopy_openness = {1.0, openness};
 }
 
 void ErgodicEnvironment::print(double t){
@@ -24,6 +39,8 @@ void ErgodicEnvironment::computeEnv(double t, Solver* sol, std::vector<double>::
 LifeHistoryOptimizer::LifeHistoryOptimizer(std::string params_file){
 	//paramsFile = params_file; // = "tests/params/p.ini";
 	I.parse(params_file);
+
+	C.init(I);
 
   // NOTE: PlantFATE seems to work off confif.time_unit
 	ts.set_units(I.get_verbatim("time_unit"));
@@ -76,11 +93,10 @@ void LifeHistoryOptimizer::init(){
 	seeds = 0;
 	prod = 0;
 
-	C.n_layers = C.z_star.size() - 1;
-
 	C.set_elevation(0);
 	C.set_acclim_timescale(7);
 	c_stream.init();
+	C.updateBackgroundCanopy(C.bg_t0);
 
 	// We are tracking the life-cycle of a seed: how many seeds does a single seed produce (having gone through dispersal, germination, and plant life stages)
 	P = plant::Plant();
@@ -92,7 +108,7 @@ void LifeHistoryOptimizer::init(){
 	P.set_size(0.01);
 	// Simulation below starts at seedling stage. So account for survival until seedling stage
 	P.geometry.init_nitrogen(P.par.nitrogen_uptake0, P.par.nitrogen_start0, P.traits);
-	
+
 	// TODO: temperarily set the day of the year to midyear in case
 	P.state.mortality = -log(P.p_survival_dispersal(C) * P.p_survival_germination(C, 182)); // p{fresh seed is still alive after germination} = p{it survives dispersal}*p{it survives germination}
 
@@ -278,9 +294,10 @@ void LifeHistoryOptimizer::update_climate(double julian_time){
 void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 
 	auto derivs = [this](double t, std::vector<double>& S, std::vector<double>& dSdt){
-		//if (fabs(t - 2050) < 1e-5) 
+		//if (fabs(t - 2050) < 1e-5)
 		update_climate(ts.to_julian(t));
-	  
+		C.updateBackgroundCanopy(t);
+
 		// C.Climate::print(t);
 		set_state(S.begin());
 		

@@ -19,7 +19,15 @@ namespace pfate{
 
 class ErgodicEnvironment : public env::LightEnvironment, public env::Climate{
 	public:
+	double bg_z        = 20.0;  // background canopy height [m]
+	double bg_co_ini   = 1.0;   // canopy openness at t0 (1 = fully open)
+	double bg_co_eq    = 0.05;  // equilibrium canopy openness
+	double bg_tau      = 30.0;  // e-folding timescale of canopy closure [years]
+	double bg_t0       = 1960.0; // year succession begins
+
 	ErgodicEnvironment();
+	void init(io::Initializer& I);
+	void updateBackgroundCanopy(double t);
 	void print(double t) override;
 
 	// override computeEnv() to NOT update the light profile
