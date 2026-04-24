@@ -22,7 +22,7 @@ u_Amax <- 0.88
 D_default <- 1e-3
 
 # Biochemical half-saturation constant (kg N m^-3)
-k_15 <- 0.1
+k_15 <- 0.5
 
 depth <- 0.5
 
@@ -707,141 +707,9 @@ p_myco_B <- ggplot(df_myco_B,
   theme(legend.position = "right")
 ```
 
-## Whole-Plant Uptake (Eq. U_a)
-
 ```{r}
-# ===============================================================
-# Whole-plant uptake — Eq. U_a
-# Requires N_m (free fungal nitrogen); held fixed here for illustration.
-# In the full dynamic model, N_m evolves via Eq. free_nitrogen_ecto.
-# ===============================================================
 
-N_m_fixed        <- 0.01    # kg N — placeholder free fungal N pool
-B_m_fixed        <- 2.0     # kg mycorrhizal biomass (placeholder)
-B_cr_fixed       <- 5.0     # kg coarse root biomass (placeholder)
-rho_cr_fixed     <- 500     # kg m^-3
-crown_area_fixed <- pi * C_r^2
-root_no_fixed    <- 2.75e6
-root_length_fixed <- 1.5
 
-n_vals_plant <- seq(1e1, 1e7, length.out = 20)
-N_s_vals_plant <- seq(0.01, 2.1, length.out = 21)
-l_vals_plant   <- seq(0.05, 2.0, length.out = 20)
-
-# --- U_a vs root number (varying N_s) ---
-df_plant_n <- crossing(root_no = n_vals_plant, N_s = N_s_vals_plant) %>%
-  rowwise() %>%
-  mutate(
-    result = list(plant_uptake(
-    N_s = N_s, N_m = N_m_fixed,
-    crown_area = crown_area_fixed,
-    root_length = root_length_fixed,
-    root_no = root_no,
-    B_m = B_m_fixed, B_cr = B_cr_fixed, rho_cr = rho_cr_fixed,
-    traits = traits,
-    mycorrhized = mycorrhized, T_m = T_m,
-    myco_diameter = myco_diameter, myco_density = myco_density,
-    C_r = C_r, q = depth, k_13 = k_13, k_14 = k_14,
-    u_Amax = u_Amax, D = D_default, k_15 = k_15
-  )),
-    U_a  = result$N_total,
-    B_fr = result$B_fr,
-    S    = result$S
-  ) %>%
-  ungroup() %>% select(-result)
-
-# --- U_a vs N_s (default root params) ---
-df_plant_Ns <- tibble(N_s = N_s_vals_plant) %>%
-  rowwise() %>%
-  mutate(
-    result = list(plant_uptake(
-    N_s = N_s, N_m = N_m_fixed,
-    crown_area = crown_area_fixed,
-    root_length = root_length_fixed,
-    root_no = root_no_fixed,
-    B_m = B_m_fixed, B_cr = B_cr_fixed, rho_cr = rho_cr_fixed,
-    traits = traits,
-    mycorrhized = mycorrhized, T_m = T_m,
-    myco_diameter = myco_diameter, myco_density = myco_density,
-    C_r = C_r, q = depth, k_13 = k_13, k_14 = k_14,
-    u_Amax = u_Amax, D = D_default, k_15 = k_15
-  )),
-    U_a = result$N_total
-  ) %>%
-  ungroup() %>% select(-result)
-
-# --- U_a vs root length (age effect visible) ---
-df_plant_l <- tibble(root_length = l_vals_plant) %>%
-  rowwise() %>%
-  mutate(
-    age = root_age(root_length, traits),
-    a_u = uptake_age_modifier(root_length, traits),
-    result = list(plant_uptake(
-    N_s = 0.1, N_m = N_m_fixed,
-    crown_area = crown_area_fixed,
-    root_length = root_length,
-    root_no = root_no_fixed,
-    B_m = B_m_fixed, B_cr = B_cr_fixed, rho_cr = rho_cr_fixed,
-    traits = traits,
-    mycorrhized = mycorrhized, T_m = T_m,
-    myco_diameter = myco_diameter, myco_density = myco_density,
-    C_r = C_r, q = depth, k_13 = k_13, k_14 = k_14,
-    u_Amax = u_Amax, D = D_default, k_15 = k_15
-  )),
-    U_a = result$N_total
-  ) %>%
-  ungroup() %>% select(-result)
-
-# --- U_a vs mycorrhized fraction ---
-myco_frac_vals <- seq(0, 1, length.out = 20)
-df_plant_myco <- tibble(mycorrhized_f = myco_frac_vals) %>%
-  rowwise() %>%
-  mutate(
-    result = list(plant_uptake(
-     N_s = 0.1, N_m = N_m_fixed,
-     crown_area = crown_area_fixed,
-     root_length = root_length_fixed,
-     root_no = root_no_fixed,
-     B_m = B_m_fixed, B_cr = B_cr_fixed, rho_cr = rho_cr_fixed,
-     traits = traits,
-     mycorrhized = mycorrhized_f, T_m = T_m,
-     myco_diameter = myco_diameter, myco_density = myco_density,
-     C_r = C_r, q = depth, k_13 = k_13, k_14 = k_14,
-     u_Amax = u_Amax, D = D_default, k_15 = k_15
-   )),
-    U_a = result$N_total
-  ) %>%
-  ungroup() %>% select(-result)
-
-# --- Plots ---
-p_Ns <- ggplot(df_plant_Ns, aes(N_s, U_a)) +
-  geom_line(linewidth = 1.1, color = "forestgreen") +
-  labs(title = expression("Plant Uptake U"[a]~"vs N"[s]),
-       x = expression(N[s]~"(kg N m"^{-3}*")"),
-       y = "U_a (kg N yr^-1)") +
-  theme_bw()
-
-p_age <- ggplot(df_plant_l, aes(age, U_a)) +
-  geom_line(linewidth = 1.1, color = "forestgreen") +
-  labs(title = expression("Plant Uptake U"[a]~"vs Root Age"),
-       x = "Root age (year)",
-       y = "U_a (kg N yr^-1)") +
-  theme_bw()
-
-p_myco_frac <- ggplot(df_plant_myco, aes(mycorrhized_f, U_a)) +
-  geom_line(linewidth = 1.1, color = "forestgreen") +
-  labs(title = expression("Plant Uptake U"[a]~"vs Mycorrhized Fraction (m)"),
-       x = "Mycorrhized fraction (m)",
-       y = "U_a (kg N yr^-1)") +
-  theme_bw()
-
-p_n <- ggplot(df_plant_n %>% filter(N_s %in% round(seq(0.1, 2, length.out = 5), 2)),
-       aes(B_fr, U_a, color = factor(round(N_s, 2)))) +
-  geom_line(linewidth = 1.1) +
-  labs(title = expression("Plant Uptake U"[a]~"vs Fine Root Biomass"),
-       x = "B_fr (kg)", y = "U_a (kg N yr^-1)",
-       color = expression(N[s])) +
-  theme_bw()
-
-(p_Ns + p_age) / (p_myco_frac + p_n)
 ```
+
+
