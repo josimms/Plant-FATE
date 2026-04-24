@@ -8,7 +8,13 @@ template<class Env>
 double Plant::lai_model(PlantAssimilationResult& res, double _dmass_dt_tot, Env& env, double t){
 	double lai_curr = geometry.lai;
 	geometry.set_lai(lai_curr + par.dl);
-	auto res_plus = assimilator.net_production(env, &geometry, par, traits, t); // TODO; make better when working with plantfate
+	PlantAssimilationResult res_plus;
+	try {
+		res_plus = assimilator.net_production(env, &geometry, par, traits, t);
+	} catch (...) {
+		geometry.set_lai(lai_curr);  // always restore lai before re-throwing
+		throw;
+	}
 	geometry.set_lai(lai_curr);
 
 	double dnpp_dL = (res_plus.npp - res.npp) / geometry.crown_area / par.dl;
@@ -160,27 +166,31 @@ void Plant::calc_demographic_rates(Env& env, double t){
     uptake.nitrogen_plant(env, geometry, par, traits);
     
     // Photosynthesis with nitrogen limitation
-    if (geometry.potential_nitrogen_leaf <= 1e-10) {
-        // No photosynthesis possible — return zero assimilation
+    double npp_exudates = 0.0;
+    if (geometry.potential_nitrogen_leaf < 1/par.a_jmax) {
+        // No photosynthesis possible — skip phydro entirely to avoid log(0) crash
         res = PlantAssimilationResult{};  // default-constructed, all zeros
-        res.c_open_avg = 1.0;  // canopy stays open even without assim - safety placeholder for the no-photosynthesis case
+        res.c_open_avg = 1.0;
+        rates.dlai_dt = 0;
+        bp.dmass_dt_lai = 0;
+        bp.dmass_dt_tot = 0;
     } else {
         res = assimilator.net_production(env, &geometry, par, traits, t);
+
+        double res_all = std::max(res.npp, 0.0);
+        npp_exudates = res_all * traits.investment_from_tree;
+        double res_after_myco = res_all * (1 - traits.investment_from_tree);
+
+        bp.dmass_dt_tot = std::max(res_after_myco, 0.0);
+        if (std::isnan(bp.dmass_dt_tot)) throw std::runtime_error("biomass production is nan");
+
+        rates.dlai_dt = lai_model(res, bp.dmass_dt_tot, env, t);
     }
 
-    // Mycorrhizal allocation
-    double res_all = std::max(res.npp, 0.0);
-    double res_after_myco = res_all * (1 - traits.investment_from_tree);
-    
-    geometry.dmyco_dt(res_all * traits.investment_from_tree, traits, uptake.U_myco, uptake.mycorrhizal_root_reduction, par);
+    // Mycorrhizal turnover runs regardless of nitrogen status; exudates = 0 when no photosynthesis
+    geometry.dmyco_dt(npp_exudates, traits, uptake.U_myco, uptake.mycorrhizal_root_reduction, par);
     rates.dmass_myco_dt = geometry.dmass_myco_dt;
     rates.dN_myco_dt_free = geometry.dN_myco_dt_free;
-
-    bp.dmass_dt_tot = std::max(res_after_myco, 0.0);
-    if (std::isnan(bp.dmass_dt_tot)) throw std::runtime_error("biomass production is nan");
-
-    // set rates.dlai_dt and bp.dmass_dt_lai
-    rates.dlai_dt = lai_model(res, bp.dmass_dt_tot, env, t);
 
     // set all of bp.dmass_dt_xxx
     partition_biomass(bp.dmass_dt_tot, bp.dmass_dt_lai, env);
