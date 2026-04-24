@@ -104,8 +104,8 @@ void LifeHistoryOptimizer::init(){
 	P.init(par0, traits0, uptake0);
 
 	P.geometry.set_lai(P.par.lai0);
+	P.set_size(0.01);  // must be before set_root so crown_area is non-zero when ectomycorrhiza_mass is initialised
 	P.geometry.set_root(P.par.root_no0, P.par.root_length0, P.traits);
-	P.set_size(0.01);
 	// Simulation below starts at seedling stage. So account for survival until seedling stage
 	P.geometry.init_nitrogen(P.par.nitrogen_uptake0, P.par.nitrogen_start0, P.traits);
 
