@@ -13,11 +13,12 @@ void Uptake::nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& p
       : 0.0;
   
   // PARAMETERS
-  double N = C.clim_acclim.nitrogen;
-  
+  // Use dynamic climate nitrogen as the soil concentration (N_s is the ini fallback)
+  N_s = C.clim_acclim.nitrogen;
+
   // AGE EFFECT
   double age_factor = uptake_age(G, T);
-  
+
   // CORE UPTAKE
   uptake_core(G, T, par);
   
