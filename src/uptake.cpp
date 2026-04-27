@@ -27,7 +27,7 @@ namespace plant {
 
   // Uptake with age reduction
   double Uptake::uptake_age(const PlantArchitecture& G, PlantTraits& T) {
-    return 1.0 / (1.0 + exp(G.root_lifespan(T)) - k_8);
+    return 1.0 / (1.0 + exp(G.root_lifespan(T) - k_8));
   }
   
   // Nitrogen uptake gate
