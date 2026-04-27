@@ -16,7 +16,7 @@ library(viridis)
 ###
 
 # Area-based max uptake (kg N m^-2 year^-1) — from hydroponic experiments
-u_Amax <- 0.88
+u_Amax <- 0.08
 
 # Effective soil diffusion coefficient (m^2 year^-1)
 D_default <- 1e-3
@@ -373,7 +373,7 @@ p_ratio <- ggplot(df_eu, aes(N_s, ratio, colour = D)) +
 n_vals     <- seq(1e1, 1e7, length.out = 20)
 N_s_vals   <- seq(0.1, 2.0, length.out = 10)
 D_vals     <- 10^seq(-1.5, -4, length.out = 5)
-u_max_vals <- c(0.44, 0.88, 1.32)
+u_max_vals <- c(0.44, 0.08, 1.32)
 
 df_n_base <- tibble(n = n_vals, l = 1.5) %>%
   rowwise() %>%
@@ -499,7 +499,7 @@ ggplot(df_k14, aes(x = B_fr, y = S, color = factor(k14))) +
 
 N_s_vals      <- seq(0.01, 2.1, length.out = 200)
 D_vals        <- c(1e-4, 1e-3)
-u_max_fixed   <- 0.88
+u_max_fixed   <- 0.08
 N_s_highlight <- c(0.3, 1.65)
 
 cb_two   <- c("1e-04" = "#E69F00", "0.001" = "#0072B2")
@@ -707,9 +707,184 @@ p_myco_B <- ggplot(df_myco_B,
   theme(legend.position = "right")
 ```
 
+## Sensitivity Analysis: depth, k\_15, k\_13, k\_14
+
 ```{r}
+# ---------------------------------------------------------------
+# Fixed operating point for sensitivity analysis
+# ---------------------------------------------------------------
 
+N_s_fixed  <- 1.0   # kg N m^-3
+N_m_fixed  <- 0.1   # kg N (mycorrhizal pool)
+B_m_fixed  <- 0.5   # kg (ECM biomass; puts system in crowded regime)
 
+run_uptake <- function(depth_val, k15_val, k13_val, k14_val) {
+  plant_uptake(
+    N_s           = N_s_fixed,
+    N_m           = N_m_fixed,
+    crown_area    = crown_area_fixed,
+    root_length   = l,
+    root_no       = n,
+    B_m           = B_m_fixed,
+    B_cr          = B_cr_fixed,
+    rho_cr        = rho_cr_fixed,
+    traits        = traits,
+    mycorrhized   = mycorrhized,
+    T_m           = T_m,
+    myco_diameter = myco_diameter,
+    myco_density  = myco_density,
+    C_r           = C_r,
+    q             = depth_val,
+    k_13          = k13_val,
+    k_14          = k14_val,
+    u_Amax        = u_Amax,
+    D             = D_default,
+    k_15          = k15_val
+  )$N_total
+}
+
+baseline_uptake <- run_uptake(depth, k_15, k_13, k_14)
+
+# ---------------------------------------------------------------
+# One-at-a-time parameter sweeps
+# ---------------------------------------------------------------
+
+n_pts <- 60
+
+param_ranges <- list(
+  depth = seq(0.05, 2.0,  length.out = n_pts),
+  k_15  = seq(0.05, 3.0,  length.out = n_pts),
+  k_13  = seq(0.5,  20.0, length.out = n_pts),
+  k_14  = seq(0.05, 0.95, length.out = n_pts)
+)
+
+df_sa <- bind_rows(
+  tibble(param = "depth", value = param_ranges$depth,
+         uptake = sapply(param_ranges$depth, \(v) run_uptake(v, k_15, k_13, k_14))),
+  tibble(param = "k_15",  value = param_ranges$k_15,
+         uptake = sapply(param_ranges$k_15,  \(v) run_uptake(depth, v, k_13, k_14))),
+  tibble(param = "k_13",  value = param_ranges$k_13,
+         uptake = sapply(param_ranges$k_13,  \(v) run_uptake(depth, k_15, v, k_14))),
+  tibble(param = "k_14",  value = param_ranges$k_14,
+         uptake = sapply(param_ranges$k_14,  \(v) run_uptake(depth, k_15, k_13, v)))
+) %>%
+  mutate(param = factor(param, levels = c("depth", "k_15", "k_13", "k_14")))
+
+# ---------------------------------------------------------------
+# Normalised sensitivity index: SI = d(ln U_a) / d(ln X) at baseline
+# (central-difference approximation)
+# ---------------------------------------------------------------
+
+eps <- 0.01
+
+si_df <- tibble(
+  param = c("depth", "k_15", "k_13", "k_14"),
+  default_val = c(depth, k_15, k_13, k_14),
+  SI = c(
+    (run_uptake(depth*(1+eps), k_15, k_13, k_14) -
+     run_uptake(depth*(1-eps), k_15, k_13, k_14)) / (2*eps*baseline_uptake),
+    (run_uptake(depth, k_15*(1+eps), k_13, k_14) -
+     run_uptake(depth, k_15*(1-eps), k_13, k_14)) / (2*eps*baseline_uptake),
+    (run_uptake(depth, k_15, k_13*(1+eps), k_14) -
+     run_uptake(depth, k_15, k_13*(1-eps), k_14)) / (2*eps*baseline_uptake),
+    (run_uptake(depth, k_15, k_13, k_14*(1+eps)) -
+     run_uptake(depth, k_15, k_13, k_14*(1-eps))) / (2*eps*baseline_uptake)
+  )
+) %>%
+  mutate(param = factor(param, levels = param[order(abs(SI))]))
+
+# ---------------------------------------------------------------
+# Spider plot: relative response vs relative parameter value
+# ---------------------------------------------------------------
+
+df_spider <- df_sa %>%
+  left_join(
+    tibble(
+      param = factor(c("depth", "k_15", "k_13", "k_14"),
+                     levels = c("depth", "k_15", "k_13", "k_14")),
+      default_val = c(depth, k_15, k_13, k_14)
+    ),
+    by = "param"
+  ) %>%
+  mutate(
+    rel_param  = value / default_val,
+    rel_uptake = uptake / baseline_uptake
+  )
+
+cb_sa <- c(depth = "#E69F00", k_15 = "#56B4E9", k_13 = "#009E73", k_14 = "#D55E00")
+
+sa_labels <- c(
+  depth = "depth",
+  k_15  = expression(k[15]),
+  k_13  = expression(k[13]),
+  k_14  = expression(k[14])
+)
+
+p_spider <- ggplot(df_spider, aes(x = rel_param, y = rel_uptake, colour = param)) +
+  geom_line(linewidth = 1.2) +
+  geom_hline(yintercept = 1, linetype = "dashed", colour = "grey50") +
+  geom_vline(xintercept = 1, linetype = "dashed", colour = "grey50") +
+  scale_colour_manual(values = cb_sa, labels = sa_labels, name = "Parameter") +
+  labs(
+    title = "Sensitivity spider plot",
+    x     = "Relative parameter value (× baseline)",
+    y     = expression("Relative " * U[a] * " (× baseline)")
+  ) +
+  theme_bw(base_size = 12)
+
+# ---------------------------------------------------------------
+# Tornado plot: normalised sensitivity index at baseline
+# ---------------------------------------------------------------
+
+p_tornado <- ggplot(si_df, aes(x = param, y = SI, fill = param)) +
+  geom_col(width = 0.55, show.legend = FALSE) +
+  geom_hline(yintercept = 0, colour = "grey30", linewidth = 0.4) +
+  scale_fill_manual(values = cb_sa) +
+  scale_x_discrete(labels = sa_labels) +
+  coord_flip() +
+  labs(
+    title = "Normalised sensitivity index at baseline",
+    x     = NULL,
+    y     = expression(SI == frac(partialdiff * ln * U[a], partialdiff * ln * X))
+  ) +
+  theme_bw(base_size = 12)
+
+# ---------------------------------------------------------------
+# Individual sweep panels with baseline marked
+# ---------------------------------------------------------------
+
+strip_labs <- c(
+  depth = "depth~(m)",
+  k_15  = "k[15]~(half-saturation,~kg~N~m^{-3})",
+  k_13  = "k[13]~(soil~radius~scale)",
+  k_14  = "k[14]~(porosity)"
+)
+
+baseline_vlines <- tibble(
+  param = factor(c("depth", "k_15", "k_13", "k_14"),
+                 levels = c("depth", "k_15", "k_13", "k_14")),
+  xint  = c(depth, k_15, k_13, k_14)
+)
+
+p_sweeps <- ggplot(df_sa, aes(x = value, y = uptake, colour = param)) +
+  geom_line(linewidth = 1.1, show.legend = FALSE) +
+  geom_vline(data = baseline_vlines, aes(xintercept = xint),
+             linetype = "dashed", colour = "grey40") +
+  facet_wrap(~ param, scales = "free_x",
+             labeller = labeller(param = as_labeller(strip_labs, label_parsed))) +
+  scale_colour_manual(values = cb_sa) +
+  scale_y_continuous(labels = scales::scientific) +
+  labs(
+    title = "One-at-a-time parameter sweeps (dashed line = baseline)",
+    x     = "Parameter value",
+    y     = expression(U[a] * " (kg N yr"^{-1} * ")")
+  ) +
+  theme_bw(base_size = 11) +
+  theme(strip.background = element_blank(),
+        strip.text = element_text(size = 10))
+
+p_sweeps / (p_spider | p_tornado) +
+  plot_layout(heights = c(1.5, 1))
 ```
 
 
