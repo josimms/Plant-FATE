@@ -714,9 +714,9 @@ p_myco_B <- ggplot(df_myco_B,
 # Fixed operating point for sensitivity analysis
 # ---------------------------------------------------------------
 
-N_s_fixed  <- 1.0   # kg N m^-3
-N_m_fixed  <- 0.1   # kg N (mycorrhizal pool)
-B_m_fixed  <- 0.5   # kg (ECM biomass; puts system in crowded regime)
+N_s_fixed  <- 1.0
+N_m_fixed  <- 0.1
+B_m_fixed  <- 0.5
 
 run_uptake <- function(depth_val, k15_val, k13_val, k14_val) {
   plant_uptake(
@@ -746,7 +746,7 @@ run_uptake <- function(depth_val, k15_val, k13_val, k14_val) {
 baseline_uptake <- run_uptake(depth, k_15, k_13, k_14)
 
 # ---------------------------------------------------------------
-# One-at-a-time parameter sweeps
+# Parameter sweeps
 # ---------------------------------------------------------------
 
 n_pts <- 60
@@ -761,18 +761,17 @@ param_ranges <- list(
 df_sa <- bind_rows(
   tibble(param = "depth", value = param_ranges$depth,
          uptake = sapply(param_ranges$depth, \(v) run_uptake(v, k_15, k_13, k_14))),
-  tibble(param = "k_15",  value = param_ranges$k_15,
-         uptake = sapply(param_ranges$k_15,  \(v) run_uptake(depth, v, k_13, k_14))),
-  tibble(param = "k_13",  value = param_ranges$k_13,
-         uptake = sapply(param_ranges$k_13,  \(v) run_uptake(depth, k_15, v, k_14))),
-  tibble(param = "k_14",  value = param_ranges$k_14,
-         uptake = sapply(param_ranges$k_14,  \(v) run_uptake(depth, k_15, k_13, v)))
+  tibble(param = "k_15", value = param_ranges$k_15,
+         uptake = sapply(param_ranges$k_15, \(v) run_uptake(depth, v, k_13, k_14))),
+  tibble(param = "k_13", value = param_ranges$k_13,
+         uptake = sapply(param_ranges$k_13, \(v) run_uptake(depth, k_15, v, k_14))),
+  tibble(param = "k_14", value = param_ranges$k_14,
+         uptake = sapply(param_ranges$k_14, \(v) run_uptake(depth, k_15, k_13, v)))
 ) %>%
   mutate(param = factor(param, levels = c("depth", "k_15", "k_13", "k_14")))
 
 # ---------------------------------------------------------------
-# Normalised sensitivity index: SI = d(ln U_a) / d(ln X) at baseline
-# (central-difference approximation)
+# Sensitivity index
 # ---------------------------------------------------------------
 
 eps <- 0.01
@@ -790,18 +789,16 @@ si_df <- tibble(
     (run_uptake(depth, k_15, k_13, k_14*(1+eps)) -
      run_uptake(depth, k_15, k_13, k_14*(1-eps))) / (2*eps*baseline_uptake)
   )
-) %>%
-  mutate(param = factor(param, levels = param[order(abs(SI))]))
+)
 
 # ---------------------------------------------------------------
-# Spider plot: relative response vs relative parameter value
+# Spider plot
 # ---------------------------------------------------------------
 
 df_spider <- df_sa %>%
   left_join(
     tibble(
-      param = factor(c("depth", "k_15", "k_13", "k_14"),
-                     levels = c("depth", "k_15", "k_13", "k_14")),
+      param = c("depth", "k_15", "k_13", "k_14"),
       default_val = c(depth, k_15, k_13, k_14)
     ),
     by = "param"
@@ -813,78 +810,244 @@ df_spider <- df_sa %>%
 
 cb_sa <- c(depth = "#E69F00", k_15 = "#56B4E9", k_13 = "#009E73", k_14 = "#D55E00")
 
-sa_labels <- c(
-  depth = "depth",
-  k_15  = expression(k[15]),
-  k_13  = expression(k[13]),
-  k_14  = expression(k[14])
-)
-
-p_spider <- ggplot(df_spider, aes(x = rel_param, y = rel_uptake, colour = param)) +
+p_spider <- ggplot(df_spider, aes(rel_param, rel_uptake, colour = param)) +
   geom_line(linewidth = 1.2) +
-  geom_hline(yintercept = 1, linetype = "dashed", colour = "grey50") +
-  geom_vline(xintercept = 1, linetype = "dashed", colour = "grey50") +
-  scale_colour_manual(values = cb_sa, labels = sa_labels, name = "Parameter") +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  scale_colour_manual(values = cb_sa) +
   labs(
     title = "Sensitivity spider plot",
-    x     = "Relative parameter value (× baseline)",
-    y     = expression("Relative " * U[a] * " (× baseline)")
+    x = "Relative parameter value (× baseline)",
+    y = "Relative uptake (× baseline)"
   ) +
-  theme_bw(base_size = 12)
+  theme_bw()
 
 # ---------------------------------------------------------------
-# Tornado plot: normalised sensitivity index at baseline
+# Tornado plot
 # ---------------------------------------------------------------
 
 p_tornado <- ggplot(si_df, aes(x = param, y = SI, fill = param)) +
-  geom_col(width = 0.55, show.legend = FALSE) +
-  geom_hline(yintercept = 0, colour = "grey30", linewidth = 0.4) +
-  scale_fill_manual(values = cb_sa) +
-  scale_x_discrete(labels = sa_labels) +
+  geom_col(width = 0.6, show.legend = FALSE) +
   coord_flip() +
+  scale_fill_manual(values = cb_sa) +
   labs(
-    title = "Normalised sensitivity index at baseline",
-    x     = NULL,
-    y     = expression(SI == frac(partialdiff * ln * U[a], partialdiff * ln * X))
+    title = "Normalised sensitivity index",
+    x = NULL,
+    y = "SI"
   ) +
-  theme_bw(base_size = 12)
+  theme_bw()
 
 # ---------------------------------------------------------------
-# Individual sweep panels with baseline marked
+# Sweep panels
 # ---------------------------------------------------------------
 
 strip_labs <- c(
-  depth = "depth~(m)",
-  k_15  = "k[15]~(half-saturation,~kg~N~m^{-3})",
-  k_13  = "k[13]~(soil~radius~scale)",
-  k_14  = "k[14]~(porosity)"
+  depth = "Depth (m)",
+  k_15  = "k15 (half-saturation, kg N m^-3)",
+  k_13  = "k13 (soil radius scale)",
+  k_14  = "k14 (porosity)"
 )
 
 baseline_vlines <- tibble(
-  param = factor(c("depth", "k_15", "k_13", "k_14"),
-                 levels = c("depth", "k_15", "k_13", "k_14")),
+  param = c("depth", "k_15", "k_13", "k_14"),
   xint  = c(depth, k_15, k_13, k_14)
 )
 
-p_sweeps <- ggplot(df_sa, aes(x = value, y = uptake, colour = param)) +
+p_sweeps <- ggplot(df_sa, aes(value, uptake, colour = param)) +
   geom_line(linewidth = 1.1, show.legend = FALSE) +
   geom_vline(data = baseline_vlines, aes(xintercept = xint),
-             linetype = "dashed", colour = "grey40") +
-  facet_wrap(~ param, scales = "free_x",
-             labeller = labeller(param = as_labeller(strip_labs, label_parsed))) +
+             linetype = "dashed") +
+  facet_wrap(~param, scales = "free_x",
+             labeller = labeller(param = strip_labs)) +
   scale_colour_manual(values = cb_sa) +
-  scale_y_continuous(labels = scales::scientific) +
   labs(
-    title = "One-at-a-time parameter sweeps (dashed line = baseline)",
-    x     = "Parameter value",
-    y     = expression(U[a] * " (kg N yr"^{-1} * ")")
+    title = "Parameter sweeps",
+    x = "Parameter value",
+    y = "N uptake (kg N yr⁻¹)"
   ) +
-  theme_bw(base_size = 11) +
-  theme(strip.background = element_blank(),
-        strip.text = element_text(size = 10))
+  theme_bw()
 
-p_sweeps / (p_spider | p_tornado) +
-  plot_layout(heights = c(1.5, 1))
+# ---------------------------------------------------------------
+# Combine
+# ---------------------------------------------------------------
+
+p_sweeps / (p_spider | p_tornado)
 ```
 
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
 
+eps <- 1e-4
+
+# nitrogen gradient
+N_vals <- seq(0.01, 2, length.out = 80)
+
+params <- c("depth", "k_15", "k_13", "k_14", "u_Amax")
+
+components <- c("U_root", "U_myco")
+
+# ------------------------------------------------------------
+# Core simulation wrapper (fully explicit arguments)
+# ------------------------------------------------------------
+run_U <- function(N, depth, k_15, k_13, k_14, u_Amax) {
+
+  out <- plant_uptake(
+    N_s = N,
+    N_m = N_m_fixed,
+    crown_area = crown_area_fixed,
+    root_length = l,
+    root_no = n,
+    B_m = B_m_fixed,
+    B_cr = B_cr_fixed,
+    rho_cr = rho_cr_fixed,
+    traits = traits,
+    mycorrhized = mycorrhized,
+    T_m = T_m,
+    myco_diameter = myco_diameter,
+    myco_density = myco_density,
+    C_r = C_r,
+    q = depth,
+    k_13 = k_13,
+    k_14 = k_14,
+    u_Amax = u_Amax,
+    D = D_default,
+    k_15 = k_15
+  )
+
+  c(
+    U_total = out$N_total,
+    U_root  = out$U_fr,
+    U_myco  = out$U_m
+  )
+}
+
+# ------------------------------------------------------------
+# Elasticity function (robust + safe in dplyr)
+# ------------------------------------------------------------
+elasticity <- function(N, param, component,
+                       depth, k_15, k_13, k_14, u_Amax) {
+
+  component <- as.character(component)
+
+  base <- run_U(N, depth, k_15, k_13, k_14, u_Amax)[component]
+
+  pert <- switch(param,
+
+    depth = run_U(N, depth * (1 + eps), k_15, k_13, k_14, u_Amax)[component],
+
+    k_15  = run_U(N, depth, k_15 * (1 + eps), k_13, k_14, u_Amax)[component],
+
+    k_13  = run_U(N, depth, k_15, k_13 * (1 + eps), k_14, u_Amax)[component],
+
+    k_14  = run_U(N, depth, k_15, k_13, k_14 * (1 + eps), u_Amax)[component],
+
+    u_Amax = run_U(N, depth, k_15, k_13, k_14, u_Amax * (1 + eps))[component]
+  )
+
+  (pert - base) / (eps * base + 1e-12)
+}
+
+# ------------------------------------------------------------
+# Parameter grid (THIS WAS MISSING BEFORE)
+# ------------------------------------------------------------
+grid <- expand.grid(
+  N = N_vals,
+  param = params,
+  component = components,
+  KEEP.OUT.ATTRS = FALSE
+)
+
+# ------------------------------------------------------------
+# Run sensitivity analysis (safe rowwise evaluation)
+# ------------------------------------------------------------
+df <- grid %>%
+  rowwise() %>%
+  mutate(
+    SI = elasticity(
+      N, param, component,
+      depth = depth,
+      k_15 = k_15,
+      k_13 = k_13,
+      k_14 = k_14,
+      u_Amax = u_Amax
+    )
+  ) %>%
+  ungroup()
+
+# ------------------------------------------------------------
+# Scaling
+# ------------------------------------------------------------
+df <- df %>%
+  mutate(
+    SI_abs = abs(SI),
+    SI_scaled = SI / max(SI_abs, na.rm = TRUE)
+  )
+
+# ------------------------------------------------------------
+# Importance summary
+# ------------------------------------------------------------
+importance <- df %>%
+  group_by(param, component) %>%
+  summarise(
+    mean_abs_SI = mean(abs(SI), na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# ------------------------------------------------------------
+# Labels
+# ------------------------------------------------------------
+param_labels <- c(
+  depth  = "Depth",
+  k_15   = expression(k[15]~"(half-saturation)"),
+  k_13   = expression(k[13]~"(soil scaling)"),
+  k_14   = expression(k[14]~"(porosity)"),
+  u_Amax = expression(u[max]~"(uptake capacity)")
+)
+
+comp_labels <- c(
+  U_root = "Root uptake",
+  U_myco = "Mycorrhizal uptake"
+)
+
+# ------------------------------------------------------------
+# Plot 1: Elasticity profiles
+# ------------------------------------------------------------
+ggplot(df, aes(x = N, y = SI_scaled, colour = param)) +
+  geom_hline(yintercept = 0, linewidth = 0.3, colour = "grey60") +
+  geom_line(linewidth = 1) +
+  facet_wrap(~ component, labeller = labeller(component = comp_labels)) +
+  scale_colour_manual(values = c(
+    depth  = "#E69F00",
+    k_15   = "#56B4E9",
+    k_13   = "#009E73",
+    k_14   = "#D55E00",
+    u_Amax = "#CC79A7"
+  ), labels = param_labels) +
+  scale_x_continuous(expand = expansion(mult = c(0.02, 0.05))) +
+  scale_y_continuous(limits = c(-1, 1), oob = scales::squish) +
+  labs(
+    x = expression(N[s]~"(kg N m"^{-3}*")"),
+    y = "Standardised elasticity",
+    colour = "Parameter"
+  ) +
+  theme_bw(base_size = 12) +
+  theme(
+    legend.position = "right",
+    strip.background = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+
+# ------------------------------------------------------------
+# Plot 2: Importance ranking
+# ------------------------------------------------------------
+ggplot(importance, aes(param, mean_abs_SI, fill = param)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ component) +
+  theme_bw() +
+  labs(
+    x = NULL,
+    y = "Mean absolute elasticity"
+  )
+```
