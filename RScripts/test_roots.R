@@ -1278,12 +1278,13 @@ Getting_assimilation_to_the_right_levels <- function() {
       for (g in gamma_values) {
         for (jmax in a_jmax_values) {
           
-          # Set parameters
+          # Set parameters and reinitialise so P.par picks up the new values
           lho$par0$kphio <- k
           lho$par0$alpha <- a
           lho$par0$gamma <- g
           lho$par0$a_jmax <- jmax
-          
+          lho$init()
+
           for (t in time_seq) {
             results[[i]] <- tryCatch({
               lho$grow_for_dt(t, dt)
@@ -2057,7 +2058,7 @@ original_life_histroy <- function() {
   lho$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_co2File("")
-  lho$set_soil_nitrogen(1.65)
+  lho$set_soil_nitrogen(1.2)
   lho$init()
   
   lho_2 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
@@ -2196,22 +2197,36 @@ original_life_histroy <- function() {
             min(halme_et_al_2022$height, na.rm = TRUE),
             max(halme_et_al_2022$height, na.rm = TRUE))
   for (id in unique(useful_data$plotID)) {
-    sub <- useful_data[useful_data$plotID == id, ]
-    lines(as.Date(as.character(sub$eventYear), format = "%Y"), sub$averageTreeHeight, 
-          col = adjustcolor(col_range, alpha.f = 0.15), pch = 4, cex = 1.5, lwd = lwd_obs)
+    sub <- useful_data[useful_data$plotID == id & !is.na(useful_data$averageTreeHeight), ]
+    sub <- sub[order(sub$eventYear), ]
+    if (nrow(sub) < 1) next
+    x <- as.Date(as.character(sub$eventYear), format = "%Y")
+    y <- sub$averageTreeHeight
+    x_plot <- x[1]; y_plot <- y[1]
+    for (j in seq_len(nrow(sub) - 1)) {
+      if (y[j + 1] < y[j]) {
+        x_plot <- c(x_plot, NA, x[j + 1])
+        y_plot <- c(y_plot, NA, y[j + 1])
+      } else {
+        x_plot <- c(x_plot, x[j + 1])
+        y_plot <- c(y_plot, y[j + 1])
+      }
+    }
+    points(x, y, col = adjustcolor(col_range, alpha.f = 0.15), pch = 16, cex = 0.4)
+    lines(x_plot, y_plot, col = adjustcolor(col_range, alpha.f = 0.15), lwd = lwd_obs)
   }
   mtext("(c)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
-  lines(df$date, df$height, col = cols[2], lwd = lwd_model)
+  lines(df$date, df$height, col = cols[1], lwd = lwd_model)
   lines(df_2$date, df_2$height, col = cols[2], lwd = lwd_model)
   lines(df_3$date, df_3$height, col = cols[3], lwd = lwd_model)
-  
+
   # (d) Diameter
   smear_d_idx <- loaded_data$smearII_data$variable == "pine diameter BA weighted mean"
   smear_d_val <- 0.01 * loaded_data$smearII_data$amount[smear_d_idx]
   smear_d_date <- as.Date(paste0(loaded_data$smearII_data$date[smear_d_idx], "-01-01"))
   ylim_d <- range(df$diameter, df_2$diameter, df_3$diameter, smear_d_val, na.rm = TRUE)
-  
+
   plot(df$date, df$diameter, type = "l", col = cols[1], lwd = lwd_model,
        ylim = ylim_d, xlab = "", ylab = "Diameter (m)",
        cex.axis = cex_axis, cex.lab = cex_lab)
@@ -2219,9 +2234,23 @@ original_life_histroy <- function() {
   lines(df_3$date, df_3$diameter, col = cols[3], lwd = lwd_model)
   points(smear_d_date, smear_d_val, col = adjustcolor(col_range, alpha.f = 0.15), pch = 4, cex = 1.5, lwd = lwd_obs)
   for (id in unique(useful_data$plotID)) {
-    sub <- useful_data[useful_data$plotID == id, ]
-    lines(as.Date(as.character(sub$eventYear), format = "%Y"), 0.01*sub$averageTreeDiameter, 
-          col = adjustcolor(col_range, alpha.f = 0.15), pch = 4, cex = 1.5, lwd = lwd_obs)
+    sub <- useful_data[useful_data$plotID == id & !is.na(useful_data$averageTreeDiameter), ]
+    sub <- sub[order(sub$eventYear), ]
+    if (nrow(sub) < 1) next
+    x <- as.Date(as.character(sub$eventYear), format = "%Y")
+    y <- 0.01 * sub$averageTreeDiameter
+    x_plot <- x[1]; y_plot <- y[1]
+    for (j in seq_len(nrow(sub) - 1)) {
+      if (y[j + 1] < y[j]) {
+        x_plot <- c(x_plot, NA, x[j + 1])
+        y_plot <- c(y_plot, NA, y[j + 1])
+      } else {
+        x_plot <- c(x_plot, x[j + 1])
+        y_plot <- c(y_plot, y[j + 1])
+      }
+    }
+    points(x, y, col = adjustcolor(col_range, alpha.f = 0.15), pch = 16, cex = 0.4)
+    lines(x_plot, y_plot, col = adjustcolor(col_range, alpha.f = 0.15), lwd = lwd_obs)
   }
   mtext("(d)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
@@ -2293,6 +2322,8 @@ original_life_histroy <- function() {
   mtext("(h)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
   
+  plot(df$date, df$belowground_infrastructure)
+  
   # Shared legend
   par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
   plot(0, 0, type = "n", bty = "n", xaxt = "n", yaxt = "n")
@@ -2303,6 +2334,5 @@ original_life_histroy <- function() {
          lty = c(1, 1, 1, NA, 1),
          pch = c(NA, NA, NA, pch_obs, NA),
          lwd = c(rep(lwd_model, 3), NA, lwd_obs))
-  
 }
 
