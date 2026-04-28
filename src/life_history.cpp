@@ -163,6 +163,7 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
 		, "fineroot_lifespan"
     , "root_no"
     , "root_length"
+    , "belowground_infrastructure"
     , "mycorrhizal_export_to_tree"
     , "root_uptake"
     , "myco_uptake"
@@ -226,6 +227,7 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
 		, P.geometry.root_lifespan(P.traits)
     , P.geometry.root_no
     , P.geometry.root_length
+    , P.geometry.I_b
     , P.geometry.N_export
     , P.uptake.U_root
     , P.uptake.U_myco

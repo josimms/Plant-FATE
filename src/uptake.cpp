@@ -10,6 +10,7 @@ namespace plant {
   void Uptake::init(io::Initializer& I){
     
     // Nitrogen parameters
+    using_Ib              = (I.get<std::string>("using_Ib") == "true");
     mycorrhized           = I.get<double>("mycorrhized");
     u_max                 = I.get<double>("u_max");
     myco_diameter         = I.get<double>("myco_diameter");
@@ -92,7 +93,13 @@ namespace plant {
     // Soil surface per root biomass
     e_root = e_u_root(rd, d_root_mm, rho_root);
     e_myco = e_u_myco(rd, myco_diameter, rho_myco);
-    
+
+    // Belowground infrastructure index (Eq. belowground_infra)
+    // I_b = (1-m)*c(n,l)*e_fr + η*m*g(n,l)*(B_m/A_cw)*e_m
+    double c_nl = B_root / (2.0 * G.crown_area);
+    I_b = (1.0 - mycorrhized) * c_nl * e_root
+        + transfer_efficiency_photosynthesis * mycorrhized * nitrogen_gate(G, traits) * (G.ectomycorrhiza_mass / G.crown_area) * e_myco;
+
     // --- Compute saturation factor ---
     double crown_radius = std::sqrt(G.crown_area / M_PI);
     Sval = S_crowding(B_root, G.ectomycorrhiza_mass, rho_root, e_root, e_myco, crown_radius);

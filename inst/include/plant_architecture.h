@@ -57,6 +57,7 @@ class PlantArchitecture{
 	// mass rates
 	double nitrogen_uptake_roots;        ///< Nitrogen uptake [kgN per time unit]
 	double N_export;                     ///< Nitrogen transferred from mycorrhiza to tree [kg N per time unit]
+	double I_b = 1.0;                    ///< Belowground infrastructure index [m] (Eq. belowground_infra)
 	double dmass_myco_dt;                ///< Mycorrhizal mass difference [kg C per time unit]
 	double dN_myco_dt_free;              ///< Nitrogen free changed [kg N per time unit]
 	

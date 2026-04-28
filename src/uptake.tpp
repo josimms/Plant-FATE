@@ -21,7 +21,10 @@ void Uptake::nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& p
 
   // CORE UPTAKE
   uptake_core(G, T, par);
-  
+
+  // Store belowground infrastructure on geometry so assimilation can use it
+  G.I_b = using_Ib ? I_b : 1.0;
+
   // UPTAKE
   double uptake_roots_term = (1.0 - mycorrhized) * U_root;
   

@@ -17,6 +17,8 @@ public:
   double rd      = 0.0;
   double e_root  = 0.0;
   double e_myco  = 0.0;
+  double I_b     = 1.0;  ///< Belowground infrastructure index (Eq. belowground_infra)
+  bool   using_Ib = true; ///< Toggle: if false, I_b is fixed at 1 (no infrastructure cost)
 
   double mycorrhized;
   double mycorrhizal_root_reduction;
