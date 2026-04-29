@@ -16,7 +16,7 @@ library(viridis)
 ###
 
 # Area-based max uptake (kg N m^-2 year^-1) — from hydroponic experiments
-u_Amax <- 0.08
+u_Amax <- 0.8
 
 # Effective soil diffusion coefficient (m^2 year^-1)
 D_default <- 1e-3
@@ -134,8 +134,8 @@ u_Bmax_organ <- function(u_Amax, rho, d_m) {
 ## Eq. r_d: r_d = D * (N_s + k_15) / u_Amax
 ############################################################
 
-depletion_radius <- function(N_s, D, u_Amax, k_15) {
-  D * (N_s + k_15) / u_Amax
+depletion_radius <- function(N_s, D, u_Amax) {
+  D * N_s / u_Amax
 }
 
 ############################################################
@@ -146,12 +146,12 @@ depletion_radius <- function(N_s, D, u_Amax, k_15) {
 e_u_root <- function(N_s, root_length, D, u_Amax, k_15, traits) {
   d_m <- root_diameter(root_length, traits) / 2000   # radius in m
   rho <- root_density(root_length, traits)
-  r_d <- depletion_radius(N_s, D, u_Amax, k_15)
+  r_d <- depletion_radius(N_s, D, u_Amax)
   4 * r_d^2 / (rho * d_m^2)
 }
 
 e_u_myco <- function(N_s, D, u_Amax, k_15, myco_diameter, myco_density) {
-  r_d <- depletion_radius(N_s, D, u_Amax, k_15)
+  r_d <- depletion_radius(N_s, D, u_Amax)
   4 * r_d^2 / (myco_density * (myco_diameter / 2)^2)
 }
 
@@ -186,7 +186,7 @@ S_crowding <- function(B_fr, B_m, B_cr,
   rho_fr <- root_density(root_length, traits)
   d_fr_m <- root_diameter(root_length, traits) / 2000
 
-  r_d <- depletion_radius(N_s, D, u_Amax, k_15)
+  r_d <- depletion_radius(N_s, D, u_Amax)
 
   e_fr <- 4 * r_d^2 / (rho_fr       * d_fr_m^2)
   e_m  <- 4 * r_d^2 / (myco_density * (myco_diameter/2)^2)
@@ -311,7 +311,7 @@ D_labels <- sapply(D_levels, sci_label)
 
 df_eu <- expand_grid(N_s = N_s_vals, D = D_vals) %>%
   mutate(
-    r_d   = mapply(function(ns, d) depletion_radius(ns, d, u_Amax, k_15), N_s, D),
+    r_d   = mapply(function(ns, d) depletion_radius(ns, d, u_Amax), N_s, D),
     e_r   = 4 * r_d^2 / (root_rho    * (root_d_m / 2)^2),
     e_m   = 4 * r_d^2 / (myco_density * (myco_diameter / 2)^2),
     ratio = e_m / e_r,
@@ -373,7 +373,7 @@ p_ratio <- ggplot(df_eu, aes(N_s, ratio, colour = D)) +
 n_vals     <- seq(1e1, 1e7, length.out = 20)
 N_s_vals   <- seq(0.1, 2.0, length.out = 10)
 D_vals     <- 10^seq(-1.5, -4, length.out = 5)
-u_max_vals <- c(0.44, 0.08, 1.32)
+u_max_vals <- c(0.44, 0.88, 1.32)
 
 df_n_base <- tibble(n = n_vals, l = 1.5) %>%
   rowwise() %>%
@@ -420,7 +420,7 @@ df_combined_n <- bind_rows(
   df_n      %>% mutate(myco = "no myco"),
   df_n_myco %>% mutate(myco = "myco")
 ) %>%
-  mutate(r_d = mapply(function(ns, d, u) depletion_radius(ns, d, u, k_15),
+  mutate(r_d = mapply(function(ns, d, u) depletion_radius(ns, d, u),
                       N_s, D, u_max))
 
 p_S_rd_Ns <- ggplot(df_combined_n,
@@ -499,7 +499,7 @@ ggplot(df_k14, aes(x = B_fr, y = S, color = factor(k14))) +
 
 N_s_vals      <- seq(0.01, 2.1, length.out = 200)
 D_vals        <- c(1e-4, 1e-3)
-u_max_fixed   <- 0.08
+u_max_fixed   <- 0.8
 N_s_highlight <- c(0.3, 1.65)
 
 cb_two   <- c("1e-04" = "#E69F00", "0.001" = "#0072B2")
