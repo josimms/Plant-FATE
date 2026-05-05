@@ -22,10 +22,7 @@ void Uptake::nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& p
   // CORE UPTAKE
   uptake_core(G, T, par);
 
-  // Store belowground infrastructure on geometry so assimilation can use it.
-  // Floor at 1e-6 prevents division-by-zero in phydro's N cost (alpha/I_b)
-  // when root biomass is zero (e.g. at simulation start).
-  G.I_b = using_Ib ? std::max(I_b, 1e-6) : 1.0;
+  G.I_b = using_Ib ? I_b : 1.0;
 
   // UPTAKE
   double uptake_roots_term = (1.0 - mycorrhized) * U_root;
