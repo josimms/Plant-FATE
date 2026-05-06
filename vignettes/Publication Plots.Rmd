@@ -46,8 +46,8 @@ fixed_ecto_allo   <- 0.1
 
 # Parameter ranges
 root_length_values <- seq(1, 2, length.out = 21)
-root_no_values     <- 3*10^seq(3, 8, length.out = 21)
-nitrogen_values    <- seq(0.1, 100, length.out = 21)
+root_no_values     <- 3*10^seq(3, 6, length.out = 21)
+nitrogen_values    <- seq(0.01, 2, length.out = 21)
 ecto_allo_values   <- seq(0.0, 0.5, length.out = 11)
 
 param_file <- "/home/josimms/Documents/Austria/Plant-FATE/tests/params/p_test_boreal.ini"
@@ -162,163 +162,6 @@ final_df <- rbind(all_rn_df, all_rl_df, all_eb_df)
 final_df_no_na <- final_df[!is.na(final_df$root_length), ]
 ```
 
-## Fitness
-
-```{r}
-# --- Define fitness function once ---
-fitness <- function(costs, nitrogen) {
-  nitrogen - costs
-}
-
-# Root number sweep
-all_rn_df <- all_rn_df[!is.na(all_rn_df$root_length), ]
-
-#fitness(
-#   costs = all_rn_df$root_mass + 
-#           all_rn_df$rs + all_rn_df$rr + all_rn_df$rl +
-#           all_rn_df$tl + all_rn_df$tr + all_rn_df$assim_gross * all_rn_df$ecto_allo,
-#   nitrogen = all_rn_df$assim_gross
-# )
-
-# Root length sweep
-all_rl_df <- all_rl_df[!is.na(all_rl_df$root_length), ]
-  
-# fitness(
-#   costs = all_rl_df$root_mass + 
-#           all_rl_df$rs + all_rl_df$rr + all_rl_df$rl +
-#           all_rl_df$tl + all_rl_df$tr + all_rl_df$assim_gross * all_rl_df$ecto_allo,
-#   nitrogen = all_rl_df$nitrogen_uptake
-# )
-
-# Ectomycorrhizal allocation sweep
-all_eb_df <- all_eb_df[!is.na(all_eb_df$root_length), ]
-  
-# fitness(
-#   costs = all_eb_df$root_mass + 
-#           all_eb_df$rs + all_eb_df$rr + all_eb_df$rl +
-#           all_eb_df$tl + all_eb_df$tr + all_eb_df$assim_gross * all_eb_df$ecto_allo,
-#   nitrogen = all_eb_df$nitrogen_uptake
-# )
-```
-
-## Trade offs: Root traits
-
-```{r}
-# --- Subset for plotting ---
-
-# 1. Heatmap of Root Number sweep (root length fixed)
-subset_rn <- all_rn_df %>%
-  filter(root_length == fixed_root_length) %>%   # use your baseline root length
-  filter(date == as.Date("1960-01-01"))
-
-# 2. Heatmap of Root Length sweep (root number fixed)
-subset_rl <- all_rl_df %>%
-  filter(root_no == fixed_root_no) %>%          # use your baseline root number
-  filter(date == as.Date("1960-01-01"))
-
-# --- Range of fitness for consistent color scaling ---
-fitness_range <- range(
-  c(subset_rn$fitness, subset_rl$fitness),
-  na.rm = TRUE
-)
-
-# --- Max lines for root number sweep ---
-max_line_rn <- subset_rn %>%
-  group_by(soil_nitrogen) %>%
-  slice_max(fitness, n = 1, with_ties = FALSE) %>%
-  ungroup()
-
-# --- Max lines for root length sweep ---
-max_line_rl <- subset_rl %>%
-  group_by(soil_nitrogen) %>%
-  slice_max(fitness, n = 1, with_ties = FALSE) %>%
-  ungroup()
-
-# --- Plot 1: Root Number heatmap ---
-p1 <- ggplot(subset_rn, aes(x = soil_nitrogen, y = root_no, fill = fitness)) +
-  geom_tile() +
-  geom_line(data = max_line_rn, aes(x = soil_nitrogen, y = root_no), color = "red", size = 1.2) +
-  scale_y_log10() +
-  scale_fill_viridis_c(option = "cividis", limits = fitness_range) +
-  labs(x = "Soil N (g m⁻³)",
-       y = "Root Number per Unit Crown Area (log scale)",
-       fill = "Fitness") +
-  pub_theme
-
-# --- Plot 2: Root Length heatmap ---
-p2 <- ggplot(subset_rl, aes(x = soil_nitrogen, y = root_length, fill = fitness)) +
-  geom_tile() +
-  geom_line(data = max_line_rl, aes(x = soil_nitrogen, y = root_length), color = "red", size = 1.2) +
-  scale_fill_viridis_c(option = "cividis", limits = fitness_range) +
-  labs(x = "Soil N (g m⁻³)",
-       y = "Root Length (mm)",
-       fill = "Fitness") +
-  pub_theme
-
-# --- Display plots ---
-p1
-p2
-```
-
-```{r}
-# --- Subset for plotting ---
-
-# Root Number sweep (root length fixed)
-subset_rn <- all_rn_df %>%
-  filter(root_length == fixed_root_length) %>%   # fixed root length
-  filter(date == as.Date("1980-01-01"))
-
-# Root Length sweep (root number fixed)
-subset_rl <- all_rl_df %>%
-  filter(root_no == fixed_root_no) %>%           # fixed root number
-  filter(date == as.Date("1980-01-01"))
-
-# --- Range of fitness for consistent color scaling ---
-fitness_range <- range(
-  c(subset_rn$fitness, subset_rl$fitness),
-  na.rm = TRUE
-)
-
-# --- Compute max lines for plotting ---
-
-# Max fitness line for Root Number sweep
-max_line_rn <- subset_rn %>%
-  group_by(soil_nitrogen) %>%
-  slice_max(fitness, n = 1, with_ties = FALSE) %>%
-  ungroup()
-
-# Max fitness line for Root Length sweep
-max_line_rl <- subset_rl %>%
-  group_by(soil_nitrogen) %>%
-  slice_max(fitness, n = 1, with_ties = FALSE) %>%
-  ungroup()
-
-# --- Plot 1: Root Number heatmap ---
-p1 <- ggplot(subset_rn, aes(x = soil_nitrogen, y = root_no, fill = total_mass)) +
-  geom_tile() +
-  geom_line(data = max_line_rn, aes(x = soil_nitrogen, y = root_no), color = "red", size = 1.2) +
-  scale_y_log10() +
-  scale_fill_viridis_c(option = "cividis", limits = fitness_range) +
-  labs(x = "Soil N (g m⁻³)",
-       y = "Root Number per Unit Crown Area (log scale)",
-       fill = "Total Biomass") +
-  pub_theme
-
-# --- Plot 2: Root Length heatmap ---
-p2 <- ggplot(subset_rl, aes(x = soil_nitrogen, y = root_length, fill = total_mass)) +
-  geom_tile() +
-  geom_line(data = max_line_rl, aes(x = soil_nitrogen, y = root_length), color = "red", size = 1.2) +
-  scale_fill_viridis_c(option = "cividis", limits = total_mass_range) +
-  labs(x = "Soil N (g m⁻³)",
-       y = "Root Length (mm)",
-       fill = "Total Mass") +
-  pub_theme
-
-# --- Display plots ---
-p1
-p2
-```
-
 # Final
 
 ```{r}
@@ -327,11 +170,11 @@ final_df_no_na$date <- as.Date(final_df_no_na$date)
 
 # --- Subset for plotting ---
 subset_root_length <- final_df_no_na %>%
-  filter(root_length == 1.5) %>%               # fixed root length
+  filter(root_length == 1.5) %>%              
   filter(date == as.Date("2022-01-01"))
 
 subset_root_no <- final_df_no_na %>%
-  filter(root_no == 3e5) %>%                   # fixed root number
+  filter(root_no == 3e5) %>%                
   filter(date == as.Date("2022-01-01"))
 
 # --- Determine total_mass range for color scaling ---
@@ -369,13 +212,13 @@ p1 <- ggplot(subset_root_length, aes(x = soil_nitrogen, y = root_no, fill = tota
 p2 <- ggplot(subset_root_no, aes(x = soil_nitrogen, y = root_length, fill = total_mass)) +
   geom_tile() +
   geom_point(data = max_line_root_no,
-             aes(x = soil_nitrogen, y = root_length, shape = "Fitness maximum"),
+             aes(x = soil_nitrogen, y = root_length, shape = "Total Biomass maximum"),
              fill = "white", color = "black", size = 2.5, stroke = 1.2) +
-  scale_shape_manual(name = NULL, values = c("Fitness maximum" = 21)) +
+  scale_shape_manual(name = NULL, values = c("Total Biomass maximum" = 21)) +
   scale_fill_viridis_c(option = "cividis", limits = total_mass_range) +
   labs(x = "Soil N (g m⁻³)",
        y = "Root Length\n(mm)",
-       fill = "Fitness") +
+       fill = "Total Biomass") +
   pub_theme
 
 # --- Combine plots vertically with shared legend ---
@@ -388,11 +231,7 @@ p2 <- ggplot(subset_root_no, aes(x = soil_nitrogen, y = root_length, fill = tota
 
 ```{r}
 # --- Soil N values to plot (min, median, max) ---
-soilN_values <- c(
-  min(nitrogen_values),
-  median(nitrogen_values),
-  max(nitrogen_values)
-)
+soilN_values <- nitrogen_values[seq(1, length(nitrogen_values), length.out = 5)]
 
 # ---- Maximum-Fitness Root Number Trajectory (all ties) ----
 trajectory_max_root_no <- final_df_no_na %>%
@@ -421,7 +260,7 @@ p1 <- ggplot(trajectory_max_root_no,
   scale_color_viridis_d(option = "cividis") +
   labs(
     x = "Date",
-    y = "Maximum:\nRoot Number per Unit Crown Area (log)",
+    y = "Maximum:\nRoot Number per\nUnit Crown Area (log)",
     color = "Soil N (g m⁻³)"
   ) +
   pub_theme
@@ -448,55 +287,26 @@ p2 <- ggplot(trajectory_max_root_length,
 ```
 
 ```{r}
-max_biomass <- max(max_ecto_vs_soilN$ectomycorrhiza_mass, na.rm = TRUE)
-
 max_ecto_vs_soilN <- final_df_no_na %>%
   group_by(soil_nitrogen) %>%
   slice_max(total_mass, with_ties = TRUE) %>%
   ungroup() %>%
   select(soil_nitrogen, ectomycorrhiza_mass, total_mass)
 
-# Graph to show the nitrogen limitation side
-## Nitrogen gradient biomass - should be the biomass nitrogen limitation
-
-p1 <- ggplot(max_ecto_vs_soilN,
-             aes(x = soil_nitrogen,
-                 y = ectomycorrhiza_mass,
-                 color = total_mass)) +  # <- now mapped
+ggplot(max_ecto_vs_soilN,
+       aes(x = soil_nitrogen,
+           y = ectomycorrhiza_mass,
+           color = total_mass)) +
   geom_point(size = 3, alpha = 0.7) +
   scale_color_viridis_c(option = "cividis",
-                        limits = total_mass_range) +   # match root plots
+                        limits = total_mass_range) +
   scale_y_continuous(limits = c(0, max(max_ecto_vs_soilN$ectomycorrhiza_mass, na.rm = TRUE))) +
   labs(
     x = "Soil N (g m⁻³)",
     y = "Ectomycorrhizal\nBiomass (kg)",
-    color = "total_mass"
+    color = "Total Biomass (kg)"
   ) +
   pub_theme
-
-# Graph to show the carbon limitation side
-## Nitrogen gradient biomass - total_mass should be the carbon limitation
-final_df_no_na$total_mass <- total_mass(
-  costs = final_df_no_na$total_mass + 
-    final_df_no_na$rs + final_df_no_na$rr + final_df_no_na$rl +
-    final_df_no_na$tl + final_df_no_na$tr + 0.2 * final_df_no_na$assim_net,
-  nitrogen = final_df_no_na$nitrogen_uptake
-)
-
-p2 <- ggplot(max_ecto_vs_soilN,
-             aes(x = soil_nitrogen,
-                 y = ectomycorrhiza_mass,
-                 color = total_mass)) +
-  geom_point(size = 3, alpha = 0.7) +
-  scale_color_viridis_c(option = "cividis", limits = total_mass_range) +
-  scale_y_continuous(limits = c(0, max(max_ecto_vs_soilN$ectomycorrhiza_mass))) +
-  labs(x = "Soil N (g m⁻³)", y = "Ectomycorrhizal\nAllocation (kg)", color = "total_mass") +
-  pub_theme
-
-(p1 / p2) +
-  plot_layout(guides = "collect") &
-  theme(legend.position = "right")
-
 ```
 
 ## mean
@@ -552,15 +362,15 @@ max_line_df1 <- mean_subset_df1 %>%
   slice_max(total_mass, n = 1, with_ties = FALSE) %>%
   ungroup()
 
-p1_mean + 
-  geom_line(data = max_line_df1, 
-            aes(x = soil_nitrogen, y = root_no), 
-            color = "red", size = 1.2)
+p1_mean +
+  geom_line(data = max_line_df1,
+            aes(x = soil_nitrogen, y = root_no),
+            color = "white", size = 1.2)
 
-p2_mean + 
-  geom_line(data = max_line_df2, 
-            aes(x = soil_nitrogen, y = root_length), 
-            color = "red", size = 1.2)
+p2_mean +
+  geom_line(data = max_line_df2,
+            aes(x = soil_nitrogen, y = root_length),
+            color = "white", size = 1.2)
 
 total_mass_range_mean <- range(
   c(mean_subset_df1$total_mass, mean_subset_df2$total_mass),
@@ -588,28 +398,61 @@ heatmap_ecm <- subset_df %>%
     .groups = "drop"
   )
 
-ggplot(heatmap_ecm,
+ecm_total_mass_range <- range(heatmap_ecm$total_mass, na.rm = TRUE)
+
+# Optimal ecto biomass: ecto_mass that maximises total_mass at each soil_nitrogen
+opt_ecm_mass <- subset_df %>%
+  group_by(soil_nitrogen) %>%
+  slice_max(total_mass, n = 1, with_ties = FALSE) %>%
+  ungroup()
+
+p_ecm_mass <- ggplot(heatmap_ecm,
        aes(x = soil_nitrogen,
            y = ectomycorrhiza_mass,
            fill = total_mass)) +
   geom_tile() +
-  scale_y_log10() +   # log axis if biomass spans orders
-  scale_fill_viridis_c(option = "plasma") +
+  geom_point(data = opt_ecm_mass,
+             aes(x = soil_nitrogen, y = ectomycorrhiza_mass),
+             shape = 21, fill = "white", color = "black", size = 2, inherit.aes = FALSE) +
+  scale_y_log10() +
+  scale_fill_viridis_c(option = "cividis", limits = ecm_total_mass_range) +
   labs(
     x = "Soil Nitrogen (g N m⁻³)",
-    y = "Ectomycorrhiza Biomass (kg)",
-    fill = "total_mass"
+    y = "Ectomycorrhizal\nBiomass (kg)",
+    fill = "Total Biomass (kg)"
   ) +
   pub_theme
-```
-## Diffusion differences to mimmic different speeds of nitrogen transfer
 
-```{r}
+heatmap_ecto_allo <- subset_df %>%
+  group_by(soil_nitrogen, ecto_allo) %>%
+  summarise(
+    total_mass = mean(total_mass, na.rm = TRUE),
+    .groups = "drop"
+  )
 
-```
+# Optimal ecto allocation: ecto_allo that maximises total_mass at each soil_nitrogen
+opt_ecto_allo <- heatmap_ecto_allo %>%
+  group_by(soil_nitrogen) %>%
+  slice_max(total_mass, n = 1, with_ties = FALSE) %>%
+  ungroup()
 
-## ??
+p_ecto_allo <- ggplot(heatmap_ecto_allo,
+       aes(x = soil_nitrogen,
+           y = ecto_allo,
+           fill = total_mass)) +
+  geom_tile() +
+  geom_point(data = opt_ecto_allo,
+             aes(x = soil_nitrogen, y = ecto_allo),
+             shape = 21, fill = "white", color = "black", size = 2, inherit.aes = FALSE) +
+  scale_fill_viridis_c(option = "cividis", limits = ecm_total_mass_range) +
+  labs(
+    x = "Soil Nitrogen (g N m⁻³)",
+    y = "Ectomycorrhizal\nAllocation",
+    fill = "Total Biomass (kg)"
+  ) +
+  pub_theme
 
-```{r}
-
+(p_ecm_mass / p_ecto_allo) +
+  plot_layout(guides = "collect") &
+  theme(legend.position = "right")
 ```
