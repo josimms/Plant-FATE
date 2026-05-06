@@ -89,7 +89,8 @@ class PlantParameters{
 	public:
 	// Photosynthesis paramaters  
 	double kphio;             ///< Quantum use efficiency
-	double alpha;             ///< Cost of maintaining photosynthetic capacity
+	double alpha;             ///< Cost of maintaining photosynthetic capacity (used when using_Ib = false)
+	double alpha_ib;          ///< Baseline infrastructure cost added to dynamic I_b (used when using_Ib = true)
 	double gamma;             ///< Cost of hydraulic risks
 	double a_jmax;            ///< Conversion from nitrogen to Jmax
 		

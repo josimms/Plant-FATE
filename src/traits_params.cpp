@@ -175,6 +175,7 @@ void PlantParameters::init(io::Initializer& I){
 	// #define GET(x) x = I.get<double>(#_x);
 	kphio              = I.get<double>("kphio");
 	alpha              = I.get<double>("alpha");
+	alpha_ib           = I.get<double>("alpha_ib");
 	gamma              = I.get<double>("gamma");
 	
 	fg                 = I.get<double>("fg");
