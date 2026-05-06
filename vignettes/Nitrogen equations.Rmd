@@ -16,7 +16,7 @@ library(viridis)
 ###
 
 # Area-based max uptake (kg N m^-2 year^-1) — from hydroponic experiments
-u_Amax <- 0.8
+u_Amax <- 0.08
 
 # Effective soil diffusion coefficient (m^2 year^-1)
 D_default <- 1e-3
@@ -210,6 +210,26 @@ uptake_organ <- function(B_i, u_Bmax_i, S, N_s, k_15) {
   B_i * u_Bmax_i * S * (N_s / (N_s + k_15))
 }
 
+root_surface_area <- function(root_length, root_no, traits) {
+
+  d_m <- root_diameter(root_length, traits) / 1000
+  L_m <- root_length / 1000
+
+  pi * d_m * L_m * root_no
+}
+
+myco_surface_area <- function(B_m, myco_diameter, myco_density) {
+  
+  # convert biomass → length
+  L_total <- B_m / (myco_density * pi * (myco_diameter / 2)^2)
+
+  pi * myco_diameter * L_total
+}
+
+uptake_organ_SA <- function(SA_i, u_Amax, S, N_s, k_15) {
+  SA_i * u_Amax * S * (N_s / (N_s + k_15))
+}
+
 ############################################################
 ## UPTAKE MODIFIERS
 ############################################################
@@ -240,12 +260,12 @@ plant_uptake <- function(N_s, N_m,
                          C_r, q = 0.5, k_13 = 2, k_14 = 0.5,
                          u_Amax, D, k_15) {
 
-  B_fr   <- root_mass(root_length, root_no, crown_area, traits)
+  B_fr  <- root_mass(root_length, root_no, crown_area, traits)
   rho_fr <- root_density(root_length, traits)
-  d_fr_m <- root_diameter(root_length, traits) / 1000
 
-  u_Bmax_fr <- u_Bmax_organ(u_Amax, rho_fr,      d_fr_m)
-  u_Bmax_m  <- u_Bmax_organ(u_Amax, myco_density, myco_diameter)
+  # Surface areas — used directly in uptake (no biomass→u_Bmax conversion)
+  SA_fr <- root_surface_area(root_length, root_no, traits) * crown_area
+  SA_m  <- myco_surface_area(B_m, myco_diameter, myco_density)
 
   S <- S_crowding(
     B_fr = B_fr, B_m = B_m, B_cr = B_cr,
@@ -257,8 +277,8 @@ plant_uptake <- function(N_s, N_m,
     traits = traits
   )
 
-  U_fr <- uptake_organ(B_fr, u_Bmax_fr, S, N_s, k_15)
-  U_m  <- uptake_organ(B_m,  u_Bmax_m,  S, N_s, k_15)
+  U_fr <- uptake_organ_SA(SA_fr, u_Amax, S, N_s, k_15)
+  U_m  <- uptake_organ_SA(SA_m,  u_Amax, S, N_s, k_15)
 
   a_u <- uptake_age_modifier(root_length, traits)
   g   <- nitrogen_gate(root_no, root_length, traits)
@@ -270,8 +290,8 @@ plant_uptake <- function(N_s, N_m,
     N_total      = U_a,
     U_fr         = U_fr,
     U_m          = U_m,
-    u_Bmax_fr    = u_Bmax_fr,
-    u_Bmax_m     = u_Bmax_m,
+    SA_fr        = SA_fr,
+    SA_m         = SA_m,
     ECM_transfer = ECM_transfer,
     S            = S,
     a_u          = a_u,
@@ -373,12 +393,13 @@ p_ratio <- ggplot(df_eu, aes(N_s, ratio, colour = D)) +
 n_vals     <- seq(1e1, 1e7, length.out = 20)
 N_s_vals   <- seq(0.1, 2.0, length.out = 10)
 D_vals     <- 10^seq(-1.5, -4, length.out = 5)
-u_max_vals <- c(0.44, 0.88, 1.32)
+u_max_vals <- c(0.44, 0.88, 1.22)/10
 
 df_n_base <- tibble(n = n_vals, l = 1.5) %>%
   rowwise() %>%
   mutate(
     B_fr      = root_mass(l, n, crown_area_fixed, traits),
+    SA_fr     = root_surface_area(l, n, traits) * crown_area_fixed,
     root_d_mm = root_diameter(l, traits),
     rho_fr    = root_density(l, traits)
   ) %>%
@@ -497,23 +518,18 @@ ggplot(df_k14, aes(x = B_fr, y = S, color = factor(k14))) +
 # Root and mycorrhizal uptake: publication plots
 # ===============================================================
 
-N_s_vals      <- seq(0.01, 2.1, length.out = 200)
-D_vals        <- c(1e-4, 1e-3)
-u_max_fixed   <- 0.8
-N_s_highlight <- c(0.3, 1.65)
+N_s_vals      <- seq(0.01, 1.0, length.out = 200)
+D_vals        <- c(1e-5, 1e-4)
+u_max_fixed   <- 0.88/10
+N_s_highlight <- c(0.2, 0.4)
 
-cb_two   <- c("1e-04" = "#E69F00", "0.001" = "#0072B2")
-D_labels <- c("1e-04" = expression(10^{-4}), "0.001" = expression(10^{-3}))
+cb_two   <- c("1e-05" = "#E69F00", "1e-04" = "#0072B2")
+D_labels <- c("1e-05" = expression(10^{-4}), "1e-04" = expression(10^{-3}))
 
 df_basis <- df_n_base
 
-B_highlight <- c(df_basis$B_fr[7], max(df_basis$B_fr))
-
-# Organ-specific u_Bmax
-root_d_m_def  <- root_diameter(l, traits) / 1000
-root_rho_def  <- root_density(l, traits)
-u_Bmax_fr_def <- u_Bmax_organ(u_Amax, root_rho_def,  root_d_m_def)
-u_Bmax_m_def  <- u_Bmax_organ(u_Amax, myco_density,   myco_diameter)
+B_highlight  <- c(df_basis$B_fr[7],  max(df_basis$B_fr))
+SA_highlight <- c(df_basis$SA_fr[7], max(df_basis$SA_fr))
 
 theme_pub <- theme_bw(base_size = 11) +
   theme(panel.grid.minor  = element_blank(),
@@ -528,8 +544,10 @@ theme_pub <- theme_bw(base_size = 11) +
 # ROOT UPTAKE
 # ---------------------------------------------------------------
 
+highlight_df <- tibble(B_fr = B_highlight, SA_fr = SA_highlight)
+
 df_root_Ns <- crossing(
-    B_fr  = B_highlight,
+    highlight_df,
     myco  = c("no myco", "myco"),
     N_s   = N_s_vals,
     D     = D_vals
@@ -546,8 +564,8 @@ df_root_Ns <- crossing(
       C_r = C_r, q = depth, k_13 = k_13, k_14 = k_14,
       traits = traits
     ),
-    U_fr    = uptake_organ(B_fr, u_Bmax_fr_def, S, N_s, k_15),
-    D_label = factor(as.character(D), levels = c("1e-04", "0.001")),
+    U_fr    = uptake_organ_SA(SA_fr, u_max_fixed, S, N_s, k_15),
+    D_label = factor(as.character(D), levels = c("1e-05", "1e-04")),
     B_label = factor(ifelse(B_fr == min(B_highlight), "low", "high"),
                      levels = c("low", "high"))
   ) %>%
@@ -588,9 +606,9 @@ df_root_B <- df_basis %>%
       C_r = C_r, q = depth, k_13 = k_13, k_14 = k_14,
       traits = traits
     ),
-    U_fr    = uptake_organ(B_fr, u_Bmax_fr_def, S, N_s, k_15),
-    D_label = factor(as.character(D), levels = c("1e-04", "0.001")),
-    N_label = factor(as.character(N_s), levels = c("0.3", "1.65"))
+    U_fr    = uptake_organ_SA(SA_fr, u_max_fixed, S, N_s, k_15),
+    D_label = factor(as.character(D), levels = c("1e-05", "1e-04")),
+    N_label = factor(as.character(N_s), levels = c("0.2", "0.4"))
   ) %>%
   ungroup() %>%
   mutate(panel = factor(ifelse(myco == "no myco",
@@ -603,9 +621,9 @@ p_root_B <- ggplot(df_root_B,
   facet_wrap(~ panel) +
   scale_colour_manual(values = cb_two, labels = D_labels,
                       name = expression(D~"(m"^2~"yr"^{-1}*")")) +
-  scale_linetype_manual(values = c("0.3" = "dashed", "1.65" = "solid"),
-                        labels = c("0.3" = expression(N[s] == 0.3),
-                                   "1.65" = expression(N[s] == 1.65)),
+  scale_linetype_manual(values = c("0.2" = 3, "0.4" = 1),
+                        labels = c("0.2" = expression(N[s] == 0.2),
+                                   "0.4" = expression(N[s] == 0.4)),
                         name = expression(N[s]~"(kg N m"^{-3}*")")) +
   scale_y_continuous(labels = scales::scientific) +
   labs(x = expression(B[fr]~"(kg)"),
@@ -618,7 +636,7 @@ p_root_B <- ggplot(df_root_B,
 # ---------------------------------------------------------------
 
 df_myco_Ns <- crossing(
-    B_fr  = B_highlight,
+    B_m   = B_highlight,
     root  = c("no root", "root"),
     N_s   = N_s_vals,
     D     = D_vals
@@ -626,8 +644,9 @@ df_myco_Ns <- crossing(
   rowwise() %>%
   mutate(
     B_fr_use = ifelse(root == "root", 1.0, 0),
+    SA_m  = myco_surface_area(B_m, myco_diameter, myco_density),
     S = S_crowding(
-      B_fr = B_fr_use, B_m = B_fr, B_cr = B_cr_fixed,
+      B_fr = B_fr_use, B_m = B_m, B_cr = B_cr_fixed,
       root_length = l,
       myco_diameter = myco_diameter, myco_density = myco_density,
       rho_cr = rho_cr_fixed,
@@ -635,9 +654,9 @@ df_myco_Ns <- crossing(
       C_r = C_r, q = depth, k_13 = k_13, k_14 = k_14,
       traits = traits
     ),
-    U_m     = uptake_organ(B_fr, u_Bmax_m_def, S, N_s, k_15),
-    D_label = factor(as.character(D), levels = c("1e-04", "0.001")),
-    B_label = factor(ifelse(B_fr == min(B_highlight), "low", "high"),
+    U_m     = uptake_organ_SA(SA_m, u_max_fixed, S, N_s, k_15),
+    D_label = factor(as.character(D), levels = c("1e-05", "1e-04")),
+    B_label = factor(ifelse(B_m == min(B_highlight), "low", "high"),
                      levels = c("low", "high"))
   ) %>%
   ungroup() %>%
@@ -668,6 +687,7 @@ df_myco_B <- df_basis %>%
   rowwise() %>%
   mutate(
     B_fr_use = ifelse(root == "root", 1.0, 0),
+    SA_m  = myco_surface_area(B_fr, myco_diameter, myco_density),
     S = S_crowding(
       B_fr = B_fr_use, B_m = B_fr, B_cr = B_cr_fixed,
       root_length = l,
@@ -677,9 +697,9 @@ df_myco_B <- df_basis %>%
       C_r = C_r, q = depth, k_13 = k_13, k_14 = k_14,
       traits = traits
     ),
-    U_m     = uptake_organ(B_fr, u_Bmax_m_def, S, N_s, k_15),
-    D_label = factor(as.character(D), levels = c("1e-04", "0.001")),
-    N_label = factor(as.character(N_s), levels = c("0.3", "1.65"))
+    U_m     = uptake_organ_SA(SA_m, u_max_fixed, S, N_s, k_15),
+    D_label = factor(as.character(D), levels = c("1e-05", "1e-04")),
+    N_label = factor(as.character(N_s), levels = c("0.2", "0.4"))
   ) %>%
   ungroup() %>%
   mutate(panel = factor(ifelse(root == "no root",
@@ -692,9 +712,9 @@ p_myco_B <- ggplot(df_myco_B,
   facet_wrap(~ panel) +
   scale_colour_manual(values = cb_two, labels = D_labels,
                       name = expression(D~"(m"^2~"yr"^{-1}*")")) +
-  scale_linetype_manual(values = c("0.3" = "dashed", "1.65" = "solid"),
-                        labels = c("0.3" = expression(N[s] == 0.3),
-                                   "1.65" = expression(N[s] == 1.65)),
+  scale_linetype_manual(values = c("0.2" = 3, "0.4" = 1),
+                        labels = c("0.2" = expression(N[s] == 0.2),
+                                   "0.4" = expression(N[s] == 0.4)),
                         name = expression(N[s]~"(kg N m"^{-3}*")")) +
   scale_y_continuous(labels = scales::scientific) +
   labs(x = expression(B[m]~"(kg)"),
@@ -702,7 +722,7 @@ p_myco_B <- ggplot(df_myco_B,
   theme_pub +
   theme(strip.text = element_text(size = 10))
 
-(p_root_Ns | p_root_B) / (p_myco_Ns | p_myco_B) +
+(p_root_Ns + scale_x_continuous(labels = function(x) signif(x, 2)) | p_root_B) / (p_myco_Ns + scale_x_continuous(labels = function(x) signif(x, 2)) | p_myco_B) +
   plot_layout(guides = "collect") &
   theme(legend.position = "right")
 ```
