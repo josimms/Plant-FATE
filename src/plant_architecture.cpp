@@ -113,7 +113,7 @@ std::vector<double> PlantArchitecture::dsize_dmass(PlantTraits& traits) const{
 	
 	std::vector<double> out(2);
 	out[0] = 1 / dmass_dd;
-	out[1] = 1 / dnitrogen_dd;
+	out[1] = dnitrogen_dd / dmass_dd;
 	return out;
 }
 
@@ -164,10 +164,16 @@ double PlantArchitecture::leaf_mass(const PlantTraits& traits) const{
 double PlantArchitecture::root_mass(const PlantTraits& traits) const{
   double diameter_root = root_diameter(traits);
   double density_root = root_density(traits);
-  
+
   // kg / m3 * mm2 * mm * no * 1e-9 * no = kg biomass
-  
+
   return density_root * pow(diameter_root/2.0, 2.0) * root_length * M_PI * root_no * 1e-9 * crown_area * lai;
+}
+
+double PlantArchitecture::root_surface_area(const PlantTraits& traits) const{
+  double d_m = root_diameter(traits) / 1000.0;
+  double L_m = root_length / 1000.0;
+  return M_PI * d_m * L_m * root_no * crown_area * lai;
 }
 
 void PlantArchitecture::dmyco_dt(
@@ -257,8 +263,8 @@ void PlantArchitecture::set_root(double _rn, double _rl, PlantTraits& traits){
 
 /// @details Sets the following properties: nitrogen_tree, nitrogen_uptake, potential_nitrogen_leaf, ectomycorrhiza_mass 
 void PlantArchitecture::set_nitrogen(double _nt, PlantTraits& traits) {
-  nitrogen_tree = std::max(_nt, 0.0);  // FIXME: prevent negative free N, but can create a nitrogen debt
-  potential_nitrogen_leaf = traits.k_10 * nitrogen_tree;
+  nitrogen_tree = _nt;
+  potential_nitrogen_leaf = traits.k_10 * std::max(nitrogen_tree, 0.0);
   nitrogen_in_biomass = total_mass_nitrogen(traits);
 }
 
