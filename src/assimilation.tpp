@@ -17,9 +17,10 @@ inline void print_phydro(const phydro::PHydroResultNitrogen& res, std::string s)
 // **
 template<class _Climate>
 phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G, double t){
-  double infrastructure = G->I_b + par.alpha;
+  double effective_alpha = G->using_Ib ? par.alpha_ib : par.alpha;
+  double infrastructure = G->I_b + effective_alpha;
 
-  phydro::ParCostNitrogen par_cost(par.alpha, par.gamma, infrastructure);
+  phydro::ParCostNitrogen par_cost(effective_alpha, par.gamma, infrastructure);
 	phydro::ParPlant par_plant(traits.K_leaf, traits.p50_leaf, traits.b_leaf);
 	phydro::ParControl par_control;
 	

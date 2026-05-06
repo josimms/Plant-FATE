@@ -23,6 +23,7 @@ void Uptake::nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& p
   uptake_core(G, T, par);
 
   G.I_b = using_Ib ? I_b : 1.0;
+  G.using_Ib = using_Ib;
 
   // UPTAKE
   double uptake_roots_term = (1.0 - mycorrhized) * U_root;

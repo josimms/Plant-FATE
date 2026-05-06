@@ -40,12 +40,12 @@ namespace plant {
 
   // Depletion radius calculation
   double Uptake::deplition_radius() {
-    return D * (N_s + k_23) / u_max;
+    return D * N_s / u_max;
   }
 
   // Surface area explored per root biomass
   double Uptake::e_u_root(double rd, double root_diameter_mm, double root_density) {
-    double d_m = root_diameter_mm / 1000;
+    double d_m = root_diameter_mm / 1000.0;  // diameter in m
     return 4.0 * pow(rd, 2.0) / (root_density * pow(d_m, 2.0));
   }
 
@@ -69,7 +69,7 @@ namespace plant {
     // --- Saturation function ---
     double S;
     if (V_explored > V_free) {
-      S = V_free / V_explored;
+      S = std::max(0.0, V_free) / V_explored;
     } else {
       S = 1.0;
     }
@@ -84,13 +84,16 @@ namespace plant {
     double B_root = G.root_mass(traits);
     double d_root_mm = G.root_diameter(traits);
     double rho_root = G.root_density(traits);
-    double u_Bmax_fr  = 4.0 * u_max / (rho_root * d_root_mm/1000.0);
-    double u_Bmax_m   = 4.0 * u_max / (rho_myco * myco_diameter);
-    
-    // --- Depletion ratio ---
+    double d_root_m = d_root_mm / 1000.0;
+
+    // Surface areas (SA * u_max = B * u_Bmax algebraically)
+    double SA_fr = 4.0 * B_root / (rho_root * d_root_m);
+    double SA_m  = 4.0 * G.ectomycorrhiza_mass / (rho_myco * myco_diameter);
+
+    // --- Depletion radius ---
     rd = deplition_radius();
-    
-    // Soil surface per root biomass
+
+    // Soil volume explored per unit biomass
     e_root = e_u_root(rd, d_root_mm, rho_root);
     e_myco = e_u_myco(rd, myco_diameter, rho_myco);
 
@@ -99,15 +102,17 @@ namespace plant {
     double c_nl = B_root / (2.0 * G.crown_area);
     I_b = (1.0 - mycorrhized) * c_nl * e_root
         + transfer_efficiency_photosynthesis * mycorrhized * nitrogen_gate(G, traits) * (G.ectomycorrhiza_mass / G.crown_area) * e_myco;
-
+    
     // --- Compute saturation factor ---
     double crown_radius = std::sqrt(G.crown_area / M_PI);
     Sval = S_crowding(B_root, G.ectomycorrhiza_mass, rho_root, e_root, e_myco, crown_radius);
     
+    I_b = Sval * I_b;
+
     double U_s = N_s / (N_s + k_23);
-    
-    U_root = B_root * u_Bmax_fr * Sval * U_s * par.years_per_tunit_avg;
-    U_myco = G.ectomycorrhiza_mass * u_Bmax_m * Sval * U_s * par.years_per_tunit_avg;
+
+    U_root = SA_fr * u_max * Sval * U_s * par.years_per_tunit_avg;
+    U_myco = SA_m  * u_max * Sval * U_s * par.years_per_tunit_avg;
           
   }
 
