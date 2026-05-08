@@ -17,7 +17,7 @@ inline void print_phydro(const phydro::PHydroResultNitrogen& res, std::string s)
 // **
 template<class _Climate>
 phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G, double t){
-  double effective_alpha = G->using_Ib ? par.alpha_ib : par.alpha;
+  double effective_alpha = G->using_Ib ? par.alpha_ib * par.alpha : par.alpha;
   double infrastructure = G->I_b + effective_alpha;
 
   phydro::ParCostNitrogen par_cost(effective_alpha, par.gamma, infrastructure);
@@ -35,7 +35,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 	double Iabs_day    = fipar * C.clim_inst.ppfd / f_day_length;
 	double Iabs_24hr   = fipar * C.clim_inst.ppfd;
 	
-	double leaf_nitrogen = 100 * G->potential_nitrogen_leaf / G->crown_area; // kg to g per unit crown area
+	double leaf_nitrogen = G->potential_nitrogen_leaf / G->leaf_mass(traits); // kg N / kg leaf = g g-1
 	if (leaf_nitrogen < 1.0/par.a_jmax) {
 	  leaf_nitrogen = 0;
 	  std::cout << "leaf_nitrogen was less than one unit of Jmax, made leaf nitrogen 0\n";
