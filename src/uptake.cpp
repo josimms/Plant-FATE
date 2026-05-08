@@ -97,23 +97,15 @@ namespace plant {
     e_root = e_u_root(rd, d_root_mm, rho_root);
     e_myco = e_u_myco(rd, myco_diameter, rho_myco);
 
-    // Belowground infrastructure index (Eq. belowground_infra)
-    // I_b = (1-m)*c(n,l)*e_fr + η*m*g(n,l)*(B_m/A_cw)*e_m
-    double c_nl = B_root / (2.0 * G.crown_area);
-    I_b = (1.0 - mycorrhized) * c_nl * e_root
-        + transfer_efficiency_photosynthesis * mycorrhized * nitrogen_gate(G, traits) * (G.ectomycorrhiza_mass / G.crown_area) * e_myco;
-    
     // --- Compute saturation factor ---
     double crown_radius = std::sqrt(G.crown_area / M_PI);
     Sval = S_crowding(B_root, G.ectomycorrhiza_mass, rho_root, e_root, e_myco, crown_radius);
-    
-    I_b = Sval * I_b;
 
     double U_s = N_s / (N_s + k_23);
 
     U_root = SA_fr * u_max * Sval * U_s * par.years_per_tunit_avg;
     U_myco = SA_m  * u_max * Sval * U_s * par.years_per_tunit_avg;
-          
+
   }
 
 } // End namespace
