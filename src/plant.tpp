@@ -62,8 +62,8 @@ double Plant::p_survival_dispersal(Env& env){
 // Demographics
 template<class Env>
 std::vector<double> Plant::size_growth_rate(double _dmass_dt_growth, Env& env){
-	double dsize_dt = geometry.dsize_dmass(traits)[0] * _dmass_dt_growth;
-	double dnitrogen_dt = geometry.dsize_dmass(traits)[1] * _dmass_dt_growth;
+	double dsize_dt = geometry.dsize_dmass(par, traits)[0] * _dmass_dt_growth;
+	double dnitrogen_dt = geometry.dsize_dmass(par, traits)[1] * _dmass_dt_growth;
 	rates.rgr = dsize_dt / geometry.get_size();
 	
 	std::vector<double> out(2);
@@ -167,7 +167,7 @@ void Plant::calc_demographic_rates(Env& env, double t){
     
     // Photosynthesis with nitrogen limitation
     double npp_exudates = 0.0;
-    if (geometry.potential_nitrogen_leaf < 1/par.a_jmax) {
+    if (geometry.potential_nitrogen_leaf / geometry.leaf_mass(traits) < 1/par.a_jmax) {
         // No photosynthesis possible — skip phydro entirely to avoid log(0) crash
         res = PlantAssimilationResult{};  // default-constructed, all zeros
         res.c_open_avg = 1.0;

@@ -91,7 +91,7 @@ class PlantArchitecture{
 
 	/// @brief Derivatives required for biomass partitioning
 	/// @{  
-	std::vector<double> dsize_dmass(PlantTraits& traits) const;
+	std::vector<double> dsize_dmass(PlantParameters& par, PlantTraits& traits) const;
 	double dreproduction_dmass(PlantParameters& par, PlantTraits& traits);
 	/// @}
 
@@ -147,7 +147,7 @@ class PlantArchitecture{
 	// ** Simple growth simulator for testing purposes
 	// ** - simulates growth over dt with constant assimilation rate A
 	// ** 
-	void grow_for_dt(double t, double dt, double& prod, double& litter_pool, double A, PlantTraits& traits);
+	void grow_for_dt(double t, double dt, double& prod, double& litter_pool, double A, PlantParameters& par, PlantTraits& traits);
 
 };
 

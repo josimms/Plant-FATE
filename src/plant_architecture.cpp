@@ -100,7 +100,7 @@ double PlantArchitecture::n_demand_per_lai_biomass(const PlantTraits& traits) co
 // **
 // ** Biomass partitioning
 // **
-std::vector<double> PlantArchitecture::dsize_dmass(PlantTraits& traits) const{
+std::vector<double> PlantArchitecture::dsize_dmass(PlantParameters& par, PlantTraits& traits) const{
 	double dh_dd = geom.a * exp(-geom.a * diameter / traits.hmat);
 	double dmleaf_dd = traits.lma * lai * geom.pic_4a * (height + diameter * dh_dd);	// LAI variation is accounted for in biomass production rate
 	double dmtrunk_dd = (geom.eta_c * M_PI * traits.wood_density / 4) * (2 * height + diameter * dh_dd) * diameter;
@@ -109,7 +109,11 @@ std::vector<double> PlantArchitecture::dsize_dmass(PlantTraits& traits) const{
 	double dmcroot_dd = (dmbranches_dd + dmtrunk_dd) * traits.fcr;
 
 	double dmass_dd = dmleaf_dd + dmtrunk_dd + dmbranches_dd + dmroot_dd + dmcroot_dd;
-	double dnitrogen_dd = dmleaf_dd * traits.nc_leaf + dmtrunk_dd * traits.nc_wood + dmbranches_dd * traits.nc_wood + dmcroot_dd * traits.nc_wood + dmroot_dd * traits.nc_root;
+	double dnitrogen_dd = dmleaf_dd * traits.nc_leaf * par.cbio + 
+	  dmtrunk_dd * traits.nc_wood * par.cbio + 
+	  dmbranches_dd * traits.nc_wood * par.cbio + 
+	  dmcroot_dd * traits.nc_wood * par.cbio + 
+	  dmroot_dd * traits.nc_root * par.cbio;
 	
 	std::vector<double> out(2);
 	out[0] = 1 / dmass_dd;
@@ -289,9 +293,9 @@ std::vector<double>::iterator PlantArchitecture::set_state(std::vector<double>::
 // ** - simulates growth over dt with constant assimilation rate A
 // ** 
 
-void PlantArchitecture::grow_for_dt(double t, double dt, double& prod, double& litter_pool, double A, PlantTraits& traits){
+void PlantArchitecture::grow_for_dt(double t, double dt, double& prod, double& litter_pool, double A, PlantParameters& par, PlantTraits& traits){
 
-	auto derivs = [A, &traits, &litter_pool, this](double t, std::vector<double>& S, std::vector<double>& dSdt){
+	auto derivs = [A, &traits, &litter_pool, &par, this](double t, std::vector<double>& S, std::vector<double>& dSdt){
 		set_lai(S[5]);
 		set_size(S[1], traits);
 		litter_pool = S[6];
@@ -308,7 +312,7 @@ void PlantArchitecture::grow_for_dt(double t, double dt, double& prod, double& l
 		// TODO: nitrogen here?
 		double dG_dt = dB_dt - std::max(dLA_dt, 0.0); // biomass going into geometric growth
 		double dN_dd = 0; // NOTE: not relevant in this function! Used for the nitrogen balance calculated in the Life History
-		double dD_dt = dsize_dmass(traits)[0] * dG_dt;	// size (diameter) growth rate
+		double dD_dt = dsize_dmass(par, traits)[0] * dG_dt;	// size (diameter) growth rate
 
 		dSdt[0] = dB_dt;	// biomass that goes into allometric increments
 		dSdt[1] = dD_dt;
