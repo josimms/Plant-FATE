@@ -109,11 +109,11 @@ std::vector<double> PlantArchitecture::dsize_dmass(PlantParameters& par, PlantTr
 	double dmcroot_dd = (dmbranches_dd + dmtrunk_dd) * traits.fcr;
 
 	double dmass_dd = dmleaf_dd + dmtrunk_dd + dmbranches_dd + dmroot_dd + dmcroot_dd;
-	double dnitrogen_dd = dmleaf_dd * traits.nc_leaf * par.cbio + 
-	  dmtrunk_dd * traits.nc_wood * par.cbio + 
-	  dmbranches_dd * traits.nc_wood * par.cbio + 
-	  dmcroot_dd * traits.nc_wood * par.cbio + 
-	  dmroot_dd * traits.nc_root * par.cbio;
+	double dnitrogen_dd = dmleaf_dd * traits.nc_leaf * 0.5 + 
+	  dmtrunk_dd * traits.nc_wood * 0.5 + 
+	  dmbranches_dd * traits.nc_wood * 0.5 + 
+	  dmcroot_dd * traits.nc_wood * 0.5 + 
+	  dmroot_dd * traits.nc_root * 0.5;
 	
 	std::vector<double> out(2);
 	out[0] = 1 / dmass_dd;
