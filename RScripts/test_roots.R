@@ -2263,7 +2263,7 @@ original_life_histroy <- function() {
        ylim = ylim_vc, xlab = "",
        ylab = expression("V"[cmax]*" ("*mu*"mol m"^{-2}*" s"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
-  rect(par("usr")[1], 0, par("usr")[2], 30,
+  rect(par("usr")[1], 0, par("usr")[2], 90,
        col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
   lines(df_3$date, df_3$vcmax, col = cols[3], lwd = lwd_model)
   lines(df_2$date, df_2$vcmax, col = cols[2], lwd = lwd_model)
