@@ -285,8 +285,9 @@ blank <- function() {
   # 4. Height with validation data
   plot(df$date, df$height, type = "l", col = cols[1],
        ylab = "Height (m)", main = "Tree Height", xlab = "Date",
-       ylim = range(df$height, loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "pine height BA weighted mean"],
-                    prebas$multiOut[3,,11,,1][1:62], na.rm = TRUE))
+       ylim = range(df$height, df_2$height, df_3$height,
+                    loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "pine height BA weighted mean"],
+                    prebas$multiOut[3,,11,,1][1:62], halme_et_al_2022$height, na.rm = TRUE))
   lines(df_2$date, df_2$height, col = cols[2])
   lines(df_3$date, df_3$height, col = cols[3])
   points(as.Date(paste0(loaded_data$smearII_data$date[loaded_data$smearII_data$variable == "pine height BA weighted mean"], "-01-01")), 
@@ -300,7 +301,7 @@ blank <- function() {
   
   plot(df$date, df$diameter, type = "l", col = cols[1],
        ylab = "Diameter (m)", main = "Tree Diameter", xlab = "Date",
-       ylim = range(df$diameter, df_2$diameter, df_3$diameter, 0.01*loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "pine diameter BA weighted mean"], prebas$multiOut[3,,12,,1][1:62]/100, na.rm = TRUE))
+       ylim = range(df$diameter, df_2$diameter, df_3$diameter, 0.01*loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "pine diameter BA weighted mean"], na.rm = TRUE))
   lines(df_2$date, df_2$diameter, col = cols[2])
   lines(df_3$date, df_3$diameter, col = cols[3])
   points(as.Date(paste0(loaded_data$smearII_data$date[loaded_data$smearII_data$variable == "pine diameter BA weighted mean"], "-01-01")), 0.01*loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "pine diameter BA weighted mean"], col = "blue", pch = "x")
@@ -341,18 +342,18 @@ blank <- function() {
   lines(df_3$date, df_3$tree_nitrogen, col = cols[3])
   legend("topleft", legend = c("N = High", "N = Medium", "N = Low"), col = c(cols), lty = 1, bty = "n")
   
-  plot(df$date, df$optimal_leaf_nitrogen, type = "p", col = cols[1], pch = ".",
+  plot(df$date, df$optimal_leaf_nitrogen, type = "l", col = cols[1],
        ylab = "Leaf N Dynamics (g g⁻¹)", main = "Optimal Leaf N", xlab = "Date",
-       ylim = range(df$optimal_leaf_nitrogen, 1000 * df$potential_leaf_nitrogen[5:nrow(df)], 
+       ylim = range(df$optimal_leaf_nitrogen, 1000 * df$potential_leaf_nitrogen[5:nrow(df)],
                     df_2$optimal_leaf_nitrogen, 1000 * df_2$potential_leaf_nitrogen[5:nrow(df_2)],
                     df_3$optimal_leaf_nitrogen, 1000 * df_3$potential_leaf_nitrogen[5:nrow(df_3)], na.rm = TRUE))
-  points(df_2$date, df_2$optimal_leaf_nitrogen, col = cols[2], pch = ".")
-  points(df_3$date, df_3$optimal_leaf_nitrogen, col = cols[3], pch = ".")
-  points(df$date, 1000 * df$potential_leaf_nitrogen, col = cols[1], pch = "-")
-  points(df_2$date, 1000 * df_2$potential_leaf_nitrogen, col = cols[2], pch = "-")
-  points(df_3$date, 1000 * df_3$potential_leaf_nitrogen, col = cols[3], pch = "-")
+  lines(df_2$date, df_2$optimal_leaf_nitrogen, col = cols[2])
+  lines(df_3$date, df_3$optimal_leaf_nitrogen, col = cols[3])
+  lines(df$date, 1000 * df$potential_leaf_nitrogen, col = cols[1], lty = 2)
+  lines(df_2$date, 1000 * df_2$potential_leaf_nitrogen, col = cols[2], lty = 2)
+  lines(df_3$date, 1000 * df_3$potential_leaf_nitrogen, col = cols[3], lty = 2)
   abline(h = 0.0151, col = "blue", lty = 1)
-  legend("topright", legend = c("Potential", "Optimal"), col = "black", pch = c("-", "."), bty = "n", title = "Leaf Nitrogen")
+  legend("topright", legend = c("Potential", "Optimal"), col = "black", lty = c(2, 1), bty = "n", title = "Leaf Nitrogen")
   title(sub = "Korhonen 2012: Socts Pine Needle N", col.sub = "blue")
   
   plot(df$date, df$vcmax, type = "l", col = cols[1], main = "Vcmax", ylab = "µmol m⁻² s⁻¹", xlab = "Date",
@@ -363,16 +364,16 @@ blank <- function() {
   abline(h = 30, col = "blue")
   title(sub = "Thum 2008: Hyytiälä Vcmax Range", col.sub = "blue")
   
-  plot(df$date, df$optimal_leaf_nitrogen, type = "p", col = cols[1], pch = ".",
+  plot(df$date, df$optimal_leaf_nitrogen, type = "l", col = cols[1],
        ylab = "Leaf N Dynamics (g g⁻¹)", main = "Optimal Leaf N", xlab = "Date",
        ylim = range(df$optimal_leaf_nitrogen,
                     df_2$optimal_leaf_nitrogen,
                     df_3$optimal_leaf_nitrogen,
                     na.rm = TRUE))
-  points(df_2$date, df_2$optimal_leaf_nitrogen, col = cols[2], pch = ".")
-  points(df_3$date, df_3$optimal_leaf_nitrogen, col = cols[3], pch = ".")
+  lines(df_2$date, df_2$optimal_leaf_nitrogen, col = cols[2])
+  lines(df_3$date, df_3$optimal_leaf_nitrogen, col = cols[3])
   abline(h = 12/1000, col = "blue", lty = 1)
-  legend("topright", legend = c("Optimal"), col = "black", pch = ".", bty = "n", title = "Leaf Nitrogen")
+  legend("topright", legend = c("Optimal"), col = "black", lty = 1, bty = "n", title = "Leaf Nitrogen")
   title(sub = "Korhonen 2012: Scots Pine Needle N", col.sub = "blue")
   
   # Plot your lines
@@ -734,10 +735,18 @@ blank <- function() {
   kphio_amazon = 0.055
   rdark = 0.011
   vwind = 3
-  a_jmax = 80
-  par_cost = list(alpha=0.1008, gamma=0.180496537959982, nitrogen_store_conversion = 1)
-  par_cost_2 = list(alpha=0.1008, gamma=0.180496537959982, nitrogen_store_conversion = 1.5)
-  par_cost_3 = list(alpha=0.1008, gamma=0.180496537959982, nitrogen_store_conversion = 0.5)
+  a_jmax = 3700
+  # Plant-FATE uses using_Ib = true, so alpha_ib = 0.001 (not alpha = 0.01).
+  # Cost function in phydro: alpha_ib / (I_b + alpha_ib) * jmax + gamma * dpsi^2
+  # So nitrogen_store_conversion = I_b + alpha_ib  (matches ParCostNitrogen constructor).
+  alpha_ib = 0.01     # test value: 0.001 (ini), 0.1 (~11x variation), 0.25 (~5x), 0.5 (~3x)
+  alpha_0 = 1
+  I_b_low  = 0.5     # no root/myco infrastructure (e.g. seedling)
+  I_b_mid  = 0.75     # medium infrastructure
+  I_b_high = 1.0     # well-developed infrastructure
+  par_cost   = list(alpha = alpha_ib * alpha_0, gamma = 0.180496537959982, nitrogen_store_conversion = I_b_low + alpha_ib)
+  par_cost_2 = list(alpha = alpha_ib * alpha_0, gamma = 0.180496537959982, nitrogen_store_conversion = I_b_mid + alpha_ib)
+  par_cost_3 = list(alpha = alpha_ib * alpha_0, gamma = 0.180496537959982, nitrogen_store_conversion = I_b_high + alpha_ib)
   par_cost_amazon = list(alpha=0.1008, gamma=1.1875, nitrogen_store_conversion = 1)
   par_plant = list(conductivity=4.1311874912949e-17, psi50=-0.857817410110663, b=1)
   par_plant_amazon = list(conductivity=0.5e-16, psi50=-2.29, b=1)
@@ -762,9 +771,9 @@ blank <- function() {
   phydro_results           <- vector("list", nrow(input_climate))
   phydro_results_2         <- vector("list", nrow(input_climate))
   phydro_results_3         <- vector("list", nrow(input_climate))
-  phydro_results_amazon    <- vector("list", nrow(import_amazon_data))
-  phydro_results_analytical <- vector("list", nrow(input_climate))
-  phydro_results_amazon_analytical <- vector("list", nrow(import_amazon_data))
+  #phydro_results_amazon    <- vector("list", nrow(import_amazon_data))
+  #phydro_results_analytical <- vector("list", nrow(input_climate))
+  #phydro_results_amazon_analytical <- vector("list", nrow(import_amazon_data))
   
   # ---- SAFE WRAPPER ----
   safe_try <- function(expr, month) {
@@ -801,33 +810,33 @@ blank <- function() {
       rdark, vwind, a_jmax, par_plant, par_cost_3, options), month)
     
     # ---- Analytical Boreal ----
-    phydro_results_analytical[[month]] <- safe_try(
-      rphydro::rphydro_numerical(
-        input_climate$Temp[month], input_climate$Temp[month],
-        input_climate$PPFD[month], input_climate$PPFD_max[month],
-        0.1 * input_climate$VPD[month],
-        co2, pa, fapar, kphio, -input_climate$SWP[month],
-        rdark, vwind, par_plant, par_cost, options), month)
+    # phydro_results_analytical[[month]] <- safe_try(
+    #   rphydro::rphydro_numerical(
+    #     input_climate$Temp[month], input_climate$Temp[month],
+    #     input_climate$PPFD[month], input_climate$PPFD_max[month],
+    #     0.1 * input_climate$VPD[month],
+    #     co2, pa, fapar, kphio, -input_climate$SWP[month],
+    #     rdark, vwind, par_plant, par_cost, options), month)
   }
-  
+
   # ---- AMAZON (numerical + analytical) ----
-  for (month in 1:nrow(import_amazon_data)) {
-    phydro_results_amazon[[month]] <- safe_try(rphydro::rphydro_nitrogen(
-      import_amazon_data$Temp[month], import_amazon_data$Temp[month],
-      import_amazon_data$PAR[month], import_amazon_data$PAR_max[month],
-      0.1 * import_amazon_data$VPD[month],
-      co2, pa_amazon, nitrogen, fapar, kphio_amazon, import_amazon_data$SWP[month],
-      rdark, vwind, a_jmax, par_plant_amazon, par_cost_amazon, options), month)
-    
-    # ---- Analytical Amazon ----
-    phydro_results_amazon_analytical[[month]] <- safe_try(
-      rphydro::rphydro_numerical(
-        import_amazon_data$Temp[month], import_amazon_data$Temp[month],
-        import_amazon_data$PAR[month], import_amazon_data$PAR_max[month],
-        0.1 * import_amazon_data$VPD[month],
-        co2, pa_amazon, fapar, kphio_amazon, import_amazon_data$SWP[month],
-        rdark, vwind, par_plant_amazon, par_cost_amazon, options), month)
-  }
+  # for (month in 1:nrow(import_amazon_data)) {
+  #   phydro_results_amazon[[month]] <- safe_try(rphydro::rphydro_nitrogen(
+  #     import_amazon_data$Temp[month], import_amazon_data$Temp[month],
+  #     import_amazon_data$PAR[month], import_amazon_data$PAR_max[month],
+  #     0.1 * import_amazon_data$VPD[month],
+  #     co2, pa_amazon, nitrogen, fapar, kphio_amazon, import_amazon_data$SWP[month],
+  #     rdark, vwind, a_jmax, par_plant_amazon, par_cost_amazon, options), month)
+  #
+  #   # ---- Analytical Amazon ----
+  #   phydro_results_amazon_analytical[[month]] <- safe_try(
+  #     rphydro::rphydro_numerical(
+  #       import_amazon_data$Temp[month], import_amazon_data$Temp[month],
+  #       import_amazon_data$PAR[month], import_amazon_data$PAR_max[month],
+  #       0.1 * import_amazon_data$VPD[month],
+  #       co2, pa_amazon, fapar, kphio_amazon, import_amazon_data$SWP[month],
+  #       rdark, vwind, par_plant_amazon, par_cost_amazon, options), month)
+  # }
   
   # ---- EXTRACT RESULTS ----
   extract_safe <- function(x, var) if (is.null(x) || is.null(x[[var]])) NA else x[[var]]
@@ -853,24 +862,24 @@ blank <- function() {
     )
   }
   
-  df1  <- make_df(phydro_results, "1", FALSE)
-  df2  <- make_df(phydro_results_2, "1.5", FALSE)
-  df3  <- make_df(phydro_results_3, "0.5", FALSE)
-  df4  <- make_df(phydro_results_amazon, "Amazon", TRUE)
-  df5  <- make_df(phydro_results_analytical, "Numerical", FALSE)
-  df6  <- make_df(phydro_results_amazon_analytical, "Amazon_Numerical", TRUE)
-  
+  df1  <- make_df(phydro_results,   paste0("I_b=", I_b_low),  FALSE)
+  df2  <- make_df(phydro_results_2, paste0("I_b=", I_b_mid),  FALSE)
+  df3  <- make_df(phydro_results_3, paste0("I_b=", I_b_high), FALSE)
+  # df4  <- make_df(phydro_results_amazon, "Amazon", TRUE)
+  # df5  <- make_df(phydro_results_analytical, "Numerical", FALSE)
+  # df6  <- make_df(phydro_results_amazon_analytical, "Amazon_Numerical", TRUE)
+
   # ---- CONVERT TO KG C ----
   conversion_factor <- 12.11 * 1e-9 * 24 * 60 * 60 * 365.25
-  
+
   df1$a_scaled <- df1$a * conversion_factor
   df2$a_scaled <- df2$a * conversion_factor
   df3$a_scaled <- df3$a * conversion_factor
-  df4$a_scaled <- df4$a * conversion_factor
-  df5$a_scaled <- df5$a * conversion_factor
-  df6$a_scaled <- df6$a * conversion_factor
-  
-  df_combined <- rbind(df1, df2, df3, df4, df5, df6)
+  # df4$a_scaled <- df4$a * conversion_factor
+  # df5$a_scaled <- df5$a * conversion_factor
+  # df6$a_scaled <- df6$a * conversion_factor
+
+  df_combined <- rbind(df1, df2, df3)
   
   # ---- VALIDATION DATA ----
   GPP_out_df <- data.frame(
@@ -880,12 +889,15 @@ blank <- function() {
     GPP_mean_kg = GPP_out$GPP_mean_kg
   )
   
+  var_order <- c("a", "a_scaled", "vcmax", "jmax", "dpsi", "n_leaf")
+
   df_long <- df_combined %>%
     tidyr::pivot_longer(
-      cols = c(a, jmax, vcmax, a_scaled, dpsi, n_leaf),
+      cols = all_of(var_order),
       names_to = "Variable",
       values_to = "Value"
-    )
+    ) %>%
+    mutate(Variable = factor(Variable, levels = var_order))
   # For model outputs
   df_long <- df_long %>%
     mutate(Dates = as.Date(format(Dates, "%Y-%m-01")))
@@ -929,8 +941,8 @@ blank <- function() {
       title = "Comparison of Model Outputs vs Validation GPP",
       x = "Iteration (Month)",
       y = "Value",
-      color = "Version",
-      subtitle = "Black dots = validation GPP data"
+      color = "I_b value",
+      subtitle = paste0("alpha_ib=", alpha_ib, "; nitrogen_store_conversion = I_b + alpha_ib. Black dots = validation GPP data")
     ) +
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
@@ -943,27 +955,13 @@ blank <- function() {
   
   # Join modeled + GPP validation by Month and Variable
   df_scatter <- df_long_sub %>%
-    filter(Variable == "a", Version %in% c("1","1.5","0.5")) %>%
+    filter(Variable == "a", Version %in% c(paste0("I_b=", I_b_low), paste0("I_b=", I_b_mid), paste0("I_b=", I_b_high))) %>%
     left_join(
       GPP_long %>% filter(Variable == "a", !is.na(Value)),
       by = c("Dates","Variable"),
       suffix = c("_model","_gpp")
     ) %>%
     rename(Modeled = Value_model, GPP = Value_gpp)
-  
-  # ---- NEW SCATTER PLOT ----
-  ggplot(df_scatter, aes(x = GPP, y = Modeled, color = Version)) +
-    geom_point(size = 2, alpha = 0.8) +
-    geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
-    facet_wrap(~ Variable, scales = "free",
-               labeller = as_labeller(facet_labels)) +
-    labs(
-      title = "Modeled vs Observed GPP (Boreal Only, Nitrogen-Cost Variants)",
-      x = "Observed GPP",
-      y = "Modeled GPP",
-      color = "Version"
-    ) +
-    theme_minimal()
 }
 
 Testing_the_architecture <- function() {
@@ -1596,21 +1594,21 @@ original_life_histroy <- function() {
   lho$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_co2File("")
-  lho$set_soil_nitrogen(1.65)
+  lho$set_soil_nitrogen(1.0)
   lho$init()
   
   lho_2 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
   lho_2$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho_2$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho_2$set_co2File("")
-  lho_2$set_soil_nitrogen(0.5)
+  lho_2$set_soil_nitrogen(0.08)
   lho_2$init()
   
   lho_3 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
   lho_3$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho_3$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho_3$set_co2File("")
-  lho_3$set_soil_nitrogen(0.1)
+  lho_3$set_soil_nitrogen(0.04)
   lho_3$init()
   
   dt <- 1/12
@@ -1715,8 +1713,9 @@ original_life_histroy <- function() {
   # 4. Height with validation data
   plot(df$date, df$height, type = "l", col = cols[1],
        ylab = "Height (m)", main = "Tree Height", xlab = "Date",
-       ylim = range(df$height, loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "pine height BA weighted mean"],
-                    prebas$multiOut[3,,11,,1][1:62], na.rm = TRUE))
+       ylim = range(df$height, df_2$height, df_3$height,
+                    loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "pine height BA weighted mean"],
+                    prebas$multiOut[3,,11,,1][1:62], halme_et_al_2022$height, na.rm = TRUE))
   lines(df_2$date, df_2$height, col = cols[2])
   lines(df_3$date, df_3$height, col = cols[3])
   points(as.Date(paste0(loaded_data$smearII_data$date[loaded_data$smearII_data$variable == "pine height BA weighted mean"], "-01-01")), 
@@ -1730,7 +1729,7 @@ original_life_histroy <- function() {
   
   plot(df$date, df$diameter, type = "l", col = cols[1],
        ylab = "Diameter (m)", main = "Tree Diameter", xlab = "Date",
-       ylim = range(df$diameter, df_2$diameter, df_3$diameter, 0.01*loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "pine diameter BA weighted mean"], prebas$multiOut[3,,12,,1][1:62]/100, na.rm = TRUE))
+       ylim = range(df$diameter, df_2$diameter, df_3$diameter, 0.01*loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "pine diameter BA weighted mean"], na.rm = TRUE))
   lines(df_2$date, df_2$diameter, col = cols[2])
   lines(df_3$date, df_3$diameter, col = cols[3])
   points(as.Date(paste0(loaded_data$smearII_data$date[loaded_data$smearII_data$variable == "pine diameter BA weighted mean"], "-01-01")), 0.01*loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "pine diameter BA weighted mean"], col = "blue", pch = "x")
@@ -1779,30 +1778,30 @@ original_life_histroy <- function() {
   lines(df_3$date, df_3$tree_nitrogen, col = cols[3])
   legend("topleft", legend = c(N_labels), col = c(cols), lty = 1, bty = "n")
   
-  plot(df$date, df$optimal_leaf_nitrogen, type = "p", col = cols[1], pch = ".",
+  plot(df$date, df$optimal_leaf_nitrogen, type = "l", col = cols[1],
        ylab = "Leaf N Dynamics (g g⁻¹)", main = "Optimal Leaf N", xlab = "Date",
-       ylim = range(df$optimal_leaf_nitrogen, 1000 * df$potential_leaf_nitrogen[5:nrow(df)], 
+       ylim = range(df$optimal_leaf_nitrogen, 1000 * df$potential_leaf_nitrogen[5:nrow(df)],
                     df_2$optimal_leaf_nitrogen, 1000 * df_2$potential_leaf_nitrogen[5:nrow(df_2)],
                     df_3$optimal_leaf_nitrogen, 1000 * df_3$potential_leaf_nitrogen[5:nrow(df_3)], na.rm = TRUE))
-  points(df_2$date, df_2$optimal_leaf_nitrogen, col = cols[2], pch = ".")
-  points(df_3$date, df_3$optimal_leaf_nitrogen, col = cols[3], pch = ".")
-  points(df$date, 1000 * df$potential_leaf_nitrogen, col = cols[1], pch = "-")
-  points(df_2$date, 1000 * df_2$potential_leaf_nitrogen, col = cols[2], pch = "-")
-  points(df_3$date, df_3$potential_leaf_nitrogen, col = cols[3], pch = "-")
+  lines(df_2$date, df_2$optimal_leaf_nitrogen, col = cols[2])
+  lines(df_3$date, df_3$optimal_leaf_nitrogen, col = cols[3])
+  lines(df$date, 1000 * df$potential_leaf_nitrogen, col = cols[1], lty = 2)
+  lines(df_2$date, 1000 * df_2$potential_leaf_nitrogen, col = cols[2], lty = 2)
+  lines(df_3$date, 1000 * df_3$potential_leaf_nitrogen, col = cols[3], lty = 2)
   abline(h = 0.0151, col = "blue", lty = 1)
-  legend("topright", legend = c("Potential", "Optimal"), col = "black", pch = c("-", "."), bty = "n", title = "Leaf Nitrogen")
+  legend("topright", legend = c("Potential", "Optimal"), col = "black", lty = c(2, 1), bty = "n", title = "Leaf Nitrogen")
   title(sub = "Korhonen 2012: Socts Pine Needle N", col.sub = "blue")
   
-  plot(df$date, df$optimal_leaf_nitrogen, type = "p", col = cols[1], pch = ".",
+  plot(df$date, df$optimal_leaf_nitrogen, type = "l", col = cols[1],
        ylab = "Leaf N Dynamics (g g⁻¹)", main = "Optimal Leaf N", xlab = "Date",
        ylim = range(df$optimal_leaf_nitrogen,
                     df_2$optimal_leaf_nitrogen,
                     df_3$optimal_leaf_nitrogen,
                     na.rm = TRUE))
-  points(df_2$date, df_2$optimal_leaf_nitrogen, col = cols[2], pch = ".")
-  points(df_3$date, df_3$optimal_leaf_nitrogen, col = cols[3], pch = ".")
+  lines(df_2$date, df_2$optimal_leaf_nitrogen, col = cols[2])
+  lines(df_3$date, df_3$optimal_leaf_nitrogen, col = cols[3])
   abline(h = 12/1000, col = "blue", lty = 1)
-  legend("topright", legend = c("Optimal"), col = "black", pch = ".", bty = "n", title = "Leaf Nitrogen")
+  legend("topright", legend = c("Optimal"), col = "black", lty = 1, bty = "n", title = "Leaf Nitrogen")
   title(sub = "Korhonen 2012: Scots Pine Needle N", col.sub = "blue")
   
   # Plot your lines
@@ -2049,23 +2048,20 @@ original_life_histroy <- function() {
   names(data) <- list.files(hyde_all)[1:9]
   useful_data <- merge(data[[2]], data[[5]], c('plotID', 'eventID', 'eventYear'), all=TRUE)
   
-  # ============================================================================
-  # Boreal Calibration — Combined Figure
-  # 8 panels (2 × 4)
-  # ============================================================================
+  #################################################33
   
   lho <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
   lho$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_co2File("")
-  lho$set_soil_nitrogen(1.2)
+  lho$set_soil_nitrogen(0.5)
   lho$init()
   
   lho_2 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
   lho_2$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho_2$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho_2$set_co2File("")
-  lho_2$set_soil_nitrogen(0.8)
+  lho_2$set_soil_nitrogen(0.25)
   lho_2$init()
   
   lho_3 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
@@ -2157,26 +2153,28 @@ original_life_histroy <- function() {
   pch_lit    <- 17
   
   # (a) GPP
-  ylim_gpp <- range(df$assim_gross/df$crown_area, df_2$assim_gross/df_2$crown_area, df_3$assim_gross/df_3$crown_area,
+  ylim_gpp <- range(df$assim_gross/df$crown_area/2.04, df_2$assim_gross/df_2$crown_area/2.04, df_3$assim_gross/df_3$crown_area/2.04,
                     Eddy_covariance$GPP_mean_kg, na.rm = TRUE)
-  plot(df$date, df$assim_gross/df$crown_area, type = "l", col = cols[1], lwd = lwd_model,
+  plot(df$date, df$assim_gross/df$crown_area/2.04, type = "l", col = cols[1], lwd = lwd_model,
        ylim = ylim_gpp, xlab = "", ylab = expression("GPP (kg C m"^{-2}*" year"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df_2$date, df_2$assim_gross/df_2$crown_area, col = cols[2], lwd = lwd_model)
-  lines(df_3$date, df_3$assim_gross/df_3$crown_area, col = cols[3], lwd = lwd_model)
+  lines(df_3$date, df_3$assim_gross/df_3$crown_area/2.04, col = cols[3], lwd = lwd_model)
+  lines(df_2$date, df_2$assim_gross/df_2$crown_area/2.04, col = cols[2], lwd = lwd_model)
+  lines(df$date, df$assim_gross/df$crown_area/2.04, col = cols[1], lwd = lwd_model)
   points(Eddy_covariance$MonthlyDate, Eddy_covariance$GPP_mean_kg,
          col = col_obs, pch = pch_obs, cex = 0.8)
   mtext("(a)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
   
   # (b) NPP
-  ylim_npp <- range(df$assim_net/df$crown_area, df_2$assim_net/df_2$crown_area, df_3$assim_net/df_3$crown_area,
+  ylim_npp <- range(df$assim_net/df$crown_area/2.04, df_2$assim_net/df_2$crown_area/2.04, df_3$assim_net/df_3$crown_area/2.04,
                     -Eddy_covariance$NEE_mean_kg, na.rm = TRUE)
-  plot(df$date, df$assim_net/df$crown_area, type = "l", col = cols[1], lwd = lwd_model,
+  plot(df_2$date, df_2$assim_net/df_2$crown_area/2.04, col = cols[3], type = "l", lwd = lwd_model,
        ylim = ylim_npp, xlab = "", ylab = expression("NPP (kg C m"^{-2}*" year"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df_2$date, df_2$assim_net/df_2$crown_area, col = cols[2], lwd = lwd_model)
-  lines(df_3$date, df_3$assim_net/df_3$crown_area, col = cols[3], lwd = lwd_model)
+  lines(df_2$date, df_2$assim_net/df_2$crown_area/2.04, col = cols[2], lwd = lwd_model)
+  lines(df_3$date, df_3$assim_net/df_3$crown_area/2.04, col = cols[3], lwd = lwd_model)
+  lines(df$date, df$assim_net/df$crown_area/2.04, col = cols[1], lwd = lwd_model)
   points(Eddy_covariance$MonthlyDate, -Eddy_covariance$NEE_mean_kg,
          col = col_obs, pch = pch_obs, cex = 0.8)
   mtext("(b)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
@@ -2187,7 +2185,7 @@ original_life_histroy <- function() {
   smear_h_val <- loaded_data$smearII_data$amount[smear_h_idx]
   smear_h_date <- as.Date(paste0(loaded_data$smearII_data$date[smear_h_idx], "-01-01"))
   ylim_h <- range(df$height, df_2$height, df_3$height, smear_h_val,
-                  halme_et_al_2022$height, na.rm = TRUE)
+                  halme_et_al_2022$height, useful_data$averageTreeHeight, na.rm = TRUE)
   
   plot(df$date, df$height, type = "l", col = cols[1], lwd = lwd_model,
        ylim = ylim_h, xlab = "", ylab = "Height (m)",
@@ -2220,18 +2218,19 @@ original_life_histroy <- function() {
   lines(df$date, df$height, col = cols[1], lwd = lwd_model)
   lines(df_2$date, df_2$height, col = cols[2], lwd = lwd_model)
   lines(df_3$date, df_3$height, col = cols[3], lwd = lwd_model)
-
+  
   # (d) Diameter
   smear_d_idx <- loaded_data$smearII_data$variable == "pine diameter BA weighted mean"
   smear_d_val <- 0.01 * loaded_data$smearII_data$amount[smear_d_idx]
   smear_d_date <- as.Date(paste0(loaded_data$smearII_data$date[smear_d_idx], "-01-01"))
-  ylim_d <- range(df$diameter, df_2$diameter, df_3$diameter, smear_d_val, na.rm = TRUE)
-
-  plot(df$date, df$diameter, type = "l", col = cols[1], lwd = lwd_model,
+  ylim_d <- range(df$diameter, df_2$diameter, df_3$diameter, smear_d_val,
+                  0.01 * useful_data$averageTreeDiameter, na.rm = TRUE)
+  
+  plot(df_2$date, df_2$diameter, type = "l", col = cols[2], lwd = lwd_model,
        ylim = ylim_d, xlab = "", ylab = "Diameter (m)",
        cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df_2$date, df_2$diameter, col = cols[2], lwd = lwd_model)
   lines(df_3$date, df_3$diameter, col = cols[3], lwd = lwd_model)
+  lines(df$date, df$diameter, col = cols[1], lwd = lwd_model)
   points(smear_d_date, smear_d_val, col = adjustcolor(col_range, alpha.f = 0.15), pch = 4, cex = 1.5, lwd = lwd_obs)
   for (id in unique(useful_data$plotID)) {
     sub <- useful_data[useful_data$plotID == id & !is.na(useful_data$averageTreeDiameter), ]
@@ -2254,9 +2253,9 @@ original_life_histroy <- function() {
   }
   mtext("(d)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
-  lines(df$date, df$diameter, col = cols[1], lwd = lwd_model)
-  lines(df_2$date, df_2$diameter, col = cols[2], lwd = lwd_model)
   lines(df_3$date, df_3$diameter, col = cols[3], lwd = lwd_model)
+  lines(df_2$date, df_2$diameter, col = cols[2], lwd = lwd_model)
+  lines(df$date, df$diameter, col = cols[1], lwd = lwd_model)
   
   # (e) Vcmax
   ylim_vc <- range(df$vcmax, df_2$vcmax, df_3$vcmax, na.rm = TRUE)
@@ -2266,25 +2265,25 @@ original_life_histroy <- function() {
        cex.axis = cex_axis, cex.lab = cex_lab)
   rect(par("usr")[1], 0, par("usr")[2], 30,
        col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
-  lines(df$date, df$vcmax, col = cols[1], lwd = lwd_model)
-  lines(df_2$date, df_2$vcmax, col = cols[2], lwd = lwd_model)
   lines(df_3$date, df_3$vcmax, col = cols[3], lwd = lwd_model)
+  lines(df_2$date, df_2$vcmax, col = cols[2], lwd = lwd_model)
+  lines(df$date, df$vcmax, col = cols[1], lwd = lwd_model)
   mtext("(e)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
   
   # (f) Optimal leaf nitrogen
   ylim_oln <- range(df$optimal_leaf_nitrogen, df_2$optimal_leaf_nitrogen,
                     df_3$optimal_leaf_nitrogen, na.rm = TRUE)
-  plot(df$date, df$optimal_leaf_nitrogen, type = "n", col = cols[1], pch = 20, cex = 0.3,
+  plot(df$date, df$optimal_leaf_nitrogen, type = "n", col = cols[1], pch = 20, cex = 1,
        ylim = ylim_oln, xlab = "",
        ylab = expression("Optimal leaf N (g g"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
   #rect(par("usr")[1], 11 / 1000, par("usr")[2], 13 / 1000,
   #     col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
-  points(df$date, df$optimal_leaf_nitrogen, col = cols[1], pch = 20, cex = 0.3)
-  points(df_2$date, df_2$optimal_leaf_nitrogen, col = cols[2], pch = 20, cex = 0.3)
+  points(df_3$date, df_3$optimal_leaf_nitrogen, col = cols[3], pch = 20, cex = 1)
+  points(df_2$date, df_2$optimal_leaf_nitrogen, col = cols[2], pch = 20, cex = 1)
+  points(df$date, df$optimal_leaf_nitrogen, col = cols[1], pch = 20, cex = 1)
   
-  points(df_3$date, df_3$optimal_leaf_nitrogen, col = cols[3], pch = 20, cex = 0.3)
   mtext("(f)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
   
@@ -2321,8 +2320,6 @@ original_life_histroy <- function() {
   add_range(date_point, low, high, col = col_range)
   mtext("(h)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
-  
-  plot(df$date, df$belowground_infrastructure)
   
   # Shared legend
   par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
