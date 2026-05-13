@@ -1,0 +1,1369 @@
+---
+title: "Optimisation in R"
+author: "Joanna"
+date: "2025-07-01"
+output: html_document
+---
+
+## Read the data
+
+```{r}
+# Read Data
+roots_df <- read_csv("yiyang_roots.csv")  # adjust path
+# Select relevant columns (adjust based on output of colnames)
+roots_data <- roots_df %>%
+  select(D, L, RD, `C (%)`, `N(%)`, `C/N`, `ECM biomass Summer`, `ECM biomass whole year`, `Longevity Roots`, `Longevity Root Tips`, `Root biomass <2`, `Root biomass 2-5`) %>%
+  rename(
+    C_pct = `C (%)`,
+    N_pct = `N(%)`,
+    CN_ratio = `C/N`,
+    ECM_summer = `ECM biomass Summer`,
+    ECM_whole_year = `ECM biomass whole year`,
+    Longevity_Roots = `Longevity Roots`,
+    Longevity_Root_Tips = `Longevity Root Tips`,
+    Root_biomass_2 = `Root biomass <2`,
+    Root_biomass_2_5 = `Root biomass 2-5`
+  )
+
+soil_df  <- read_csv("yiyang_soil.csv")   # adjust path
+
+# Convert to long format for ggplot
+roots_long <- roots_df %>%
+  mutate(D = roots_data$D,
+         L = roots_data$L,
+         RD = roots_data$RD)
+
+roots_ostonen_2011 <- data.frame(
+  D = c(0.279,  0.318,  0.381,  0.314,  0.336,  0.396,  0.297,  0.339,  0.358,  0.341,  0.319,  0.377),
+  L = c(2.3,  2.2,  2.4,  1.8,  2.3,  1.5,  1.8,  1.4,  1.5,  1.5,  1.5,  1.10),
+  RD = c(353, 350, 273, 308, 294, 239, 340, 263, 272, 292, 236, 244)
+)
+
+stele_ostonen_2003 <- data.frame(
+  D = c(422.5, 370.0, 342.2, 315.7, 361.2)/1000,
+  PRS = c(14.9, 13.4, 14.9, 15.2, 15.8)*0.01
+)
+
+Sys.setenv("VROOM_CONNECTION_SIZE" = 500000)
+FRED <- read_csv("~/Downloads/FRED3_Entire_Database_2021.csv", n_max = 8)
+FRED_small <- read_csv("~/Downloads/FRED3_Entire_Database_2021.csv", skip = 9)
+names(FRED_small) <- names(FRED)
+row_names = c(names(grep("cortex", FRED[1,], value = TRUE)[1]), names(grep("Root diameter", FRED[1,], value = TRUE)[3]), names(grep("stele", FRED[1,], value = TRUE)[c(1, 4, 8, 12)]))
+
+c(grep("cortex", FRED[1,], value = TRUE)[1], grep("Root diameter", FRED[1,], value = TRUE)[3], grep("stele", FRED[1,], value = TRUE)[c(1, 4, 8, 12)])
+summary(pine_stele)
+
+pine_stele <- FRED_small %>%
+  filter(F01286 == "Pinus",
+         F01287 == "sylvestris",
+         F00060 == "absorptive") %>%
+  select(row_names)
+
+spruce_stele <- FRED_small %>%
+  filter(F01286 == "Picea",
+         F01287 == "abies",
+         F00060 == "absorptive") %>%
+  select(row_names)
+
+```
+
+## Create the initial conditions
+
+```{r setup, include=FALSE}
+# Load required packages
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(readr)
+library(nloptr)  # for constrained optimization
+library(patchwork)  # for combining ggplot objects
+library(tibble)
+library(purrr)
+library(rphydro)
+library(callr)
+library(parallel)
+library(future.apply)
+library(viridis)
+
+# Environmental constants
+TAverage <- 5.035873
+Naverage <- 0.03
+p0 <- 2.982752
+y <- 365
+A_const <- 0.05
+
+# Constants
+e_u_myco <- 0.5      # gN gC-1 d-1 mycorrhiza
+e_u_root <- 0.17     # gN gC-1 d-1 roots
+u_cB <- 10
+u_cB_root <- 10
+pi <- base::pi
+beta_myco = 50
+beta_root = 1000
+mycorrhized = 0.9  # Heinonsalo, joskus
+resp = 0
+invetsment_tree = 0
+invetsment_mcyo = 1
+
+# CT VT MT
+kg_fungi <- c(92.20, 116.49, 174.22)  # kg fungi per ha
+number_of_trees <- c(407, 422, 684)   # number of trees per ha
+fungi_per_tree <- kg_fungi / number_of_trees  # kg fungi per tree
+
+fine_root_mass_per_ha <- c(189.01, 173.04, 90.56)  # g fine roots per ha
+fine_root_mass_per_tree_g <- fine_root_mass_per_ha / number_of_trees  # g fine roots per tree
+# More fungal compared to fine root biomass in more fertile sites!
+tip_mass_mg <- c(0.12191424104274, 0.159271194001111, 0.175429654602955)  # mg
+tip_mass_g <- tip_mass_mg / 1000  # convert mg to g
+
+roots_per_tree <- fine_root_mass_per_tree_g / tip_mass_g  # number of roots per tree
+fungi_per_root_kg <- fungi_per_tree / roots_per_tree  # kg fungi per root
+fungi_per_root_g <- fungi_per_root_kg * 1000  # g fungi per root
+
+# Fit a linear model
+model <- lm(fungi_per_root_g ~ roots_per_tree)
+# View the model summary
+summary(model)
+# Extract the gradient (slope)
+gradient <- coef(model)[["roots_per_tree"]]
+c_biomass <- coef(model)[["(Intercept)"]]
+```
+
+## Key relationships
+
+```{r cars}
+# Fit g using nonlinear least squares
+fit_pine <- nls(
+  D ~ g / L^(1/5),
+  data = roots_df,
+  start = list(g = 0.25)
+)
+
+g_pine <- coef(fit_pine)["g"]
+
+fit_spruce <- nls(
+  D ~ g / L^(1/5),
+  data = roots_ostonen_2011,
+  start = list(g = 0.25)
+)
+
+g_spruce <- coef(fit_spruce)["g"]
+
+d_pine <- function(l) {
+  l_safe <- pmax(l, 1e-4)
+  g_pine / l_safe^(1/5)
+}
+
+d_spruce <- function(l) {
+  l_safe <- pmax(l, 1e-4)
+  g_spruce / l_safe^(1/5)
+}
+
+l_seq <- seq(0.5,
+             max(c(roots_df$L, roots_ostonen_2011$L), na.rm = TRUE) + 0.5,
+             length.out = 500)
+
+curve_df <- data.frame(
+  L = l_seq,
+  Pine = d_pine(l_seq),
+  Spruce = d_spruce(l_seq)
+)
+
+# Prepare point data
+pine_points <- roots_df %>%
+  select(L, D) %>%
+  mutate(Species = "Pine")
+
+spruce_points <- roots_ostonen_2011 %>%
+  select(L, D) %>%
+  mutate(Species = "Spruce")
+
+# Pine
+pine_points <- pine_points %>%
+  mutate(Fit = d_pine(L),
+         PercError = (D - Fit) / Fit * 100)
+
+# Spruce
+spruce_points <- spruce_points %>%
+  mutate(Fit = d_spruce(L),
+         PercError = (D - Fit) / Fit * 100)
+
+# Combine for convenience
+roots_all_res <- bind_rows(pine_points, spruce_points)
+
+# Quick summary
+diameter_percentage_area <- roots_all_res %>%
+  group_by(Species) %>%
+  summarise(
+    MeanPercError = mean(PercError)
+  )
+
+# --- Create legend labels with MPE ---
+pine_label <- paste0("Pine (MPE = ", round(diameter_percentage_area$MeanPercError[diameter_percentage_area$Species=="Pine"], 3), "%)")
+spruce_label <- paste0("Spruce (MPE = ", round(diameter_percentage_area$MeanPercError[diameter_percentage_area$Species=="Spruce"], 3), "%)")
+
+# Update species labels in points
+pine_points$Species <- pine_label
+spruce_points$Species <- spruce_label
+
+roots_all <- bind_rows(pine_points, spruce_points)
+
+# Update species labels in curve data
+curve_df_long <- curve_df %>%
+  pivot_longer(cols = c(Pine, Spruce),
+               names_to = "Species",
+               values_to = "RootDiameter")
+
+curve_df_long$Species <- ifelse(
+  curve_df_long$Species == "Pine",
+  pine_label,
+  spruce_label
+)
+
+# --- Plot with MPE in legend ---
+p_diameter_length <- ggplot() +
+  geom_line(data = curve_df_long,
+            aes(x = L, y = RootDiameter, color = Species),
+            linewidth = 1.4) +
+
+  geom_point(data = roots_all,
+             aes(x = L, y = D, color = Species),
+             size = 5, alpha = 0.8) +
+
+  labs(
+    x = "Tip Length (mm)",
+    y = "Root Diameter\n(mm)",
+    color = "Species"
+  ) +
+
+  scale_color_manual(values = c("blue", "grey40")) +
+
+  guides(color = guide_legend(override.aes = list(linetype = 0, size = 5))) +
+
+  coord_cartesian(xlim = c(0.5, NA)) +
+
+  theme_classic(base_size = 36) +
+  theme(
+    axis.text = element_text(size = 22),
+    axis.title = element_text(size = 32),
+    legend.position = "top",
+    legend.direction = "vertical",
+    legend.title = element_blank(),
+    legend.text = element_text(size = 22),
+    legend.key.size = unit(0.5, "cm")
+  )
+p_diameter_length
+```
+
+```{r}
+# Step 1: Compute PRD for each species over its own L range
+l_seq_pine <- seq(min(roots_df$L, na.rm=TRUE)-0.5,
+                  max(roots_df$L, na.rm=TRUE)+0.5, length.out = 500)
+l_seq_spruce <- seq(min(roots_ostonen_2011$L, na.rm=TRUE)-0.5,
+                     max(roots_ostonen_2011$L, na.rm=TRUE)+0.5, length.out = 500)
+
+# New coefficients
+a_new <- 0.25   # baseline stele fraction (example)
+b_new <- 0.02   # scaling for small roots (example)
+
+PRD_pine <- function(l) (a_new + b_new / d_pine(l))^2
+PRD_spruce <- function(l) (a_new + b_new / d_spruce(l))^2
+
+nls_fit <- nls(PRS ~ (a + b / D)^2,
+               data = stele_ostonen_2003,
+               start = list(a = 0.2, b = 0.014))
+
+a_new <- coef(nls_fit)["a"]
+b_new <- coef(nls_fit)["b"]
+
+PRS_curve_spruce <- PRD_spruce(l_seq_spruce)
+PRS_curve_pine <- PRD_pine(l_seq_spruce)
+
+ggplot() +
+  geom_line(aes(x = d_spruce(l_seq_spruce),
+                y = PRS_curve_spruce),
+            color = "grey40", linewidth = 1.2) +
+  geom_point(data = stele_ostonen_2003,
+             aes(x = D, y = PRS),
+             color = "grey40", size = 2, alpha = 0.7) +
+  labs(x = "Root Diameter (mm)", y = "Stele Area Fraction (PRS)") +
+  theme_classic()
+
+```
+
+```{r}
+PRD_curve_spruce <- PRD_spruce(l_seq_spruce)
+PRD_curve_pine <- PRD_pine(l_seq_pine)
+
+# Pine PRD at measured points
+roots_df <- roots_df %>%
+  mutate(PRD_value = PRD_pine(L))
+
+# Spruce PRD at measured points
+roots_ostonen_2011 <- roots_ostonen_2011 %>%
+  mutate(PRD_value = PRD_spruce(L))
+
+# Step 2: Fit species-specific rho (slope + intercept)
+# Linear model per species
+# Step 2: Fit species-specific rho (NO intercept)
+fit_pine_rho <- lm(RD ~ PRD_value, data = roots_df)
+fit_spruce_rho <- lm(RD ~ PRD_value, data = roots_ostonen_2011)
+
+# Now you have slope + intercept
+s_pine <- coef(fit_pine_rho)["PRD_value"]
+b_pine <- coef(fit_pine_rho)["(Intercept)"]
+
+s_spruce <- coef(fit_spruce_rho)["PRD_value"]
+b_spruce <- coef(fit_spruce_rho)["(Intercept)"]
+
+# Compute curves
+rho_curve_pine <- s_pine * PRD_curve_pine + b_pine
+rho_curve_spruce <- s_spruce * PRD_curve_spruce + b_spruce
+
+rho_pine <- function(PRD) s_pine * PRD + b_pine
+rho_spruce <- function(PRD) s_spruce * PRD + b_spruce
+
+# Step 4: Diameters
+D_curve_pine <- d_pine(l_seq_pine)
+D_curve_spruce <- d_spruce(l_seq_spruce)
+
+# Pine MPE
+roots_df <- roots_df %>%
+  mutate(pred_RD = predict(fit_pine_rho, newdata = roots_df),
+         abs_perc_err = abs(RD - pred_RD) / RD * 100)
+
+pine_mpe <- mean(roots_df$abs_perc_err, na.rm = TRUE)
+
+# Spruce MPE
+roots_ostonen_2011 <- roots_ostonen_2011 %>%
+  mutate(pred_RD = predict(fit_spruce_rho, newdata = roots_ostonen_2011),
+         abs_perc_err = abs(RD - pred_RD) / RD * 100)
+
+spruce_mpe <- mean(roots_ostonen_2011$abs_perc_err, na.rm = TRUE)
+
+pine_label <- paste0("Pine (MPE = ", round(pine_mpe, 3), "%)")
+spruce_label <- paste0("Spruce (MPE = ", round(spruce_mpe, 3), "%)")
+
+# Step 5: Create plotting dataframe with updated labels
+curve_full <- data.frame(
+  D = c(D_curve_pine, D_curve_spruce),
+  Rho = c(rho_curve_pine, rho_curve_spruce),
+  species = rep(c(pine_label, spruce_label),
+                times = c(length(D_curve_pine), length(D_curve_spruce)))
+)
+
+# --- Plot with MPE in legend ---
+p_density_diameter <- ggplot() +
+  geom_line(data = curve_full,
+            aes(x = D, y = Rho, color = species),
+            linewidth = 1.4) +
+
+  geom_point(data = roots_df %>% mutate(species = pine_label),
+             aes(x = D, y = RD, color = species),
+             size = 5, alpha = 0.8) +
+
+  geom_point(data = roots_ostonen_2011 %>% mutate(species = spruce_label),
+             aes(x = D, y = RD, color = species),
+             size = 5, alpha = 0.8) +
+
+  labs(
+    x = "Root Diameter (mm)",
+    y = "Root Tissue\nDensity (kg/m³)",
+    color = "Species"
+  ) +
+
+  scale_color_manual(values = c("blue", "grey40")) +
+
+  guides(color = guide_legend(override.aes = list(linetype = 0, size = 5))) +
+
+  theme_classic(base_size = 36) +
+  theme(
+    axis.text = element_text(size = 22),
+    axis.text.x = element_text(size = 22, angle = 45, hjust = 1),
+    axis.title = element_text(size = 32),
+    legend.position = "top",
+    legend.direction = "vertical",
+    legend.title = element_blank(),
+    legend.text = element_text(size = 22),
+    legend.key.size = unit(0.5, "cm")
+  )
+p_density_diameter
+```
+
+```{r}
+# l VERSION
+C_NEW_pine <- function(n, l) {
+  rho_pine(PRD_pine(l)) * (0.001 * d_pine(l))^2 * 0.001 * l * pi * n * 1/4
+}
+
+C_NEW_spruce <- function(n, l) {
+  rho_spruce(PRD_spruce(l)) * (0.001 * d_spruce(l))^2 * 0.001 * l * pi * n * 1/4
+}
+
+# old version
+C_OLD <- function(n, l, diameter, density) {
+  density * (0.001 * diameter)^2 * 0.001 * l * pi * n * 1/4
+}
+```
+
+```{r}
+# --- Species-specific biomass calculations ---
+new_biomass_pine <- C_NEW_pine(1, roots_df$L)              
+new_biomass_spruce <- C_NEW_spruce(1, roots_ostonen_2011$L)
+
+old_biomass_pine <- C_OLD(1, roots_df$L, roots_df$D, roots_df$RD)
+old_biomass_spruce <- C_OLD(1, roots_ostonen_2011$L, roots_ostonen_2011$D, roots_ostonen_2011$RD)
+
+# Combine into a single data frame
+df_species <- data.frame(
+  old_biomass = c(old_biomass_pine, old_biomass_spruce),
+  new_biomass = c(new_biomass_pine, new_biomass_spruce),
+  Species = rep(c("Pine", "Spruce"),
+                times = c(length(old_biomass_pine), length(old_biomass_spruce)))
+) %>%
+  mutate(Species = as.character(Species))  # ensure character for joining
+
+# Compute linear fit stats per species
+calc_stats <- function(df) {
+  fit <- lm(new_biomass ~ old_biomass, data = df)
+  data.frame(
+    R2 = summary(fit)$r.squared,
+    slope = coef(fit)[["old_biomass"]],
+    MPE = mean((df$new_biomass - df$old_biomass) / df$old_biomass * 100, na.rm = TRUE)
+  )
+}
+
+calc_stats <- function(df) {
+  fit <- lm(new_biomass ~ old_biomass, data = df)
+  summ <- summary(fit)
+  coefs <- summ$coefficients
+  
+  data.frame(
+    R2 = summ$r.squared,
+    
+    intercept = coefs["(Intercept)", "Estimate"],
+    intercept_p = coefs["(Intercept)", "Pr(>|t|)"],
+    
+    slope = coefs["old_biomass", "Estimate"],
+    slope_p = coefs["old_biomass", "Pr(>|t|)"],
+    
+    MPE = mean((df$new_biomass - df$old_biomass) /
+               df$old_biomass * 100, na.rm = TRUE)
+  )
+}
+
+stats_species <- df_species %>%
+  group_by(Species) %>%
+  group_modify(~ calc_stats(.x)) %>%
+  ungroup()
+
+# Add R², slope, and MPE to Species labels
+df_species <- df_species %>%
+  left_join(stats_species, by = "Species") %>%
+  mutate(
+    Species_label = paste0(
+      Species,
+      " (slope = ", round(slope, 3),
+      ", MPE = ", round(MPE, 3), "%)"
+    )
+  )
+
+# Create named vector for colors
+color_values <- setNames(
+  c("blue", "grey40"),
+  df_species %>% distinct(Species_label) %>% pull(Species_label)
+)
+
+# --- Plot ---
+p_biomass_comparison <- ggplot(df_species, aes(x = old_biomass, y = new_biomass, color = Species_label)) +
+
+  # Points
+  geom_point(size = 5, alpha = 0.8) +
+
+  # 1:1 reference line
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "black") +
+
+  # Species-specific linear fits
+  geom_smooth(method = "lm", se = FALSE, aes(color = Species_label), linewidth = 1.2) +
+
+  # Colors
+  scale_color_manual(values = color_values) +
+
+  # Labels
+  labs(
+    x = "Cylindrical Mass\nEstimation (kg)",
+    y = "Root Length Based\nEstimation (kg)",
+    color = "Species"
+  ) +
+
+  theme_classic(base_size = 36) +
+  theme(
+    axis.text = element_text(size = 22),
+    axis.title = element_text(size = 32),
+    legend.position = "top",
+    legend.direction = "vertical",
+    legend.background = element_rect(fill = alpha("white", 0.5)),
+    legend.title = element_text(size = 26),
+    legend.text = element_text(size = 24)
+  )
+p_biomass_comparison
+```
+
+```{r save-combined-plots}
+combined_plot <- (p_biomass_comparison + (p_density_diameter / p_diameter_length) +
+  plot_layout(widths = c(1.6, 1)) +
+  plot_annotation(tag_levels = 'a', tag_prefix = '(', tag_suffix = ')')) &
+  theme(plot.tag = element_text(size = 28, face = "bold"))
+ggsave("pine_spruce_combined.png", plot = combined_plot, width = 17, height = 12, dpi = 300)
+```
+
+# Age related
+
+```{r}
+a_age <- function(l) 3 - 3 * exp(-3 * d(l))
+uptake_age <- function(l) 1 / (1 + exp(a_age(l) - 2.7))
+```
+
+## Uptake
+
+```{r}
+# TODO: think of a new fungal biomass
+B_m <- function(n, gradient = -9.368976e-05, c = 0.3909945) {
+  # Ding data
+  out = gradient * n + c
+  out[out < 0] <- 0
+  
+  # Old version - mistaken conversion
+  out = 1000 * 4.81000339 * 10^(-8) * n
+  
+  # Exudate based?
+  # out = (carbon - turnover_repiration) * B
+
+  return(out)
+}
+
+# U_c_myco(N_av, n)
+U_c_myco <- function(N_av, n) {
+  numerator <- B_m(n) / 2 * B_m(n) / 2 * u_cB # * N_av * e_u_myco
+  denominator <- u_cB + beta_myco * B_m(n) / 2 # + N_av * e_u_myco
+  return(numerator / denominator)
+}
+
+# U_c(N_av, n, l)
+U_c <- function(N_av, n, l) {
+  surface_area <- d(l) * l * pi * n
+  numerator <- d(l) * l * pi * n * (1 / 8 * 10^(-6)) * rho(PRD(l)) * d(l) * u_cB_root * surface_area # * N_av * e_u_root
+  denominator <- u_cB_root + beta_root * surface_area # + N_av * e_u_root 
+  return(numerator / denominator)
+}
+
+# U_myco(N_av, n)
+U_myco <- function(N_av, n) {
+  val <- U_c_myco(N_av, n)
+  return(val * N_av / (val + N_av))
+}
+
+# U(N_av, n, l)
+U <- function(N_av, n, l) {
+  val <- U_c(N_av, n, l)
+  return(val * N_av / (val + N_av))
+}
+
+# gateway for the nitrogen(l)
+nitrogen_gate <- function(n, l, K = 10) {
+  area_total <- n * pi * d(l) * l
+  return(area_total^2 / (area_total^2 + K^2))
+}
+
+# Final uptake function U_a(N_av, n, l)
+U_a <- function(N_av, n, l) {
+  uptake_age_val <- uptake_age(l)
+  
+  return(uptake_age_val * ((1 - mycorrhized) * U(N_av, n, l) + mycorrhized * nitrogen_gate(n, l) * invetsment_mcyo * U_myco(N_av, n)))
+}
+```
+
+```{r}
+# Define n and l ranges
+n_vals <- seq(0, 50, length.out = 100)
+l_vals <- seq(0, 5, length.out = 100)
+
+# Vectorize the function for grid application
+gate_vec <- Vectorize(nitrogen_gate)
+
+# Create grid of n and l
+grid <- expand.grid(n = n_vals, l = l_vals)
+grid$gate_val <- gate_vec(grid$n, grid$l)
+
+# Plot
+ggplot(grid, aes(x = n, y = l, fill = gate_val)) +
+  geom_tile() +
+  scale_fill_viridis_c(option = "plasma", name = "Gate Value") +
+  labs(
+    title = "Nitrogen Gate Value across Root Tip Number and Length",
+    x = "Number of Root Tips (n)",
+    y = "Root Length (l)"
+  ) +
+  theme_minimal()
+
+```
+
+## Heatmap of the root and mycorrhizal uptake
+
+```{r}
+# Define parameter ranges
+n_vals <- seq(0, 50, length.out = 100)
+l_vals <- seq(0, 5, length.out = 100)
+
+N_av_vals <- c(0.05, 0.1, 0.3, 0.6)
+
+# Create grid
+grid <- expand.grid(n = n_vals, l = l_vals, N_av = N_av_vals)
+
+# Evaluate both functions (you already have these defined)
+grid <- grid %>%
+  mutate(
+    U_myco_val = mapply(U_myco, N_av, n),
+    U_root_val = mapply(U, N_av, n, l)
+  )
+
+plot_data_long <- grid %>%
+  pivot_longer(cols = c(U_myco_val, U_root_val), 
+               names_to = "source", 
+               values_to = "uptake") %>%
+  mutate(source = recode(source,
+                         U_myco_val = "Mycorrhizal Uptake",
+                         U_root_val = "Root Uptake"))
+
+ggplot(plot_data_long, aes(x = n, y = l, fill = uptake)) +
+  geom_tile() +
+  scale_fill_viridis_c(option = "turbo", na.value = "grey90") +
+  facet_grid(source ~ N_av, labeller = label_bquote(cols = N[av] == .(N_av))) +
+  labs(
+    title = "Nitrogen Uptake from Mycorrhiza vs Roots across N_av",
+    x = "Number of root tips (n)",
+    y = "Root length (l)",
+    fill = "Uptake"
+  ) +
+  theme_minimal()
+
+```
+
+## Heatmap of the Uptake
+
+```{r}
+# Create grid of n and l values
+# Define sequences
+n_vals <- seq(0, 50, length.out = 100)
+l_vals <- seq(0, 5, length.out = 100)
+
+N_av_vals <- c(0.05, 0.1, 0.3, 0.6)
+
+U_a_vec <- Vectorize(U_a)
+
+# Build data for all N_av in one data frame:
+all_grids <- lapply(N_av_vals, function(N_av) {
+  grid <- expand.grid(n = n_vals, l = l_vals)
+  grid$U_a_val <- U_a_vec(N_av, grid$n, grid$l)
+  grid$N_av <- N_av
+  return(grid)
+})
+
+grid_df_all <- do.call(rbind, all_grids)
+
+# Free up unused memory
+rm(all_grids)
+gc()
+
+# Plot with facets:
+ggplot(grid_df_all, aes(x = n, y = l, fill = U_a_val)) +
+  geom_tile() +
+  facet_wrap(~ N_av, labeller = label_bquote(N[av] == .(N_av))) +
+  scale_fill_viridis_c(option = "plasma", na.value = "grey90") +
+  labs(
+    title = expression("Uptake rate "~U[a]~"across n, l for various"~N[av]),
+    x = "Number of root tips (n)",
+    y = "Root length (l)",
+    fill = expression(U[a])
+  ) +
+  theme_minimal()
+
+```
+## Heatmap of the Carbon Cost
+
+```{r}
+# Define sequences
+n_vals <- seq(0, 50, length.out = 100)
+l_vals <- seq(0.1, 5, length.out = 100)  # Avoid l = 0
+
+# Create grid of n and l values
+grid_df_C <- expand.grid(n = n_vals, l = l_vals)
+
+# Vectorize your function C if not done already
+C_vec <- Vectorize(C)
+
+# Compute carbon cost C(n, l) efficiently
+grid_df_C$C_val <- C_vec(grid_df_C$n, grid_df_C$l)
+
+# Optional: remove intermediate variables and clean memory if needed
+gc()
+
+# Plot heatmap
+ggplot(grid_df_C, aes(x = n, y = l, fill = C_val)) +
+  geom_tile() +
+  scale_fill_viridis_c(option = "magma") +
+  labs(
+    title = expression("Carbon Cost " ~ C(n, l)),
+    x = "Number of root tips (n)",
+    y = "Root tip length (l)",
+    fill = expression(C(n, l))
+  ) +
+  theme_minimal()
+
+```
+
+## Photosynthesis from phydro
+
+```{r}
+photosynthesis <- function(U, j) {
+  kphio = 0.087;        # quantum yield efficiency
+  ppfd = 300;          # umol/m2/s
+  ppfd_max = 1200;
+  vpd  = 1000;         # Pa
+  co2  = 400;          # ppm
+  elv  = 0;            # m.a.s.l.
+  fapar = 0.7;         # fraction
+  rdark = 0.015;
+  tc = 25;
+  vwind = 3;
+  netrad = ppfd/2
+  psi_soil = -0.05
+  pa = calc_patm(elv)
+  
+  par_cost = list(alpha=0.1, gamma=1, nitrogen_store_conversion = 1);
+  par_plant = list(conductivity=3e-17, psi50=-2, b=2);
+  options = list(gs_method = "GS_IGF", 
+               et_method = "ET_DIFFUSION",
+               ftemp_vj_method = "FV_kumarathunge19",
+               ftemp_rd_method = "FR_heskel16",
+               ftemp_br_method = "FB_atkin15",
+               scale_alpha = F)
+
+  ### New parameters TODO: should work with 800!
+  a_jmax = 800
+  
+  out = rphydro_nitrogen(tc, tc, ppfd, netrad, vpd, co2, pa, j*U, fapar, kphio, psi_soil, rdark, vwind, a_jmax, par_plant, par_cost, options)
+  return(out$a)
+}
+```
+
+## Timeout
+
+```{r}
+# --- Define photosynthesis function ---
+photosynthesis <- function(U, j) {
+  kphio = 0.087        # quantum yield efficiency
+  ppfd = 300           # umol/m2/s
+  ppfd_max = 1200
+  vpd  = 1000          # Pa
+  co2  = 400           # ppm
+  elv  = 0             # m.a.s.l.
+  fapar = 0.7          # fraction
+  rdark = 0.015
+  tc = 25
+  vwind = 3
+  netrad = ppfd / 2
+  psi_soil = -0.05
+  pa = calc_patm(elv)
+
+  par_cost = list(alpha = 0.1, gamma = 1, nitrogen_store_conversion = 1)
+  par_plant = list(conductivity = 3e-17, psi50 = -2, b = 2)
+  options = list(
+    gs_method = "GS_IGF",
+    et_method = "ET_DIFFUSION",
+    ftemp_vj_method = "FV_kumarathunge19",
+    ftemp_rd_method = "FR_heskel16",
+    ftemp_br_method = "FB_atkin15",
+    scale_alpha = FALSE
+  )
+
+  a_jmax = 800
+
+  out <- rphydro_nitrogen(tc, tc, ppfd, netrad, vpd, co2, pa,
+                          j * U, fapar, kphio, psi_soil, rdark, vwind,
+                          a_jmax, par_plant, par_cost, options)
+
+  return(out$a)
+}
+
+```
+
+## Looking at the j parameter
+
+```{r}
+# --- Define fixed root parameters ---
+n <- 20
+l <- 1
+j_vals <- seq(1, 1000000, length.out = 100)
+
+# --- Define N_av values to vary ---
+N_av_vals <- c(0.05, 0.1, 0.3, 0.6)
+
+# --- Set up parallel backend ---
+num_cores <- detectCores() - 1
+cl <- makeCluster(num_cores)
+
+# --- Load libraries and export functions/vars to cluster ---
+invisible(clusterEvalQ(cl, library(rphydro)))
+clusterExport(cl, varlist = c("photosynthesis", "U_a", "n", "l"), envir = .GlobalEnv)
+
+# --- Collect data for each N_av ---
+photosynthesis_list <- lapply(N_av_vals, function(N_av) {
+  # Compute U for fixed n, l at this N_av
+  Uval <- U_a(N_av, n, l)
+  clusterExport(cl, varlist = "Uval", envir = environment())
+  
+  # Run photosynthesis(Uval, j) across j_vals
+  P_vals <- parSapply(cl, j_vals, function(j) {
+    tryCatch(photosynthesis(Uval, j), error = function(e) NA)
+  })
+  
+  # Return data frame for plotting
+  data.frame(
+    j = j_vals,
+    P = P_vals,
+    N_av = N_av
+  )
+})
+
+# --- Shut down cluster ---
+stopCluster(cl)
+
+# --- Combine results ---
+df_photosynthesis <- bind_rows(photosynthesis_list)
+
+# --- Plot: Photosynthesis vs j, faceted by N_av ---
+ggplot(df_photosynthesis, aes(x = j, y = P)) +
+  geom_line(color = "darkblue", linewidth = 1.2) +
+  facet_wrap(~ N_av, labeller = label_bquote(N[av] == .(N_av))) +
+  labs(
+    title = expression("Photosynthesis vs j for different" ~ N[av]),
+    x = "j (efficiency / light input)",
+    y = "Photosynthesis rate"
+  ) +
+  theme_minimal()
+```
+
+## Looking at the l and n
+
+```{r}
+# --- Fixed parameters ---
+j <- 100000
+n_vals <- seq(5, 50, length.out = 100)
+l_vals <- seq(0.5, 5, length.out = 100)
+
+# --- N_av values to loop over ---
+N_av_vals <- c(0.05, 0.1, 0.3, 0.6)
+
+# --- Create empty list to store results ---
+results_list <- list()
+
+# --- Loop over N_av values ---
+for (N_av in N_av_vals) {
+  # Step 1: Create grid of n and l
+  grid_df <- expand.grid(n = n_vals, l = l_vals)
+  
+  # Step 2: Compute Uval = U_a(N_av, n, l)
+  grid_df$Uval <- mapply(function(n, l) {
+    tryCatch(U_a(N_av, n, l), error = function(e) NA)
+  }, grid_df$n, grid_df$l)
+  
+  # Step 3: Parallel setup
+  num_cores <- detectCores() - 1
+  cl <- makeCluster(num_cores)
+  
+  invisible(clusterEvalQ(cl, library(rphydro)))
+  clusterExport(cl, varlist = c("photosynthesis", "j"), envir = environment())
+  clusterExport(cl, varlist = "Uvals", envir = list2env(list(Uvals = grid_df$Uval)))
+  
+  # Step 4: Parallel photosynthesis computation
+  grid_df$P_val <- parSapply(cl, grid_df$Uval, function(Uval) {
+    tryCatch(photosynthesis(Uval, j), error = function(e) NA)
+  })
+  
+  stopCluster(cl)
+  
+  # Step 5: Add N_av identifier
+  grid_df$N_av <- N_av
+  
+  # Step 6: Store
+  results_list[[as.character(N_av)]] <- grid_df
+}
+
+# --- Combine all into one dataframe ---
+combined_df <- bind_rows(results_list)
+
+# --- Plot all four as facets ---
+ggplot(combined_df, aes(x = n, y = l, fill = P_val)) +
+  geom_tile() +
+  scale_fill_viridis_c(option = "plasma", na.value = "grey90") +
+  facet_wrap(~ N_av, labeller = label_bquote(N[av] == .(N_av))) +
+  labs(
+    title = expression("Photosynthesis " ~ P(n, l) ~ "across N"[av]),
+    x = "Number of root tips (n)",
+    y = "Root tip length (l)",
+    fill = "Photosynthesis"
+  ) +
+  theme_minimal()
+```
+
+## Objective being defined
+
+```{r}
+# Sequence of N_av values
+nav_seq <- seq(0.01, 1, by = 0.01)
+
+# Define functions first
+objective <- function(x, N_av, j, q) {
+  n <- x[1]; l <- x[2]
+
+  # Reject invalid values early
+  if (is.na(n) || is.na(l) || n <= 0 || l <= 0) {
+    message("Invalid n or l:", n, l)
+    return(1e6)
+  }
+
+  # Compute uptake value
+  Uval <- tryCatch(U_a(N_av, n, l), error = function(e) NA)
+  if (is.na(Uval) || !is.finite(Uval)) {
+    message("Invalid Uval:", Uval, " for n=", n, " l=", l)
+    return(1e6)
+  }
+
+  # Compute photosynthesis, wrapped with tryCatch
+  Pval <- tryCatch(photosynthesis(Uval, j), error = function(e) NA)
+  if (is.na(Pval) || !is.finite(Pval)) {
+    message("Invalid Pval:", Pval, " for Uval=", Uval)
+    return(1e6)
+  }
+
+  # Compute carbon cost
+  Cval <- tryCatch(C(n, l), error = function(e) NA)
+  if (is.na(Cval) || !is.finite(Cval)) {
+    message("Invalid Cval:", Cval, " for n=", n, " l=", l)
+    return(1e6)
+  }
+
+  val <- Pval - invetsment_tree * nitrogen_gate(n, l) * Pval - q * (1 + resp) * Cval
+  if (!is.finite(val)) {
+    message("Non-finite objective val:", val)
+    return(1e6)
+  }
+
+  return(val)
+}
+```
+
+## Objective function vs q
+
+```{r}
+# --- Define a range of q values ---
+q_vals <- seq(0.1, 5000, length.out = 200)
+
+# --- Compute objective for each q ---
+obj_vals <- sapply(q_vals, function(q) {
+  val <- tryCatch(
+    objective(c(n, l), N_av, j, q),
+    error = function(e) NA
+  )
+  if (is.na(val) || !is.finite(val)) return(1e6)  # Penalize invalid
+  return(val)
+})
+
+# --- Create a dataframe for plotting ---
+df <- data.frame(q = q_vals, objective = obj_vals)
+
+# --- Plot the results ---
+ggplot(df, aes(x = q, y = objective)) +
+  geom_line(color = "darkgreen", linewidth = 1) +
+  labs(
+    title = paste("Objective function vs q"),
+    subtitle = paste("n =", n, "l =", l, "N_av =", N_av, "j =", j),
+    x = "q (carbon cost multiplier)",
+    y = "Objective value"
+  ) +
+  theme_minimal()
+
+N_av_values <- c(0.1, 0.3, 0.5, 0.7)
+
+# --- Grid of n and l ---
+n_vals <- seq(5, 50, length.out = 100)
+l_vals <- seq(0.1, 5, length.out = 100)
+grid_base <- expand.grid(n = n_vals, l = l_vals)
+
+q = 50000
+
+# --- Compute objective for each N_av ---
+all_grids <- lapply(N_av_values, function(N_av) {
+  grid <- grid_base
+  grid$N_av <- N_av
+  grid$objective <- mapply(function(n, l) {
+    val <- tryCatch(objective(c(n, l), N_av, j, q), error = function(e) NA)
+    if (is.na(val) || !is.finite(val)) return(NA)
+    return(val)
+  }, grid$n, grid$l)
+  return(grid)
+})
+
+# --- Combine into one dataframe ---
+plot_data <- bind_rows(all_grids)
+
+plot_data <- plot_data[plot_data$objective > 0,]
+
+summary(plot_data$objective)
+
+# --- Plot all in a 2x2 grid ---
+# Step 1: Find max points
+max_points <- plot_data %>%
+  group_by(N_av) %>%
+  filter(objective == max(objective, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(label = paste0("n = ", round(n, 2), "\n", "l = ", round(l, 4)))
+
+# Step 2: Plot
+ggplot(plot_data, aes(x = n, y = l, fill = objective)) +
+  geom_tile() +
+  scale_fill_viridis_c(option = "turbo", na.value = "grey90") +
+  facet_wrap(~ N_av, labeller = label_bquote(N[av] == .(N_av))) +
+  geom_point(data = max_points, aes(x = n, y = l), 
+             shape = 21, size = 2, stroke = 1, fill = "white", color = "black") +
+  geom_text(data = max_points, aes(label = label), 
+            vjust = -0.75, hjust = 1.1, size = 3, lineheight = 0.9, col = "black") +
+  labs(
+    title = "Objective(n, l) across different N_av values",
+    x = "Number of root tips (n)",
+    y = "Root length (l)",
+    fill = "Objective"
+  ) +
+  theme_minimal()
+
+```
+
+## Constraint
+
+```{r}
+A_const <- 3000  # example value
+
+# === COPY YOUR CONSTRAINT FUNCTION ===
+constraint_fun <- function(x, A_const) {
+  n <- x[1]; l <- x[2]
+  if (l <= 0 || n <= 0) return(-1e6)  # violation
+  
+  dval <- d(l)
+  if (dval <= 0 || !is.finite(dval)) return(-1e6)
+  
+  PRD_val <- (0.2 + 0.014 / dval)^2
+  rho_val <- s * PRD_val + b
+  
+  lhs <- rho_val * dval^2 * l * pi * 1e-6 * n
+  rhs <- 4 * A_const
+  val <- rhs - lhs
+  
+  if (!is.finite(val)) return(-1e6)
+  return(val)
+}
+
+# === CREATE A GRID OF (n, l) VALUES ===
+n_vals <- seq(5, 50, length.out = 100)
+l_vals <- seq(0.1, 4, length.out = 100)
+grid <- expand.grid(n = n_vals, l = l_vals)
+
+# === EVALUATE CONSTRAINT FUNCTION ===
+grid$constraint_val <- apply(grid, 1, function(row) {
+  constraint_fun(c(row['n'], row['l']), A_const)
+})
+
+# === ADD FEASIBILITY COLUMN ===
+grid$feasible <- grid$constraint_val >= 0
+
+# === PLOT ===
+ggplot(grid, aes(x = n, y = l, fill = feasible)) +
+  geom_raster() +
+  scale_fill_manual(values = c("red", "green"), labels = c("Infeasible", "Feasible")) +
+  labs(
+    title = "Feasible Region for Constraint",
+    x = "n (number of units)",
+    y = "l (length)",
+    fill = "Constraint"
+  ) +
+  theme_minimal()
+
+```
+
+## Objective to maximise
+
+```{r}
+A_const = 0.05
+
+constraint_fun <- function(x, A_const) {
+  n <- x[1]; l <- x[2]
+  if (l <= 0 || n <= 0) return(-1e6)  # violation
+  
+  PRD_val <- (0.2 + 0.014 / d(l))^2
+  rho_val <- s * PRD_val + b
+  
+  lhs <- rho_val * d(l)^2 * l * pi * 1e-6 * n
+  rhs <- 4 * A_const
+  val <- rhs - lhs
+  
+  if (!is.finite(val)) return(-1e6)
+  return(val)
+}
+
+optimize_for_nav <- function(Nav) {
+  tryCatch({
+    res <- nloptr(
+      x0 = c(15, 1),
+      eval_f = function(x) {
+        val <- -objective(x, Nav, j, q)
+        if (is.na(val) || !is.finite(val)) {
+          message(sprintf("Bad objective for Nav=%.3f, x=%s: %s", Nav, paste(round(x,3), collapse = ","), val))
+          return(1e6)  # large penalty for optimizer to avoid
+        }
+        return(val)
+      },
+      lb = c(5, 0.1),
+      ub = c(50, 4),
+      # eval_g_ineq = function(x) constraint_fun(x, A_const),
+      opts = list(
+        algorithm = "NLOPT_LN_COBYLA",
+        xtol_rel = 1e-6,
+        maxeval = 1000
+      )
+    )
+    
+    if (any(is.na(res$solution)) || !is.finite(res$objective)) {
+      message(sprintf("Optimization returned NA/Inf for Nav=%.3f", Nav))
+    }
+    
+    tibble(
+      Nav = Nav,
+      opt_n = res$solution[1],
+      opt_l = res$solution[2],
+      obj_val = -res$objective,
+      status = res$status
+    )
+  }, error = function(e) {
+    warning(sprintf("Optimization failed for Nav=%.3f : %s", Nav, e$message))
+    tibble(Nav = Nav, opt_n = NA, opt_l = NA, obj_val = NA, status = -1)
+  })
+}
+
+# Number of cores (use one less than max)
+num_cores <- max(1, detectCores() - 1)
+cl <- makeCluster(num_cores)
+
+# Load required packages quietly on workers
+invisible(clusterEvalQ(cl, {
+  suppressPackageStartupMessages({
+    library(nloptr)
+    library(tibble)
+    library(rphydro)
+  })
+}))
+
+# Export all needed variables and functions to workers
+clusterExport(cl, varlist = c(
+  "j", "q", "s", "b", "A_const",
+  "d", "U_a", "C", "photosynthesis",
+  "objective", "constraint_fun", "optimize_for_nav"
+), envir = .GlobalEnv)
+
+# Run optimization in parallel
+results_list <- parLapply(cl, nav_seq, optimize_for_nav)
+
+# Stop cluster
+stopCluster(cl)
+
+# Combine results
+results_df <- do.call(rbind, results_list)
+```
+
+## Plot the results
+
+```{r}
+# Remove failed optimization rows (optional)
+opt_results <- results_df |> filter(!is.na(opt_n), status > 0)
+
+# Plot 1: Optimal n vs Nav
+p1 <- ggplot(opt_results, aes(x = Nav, y = opt_n)) +
+  geom_line(color = "steelblue", linewidth = 1) +
+  labs(
+    title = expression("Optimal number of root tips "~italic(n)~" vs "~N[av]),
+    x = expression(N[av]),
+    y = expression("Optimal "~italic(n))
+  ) +
+  theme_minimal()
+
+# Plot 2: Optimal l vs Nav
+p2 <- ggplot(opt_results, aes(x = Nav, y = opt_l)) +
+  geom_line(color = "firebrick", linewidth = 1) +
+  labs(
+    title = expression("Optimal root length "~italic(l)~" vs "~N[av]),
+    x = expression(N[av]),
+    y = expression("Optimal "~italic(l))
+  ) +
+  theme_minimal()
+
+# Combine plots vertically
+p1 / p2
+
+
+```
+
+## Parameter testing
+
+```{r}
+# Constants
+N_av_fixed <- 0.2
+j_fixed <- 250
+q_fixed <- 250
+A_fixed <- 100
+
+# Parameter grids (adjust ranges as needed)
+j_vals <- seq(100, 1000, length.out = 20)
+q_vals <- seq(50, 5000000, length.out = 20)
+A_vals <- seq(50, 500, length.out = 20)
+
+# Define optimization function with debugging messages
+optimize_for_nav2 <- function(N_av, j, q, A_const) {
+  tryCatch({
+    res <- nloptr(
+      x0 = c(15, 1),
+      eval_f = function(x) -objective(x, N_av, j, q),
+      lb = c(0.1, 0.1),
+      ub = c(50, 5),
+      eval_g_ineq = function(x) constraint_fun(x, A_const),
+      opts = list(
+        algorithm = "NLOPT_LN_COBYLA",
+        xtol_rel = 1e-6,
+        maxeval = 1000
+      )
+    )
+    message(sprintf("Success: j=%.1f, q=%.1f, A=%.1f, n=%.2f, l=%.2f",
+                    j, q, A_const, res$solution[1], res$solution[2]))
+    tibble(
+      param = NA_real_,
+      variable = NA_character_,
+      Nav = N_av,
+      opt_n = res$solution[1],
+      opt_l = res$solution[2],
+      obj_val = -res$objective,
+      status = res$status
+    )
+  }, error = function(e) {
+    message(sprintf("FAIL: j=%.1f, q=%.1f, A=%.1f | %s", j, q, A_const, e$message))
+    tibble(param = NA_real_, variable = NA_character_, Nav = N_av, opt_n = NA, opt_l = NA, obj_val = NA, status = -1)
+  })
+}
+
+# Helper to run over parameter vector and label results
+run_param_grid <- function(param_vec, param_name) {
+  cl <- makeCluster(max(1, detectCores() - 1))
+  
+  # Ensure cluster stops no matter what
+  on.exit(stopCluster(cl))
+  
+  clusterEvalQ(cl, {
+    suppressPackageStartupMessages({
+      library(nloptr)
+      library(tibble)
+      library(dplyr)
+      library(rphydro)
+    })
+  })
+  
+  clusterExport(cl, varlist = c(
+    "objective", "constraint_fun", "optimize_for_nav2",
+    "U_a", "photosynthesis", "C", "d", "s", "b",
+    "j_fixed", "q_fixed", "A_fixed",
+    "N_av_fixed"
+  ), envir = .GlobalEnv)
+  
+  results <- parLapply(cl, param_vec, function(pval) {
+    if(param_name == "j") {
+      res <- optimize_for_nav2(N_av_fixed, pval, q_fixed, A_fixed)
+    } else if(param_name == "q") {
+      res <- optimize_for_nav2(N_av_fixed, j_fixed, pval, A_fixed)
+    } else if(param_name == "A_const") {
+      res <- optimize_for_nav2(N_av_fixed, j_fixed, q_fixed, pval)
+    }
+    res$param <- pval
+    res$variable <- param_name
+    return(res)
+  })
+  
+  bind_rows(results)
+}
+
+# Run parameter sweeps in parallel safely
+results_j <- run_param_grid(j_vals, "j")
+results_q <- run_param_grid(q_vals, "q")
+results_A <- run_param_grid(A_vals, "A_const")
+
+all_results <- bind_rows(results_j, results_q, results_A)
+
+# Remove failed optimizations
+all_results_clean <- all_results %>% filter(!is.na(opt_n), status > 0)
+
+# Plotting function (requires patchwork for p1 / p2 layout)
+plot_param <- function(df, param_name) {
+  p1 <- ggplot(df, aes(x = param, y = opt_n)) +
+    geom_line(color = "steelblue", size = 1) +
+    labs(title = paste("Optimal n vs", param_name), x = param_name, y = "Optimal n") +
+    theme_minimal()
+  
+  p2 <- ggplot(df, aes(x = param, y = opt_l)) +
+    geom_line(color = "firebrick", size = 1) +
+    labs(title = paste("Optimal l vs", param_name), x = param_name, y = "Optimal l") +
+    theme_minimal()
+  
+  return(p1 / p2)
+}
+
+# Display plots
+print(plot_param(filter(all_results_clean, variable == "j"), "j"))
+print(plot_param(filter(all_results_clean, variable == "q"), "q"))
+print(plot_param(filter(all_results_clean, variable == "A_const"), "A_const"))
+```
+
+
+```{r}
+optimize_for_nav2_minimal <- function() {
+  nloptr(
+    x0 = c(15, 1),
+    eval_f = function(x) sum(x^2),
+    lb = c(0.1, 0.1),
+    ub = c(50, 5),
+    opts = list(
+      algorithm = "NLOPT_LN_COBYLA",
+      xtol_rel = 1e-6,
+      maxeval = 100
+    )
+  )
+}
+
+cl <- makeCluster(2)
+clusterEvalQ(cl, library(nloptr))
+clusterExport(cl, varlist = c(
+    "objective", "constraint_fun", "optimize_for_nav2_minimal",
+    "U_a", "photosynthesis", "C", "d", "s", "b",
+    "j_fixed", "q_fixed", "A_fixed",
+    "N_av_fixed"
+  ), envir = .GlobalEnv)
+res <- parLapply(cl, 1:2, function(i) optimize_for_nav2_minimal())
+stopCluster(cl)
+print(res)
+
+
+```
