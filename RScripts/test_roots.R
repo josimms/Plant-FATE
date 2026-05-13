@@ -2054,7 +2054,7 @@ original_life_histroy <- function() {
   lho$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_co2File("")
-  lho$set_soil_nitrogen(0.5)
+  lho$set_soil_nitrogen(0.3)
   lho$init()
   
   lho_2 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
@@ -2068,7 +2068,7 @@ original_life_histroy <- function() {
   lho_3$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho_3$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho_3$set_co2File("")
-  lho_3$set_soil_nitrogen(0.1)
+  lho_3$set_soil_nitrogen(0.2)
   lho_3$init()
   
   dt <- 1/12
@@ -2138,7 +2138,7 @@ original_life_histroy <- function() {
   
   # Set color scheme
   cols <- c("#0072B2", "#E69F00", "#D55E00")
-  N_labels <- c("N = High", "N = Medium", "N = Low")
+  N_labels <- c("N = Low", "N = Medium", "N = High")
   
   par(mfrow = c(4, 2), mar = c(4, 6, 3, 1), oma = c(4, 0, 2, 0),
       family = "serif", las = 1, tcl = -0.4, mgp = c(4, 1, 0))
@@ -2258,16 +2258,16 @@ original_life_histroy <- function() {
   lines(df$date, df$diameter, col = cols[1], lwd = lwd_model)
   
   # (e) Vcmax
-  ylim_vc <- range(df$vcmax, df_2$vcmax, df_3$vcmax, na.rm = TRUE)
-  plot(df$date, df$vcmax, type = "n", col = cols[1], lwd = lwd_model,
+  ylim_vc <- range(df$vcmax/df$lai, df_2$vcmax/df_2$lai, df_3$vcmax/df_3$lai, 90, na.rm = TRUE)
+  plot(df$date, df$vcmax/df$lai, type = "n", col = cols[1], lwd = lwd_model,
        ylim = ylim_vc, xlab = "",
        ylab = expression("V"[cmax]*" ("*mu*"mol m"^{-2}*" s"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
-  rect(par("usr")[1], 0, par("usr")[2], 90,
+  rect(par("usr")[1], 0, par("usr")[2], 80,
        col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
-  lines(df_3$date, df_3$vcmax, col = cols[3], lwd = lwd_model)
-  lines(df_2$date, df_2$vcmax, col = cols[2], lwd = lwd_model)
-  lines(df$date, df$vcmax, col = cols[1], lwd = lwd_model)
+  lines(df_3$date, df_3$vcmax/df_3$lai, col = cols[3], lwd = lwd_model)
+  lines(df_2$date, df_2$vcmax/df_2$lai, col = cols[2], lwd = lwd_model)
+  lines(df$date, df$vcmax/df$lai, col = cols[1], lwd = lwd_model)
   mtext("(e)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
   
@@ -2298,26 +2298,22 @@ original_life_histroy <- function() {
        ylim = ylim_nu, xlab = "",
        ylab = expression("N uptake (kg N tree"^{-1}*" year"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df_2$date, uptake_2, col = cols[2], lwd = lwd_model)
   lines(df_3$date, uptake_3, col = cols[3], lwd = lwd_model)
-  points(as.Date("2007-06-21"), 1.5, col = col_range, pch = pch_lit, cex = 1.8)
+  lines(df_2$date, uptake_2, col = cols[2], lwd = lwd_model)
+  lines(df$date, uptake_1, col = cols[1], lwd = lwd_model)
   mtext("(g)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
   
-  # (h) Nitrogen in biomass
-  date_point <- as.Date("2007-06-21")
-  low  <- 210 / 1010
-  high <- 210 / 2000
+  # (h) Ectomycorrhizal biomass
   ylim_nb <- range(df$nitrogen_in_biomass, df_2$nitrogen_in_biomass,
-                   df_3$nitrogen_in_biomass, low, high, na.rm = TRUE)
+                   df_3$nitrogen_in_biomass, na.rm = TRUE)
   
-  plot(df$date, df$nitrogen_in_biomass, type = "l", col = cols[1], lwd = lwd_model,
+  plot(df$date, df$ectomycorrhiza_mass, type = "l", col = cols[1], lwd = lwd_model,
        ylim = ylim_nb, xlab = "",
-       ylab = expression("N in biomass (kg N tree"^{-1}*")"),
+       ylab = expression("ECM Biomass (kg Biomass tree"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df_2$date, df_2$nitrogen_in_biomass, col = cols[2], lwd = lwd_model)
-  lines(df_3$date, df_3$nitrogen_in_biomass, col = cols[3], lwd = lwd_model)
-  add_range(date_point, low, high, col = col_range)
+  lines(df_2$date, df_2$ectomycorrhiza_mass, col = cols[2], lwd = lwd_model)
+  lines(df_3$date, df_3$ectomycorrhiza_mass, col = cols[3], lwd = lwd_model)
   mtext("(h)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
   
