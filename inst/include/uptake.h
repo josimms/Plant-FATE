@@ -30,6 +30,8 @@ public:
   double u_max; 
   double depth;
   
+  double r_max;
+
   double k_8;
   double k_9;
   double k_20;

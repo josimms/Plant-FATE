@@ -18,6 +18,7 @@ namespace plant {
     D                     = I.get<double>("D");
     N_s                   = I.get<double>("N_s");
     depth                 = I.get<double>("depth");
+    r_max                 = I.get<double>("r_max");
     k_8                   = I.get<double>("k_8");
     k_9                   = I.get<double>("k_9");
     k_20                  = I.get<double>("k_20");
@@ -40,7 +41,7 @@ namespace plant {
 
   // Depletion radius calculation
   double Uptake::deplition_radius() {
-    return D * N_s / u_max;
+    return std::min(D * N_s / u_max, r_max);
   }
 
   // Surface area explored per root biomass
