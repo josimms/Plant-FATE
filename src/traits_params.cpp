@@ -211,6 +211,7 @@ void PlantParameters::init(io::Initializer& I){
 	cbio               = I.get<double>("cbio");
 	y                  = I.get<double>("y");
 	k_light            = I.get<double>("k_light");
+	latitude           = I.get<double>("latitude");
 	a_f1               = I.get<double>("a_f1");
 	a_f2               = I.get<double>("a_f2");
 

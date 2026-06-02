@@ -132,6 +132,7 @@ class PlantParameters{
 	double y;               ///< Growth respiration factor [-]
 
 	double k_light;		      ///< light extincttion coefficient
+	double latitude;          ///< Site latitude [degrees North], used for day-length calculation
 
 	// Demographics
 	double a_f1;            ///< max fractional allocation to reproduction
