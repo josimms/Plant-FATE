@@ -2048,13 +2048,13 @@ original_life_histroy <- function() {
   names(data) <- list.files(hyde_all)[1:9]
   useful_data <- merge(data[[2]], data[[5]], c('plotID', 'eventID', 'eventYear'), all=TRUE)
   
-  #################################################33
+  #################################################
   
   lho <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
   lho$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_co2File("")
-  lho$set_soil_nitrogen(0.3)
+  lho$set_soil_nitrogen(0.2)
   lho$init()
   
   lho_2 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
@@ -2068,7 +2068,7 @@ original_life_histroy <- function() {
   lho_3$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho_3$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho_3$set_co2File("")
-  lho_3$set_soil_nitrogen(0.2)
+  lho_3$set_soil_nitrogen(0.3)
   lho_3$init()
   
   dt <- 1/12
@@ -2312,10 +2312,17 @@ original_life_histroy <- function() {
        ylim = ylim_nb, xlab = "",
        ylab = expression("ECM Biomass (kg Biomass tree"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df_2$date, df_2$ectomycorrhiza_mass, col = cols[2], lwd = lwd_model)
   lines(df_3$date, df_3$ectomycorrhiza_mass, col = cols[3], lwd = lwd_model)
+  lines(df_2$date, df_2$ectomycorrhiza_mass, col = cols[2], lwd = lwd_model)
+  lines(df$date, df$ectomycorrhiza_mass, col = cols[1], lwd = lwd_model)
   mtext("(h)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
+  
+  par(mfrow = c(4, 2), mar = c(4, 6, 3, 1), oma = c(4, 0, 2, 0),
+      family = "serif", las = 1, tcl = -0.4, mgp = c(4, 1, 0))
+  plot(df$root_mass)
+  plot(df$coarse_root_mass)
+  plot(df$belowground_infrastructure)
   
   # Shared legend
   par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
