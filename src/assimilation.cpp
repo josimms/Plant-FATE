@@ -10,10 +10,10 @@ void Assimilator::les_update_lifespans(double lai, PlantParameters& par, PlantTr
   if (plant_assim.vcmax25_avg < 10) return;
   
 	double hT = plant_assim.vcmax_avg / plant_assim.vcmax25_avg;
-	double f = 1;
+	double f = 0.5;
 	double fac = sqrt(((par.les_k1 * par.les_k2) * (par.les_k1 * par.les_k2) * f * hT * plant_assim.mc_avg) / (2 * par.les_u * par.les_cc));
 	
-	kappa_l = 3; // 365 * par.years_per_tunit_avg * plant_assim.vcmax25_avg / (traits.lma * 1e3 * lai) * fac; // convert yr-1 --> t_unit-1
+	kappa_l = 1.0/3.0; // 365 * par.years_per_tunit_avg * plant_assim.vcmax25_avg / (traits.lma * 1e3 * lai) * fac; // convert yr-1 --> t_unit-1
 	// kappa_r no longer used
 	//kappa_r = 365 * plant_assim.vcmax25_avg / (0.1333 * 1e3) * fac * par.years_per_tunit_avg;           // convert yr-1 --> t_unit-1
 	//kappa_r = kappa_l * (par.les_cc/lai - 1) / (traits.zeta / traits.lma);
