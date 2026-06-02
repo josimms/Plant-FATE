@@ -18,7 +18,7 @@ inline void print_phydro(const phydro::PHydroResultNitrogen& res, std::string s)
 template<class _Climate>
 phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G, double t){
   double effective_alpha = G->using_Ib ? par.alpha_ib * par.alpha : par.alpha;
-  double infrastructure = G->I_b + effective_alpha;
+  double infrastructure = G->using_Ib ? G->I_b + effective_alpha : 1;
 
   phydro::ParCostNitrogen par_cost(effective_alpha, par.gamma, infrastructure);
 	phydro::ParPlant par_plant(traits.K_leaf, traits.p50_leaf, traits.b_leaf);
@@ -27,9 +27,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 	par_control.gs_method = phydro::GS_APX;
 	par_control.et_method = phydro::ET_DIFFUSION;
 
-  // TODO: make the latitude a parameter rather than a fixed value
-  double latitude = 60.0;
-	double f_day_length = day_length_fraction(latitude, t);
+	double f_day_length = day_length_fraction(par.latitude, t);
 	
 	double Iabs_acclim = fipar * C.clim_acclim.ppfd;
 	double Iabs_day    = fipar * C.clim_inst.ppfd / f_day_length;
