@@ -291,6 +291,7 @@ void LifeHistoryOptimizer::get_rates(vector<double>::iterator it){
 
 void LifeHistoryOptimizer::update_climate(double julian_time){
 	c_stream.updateClimate(julian_time, C);
+	C.t_clim = flare::julian_to_yearsCE(julian_time);
 }
 
 void LifeHistoryOptimizer::grow_for_dt(double t, double dt){

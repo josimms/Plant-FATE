@@ -81,6 +81,8 @@ class Climate{
 	public:
 	virtual ~Climate(){};  // need virtual destructor since print() is virtual
 
+	double t_clim = 2000.0;  ///< Decimal year of the current climate data point (set by update_climate)
+
 	Clim clim_inst;    ///< Mean climate over the timestep
 	Clim clim_acclim;  ///< Daily climate measured as mean over 3 hrs around max radiation
 

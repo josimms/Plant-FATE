@@ -27,7 +27,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 	par_control.gs_method = phydro::GS_APX;
 	par_control.et_method = phydro::ET_DIFFUSION;
 
-	double f_day_length = day_length_fraction(par.latitude, t);
+	double f_day_length = day_length_fraction(par.latitude, C.t_clim);
 	
 	double Iabs_acclim = fipar * C.clim_acclim.ppfd;
 	double Iabs_day    = fipar * C.clim_inst.ppfd / f_day_length;
