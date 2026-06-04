@@ -527,6 +527,7 @@ void Patch::simulate_to(double t){
 
 void Patch::update_climate(double julian_time, env::ClimateStream& c_stream){
 	c_stream.updateClimate(julian_time, E);
+	E.t_clim = flare::julian_to_yearsCE(julian_time);
 }
 
 
