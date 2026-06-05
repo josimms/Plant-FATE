@@ -75,9 +75,9 @@ blank <- function() {
   area_per_tree = 1 # 10000 / 1500  # ≈ 6.67 m²
   
   GPP_out$GPP_mean = GPP_out$GPP_mean
-  GPP_out$GPP_mean_kg = GPP_out$GPP_mean * 12.11 * 1e-9 * 60 * 60 * 24 * 365.25 * area_per_tree # kg per year per tree, as in PlantFATE
+  GPP_out$GPP_mean_kg = GPP_out$GPP_mean * 12.011 * 1e-9 * 60 * 60 * 24 * 365.25 * area_per_tree # kg per year per tree, as in PlantFATE
   NEE_out$NEE_mean = NEE_out$NEE_mean
-  NEE_out$NEE_mean_kg = NEE_out$NEE_mean * 12.11 * 1e-9 * 60 * 60 * 24 * 365.25 * area_per_tree # kg per year per tree, as in PlantFATE
+  NEE_out$NEE_mean_kg = NEE_out$NEE_mean * 12.011 * 1e-9 * 60 * 60 * 24 * 365.25 * area_per_tree # kg per year per tree, as in PlantFATE
   F_CO2_leaf_out$F_CO2_leaf_mean = F_CO2_leaf_out$F_CO2_leaf_mean
   F_CO2_leaf_out$F_CO2_leaf_mean_kg = F_CO2_leaf_out$F_CO2_leaf_mean * 2.45e-8 * 60 * 60 * 24 * 365.25 * area_per_tree # kg per year per tree, as in PlantFATE
   F_H2O_leaf_out$F_H2O_leaf_mean = F_H2O_leaf_out$F_H2O_leaf_mean
@@ -735,28 +735,29 @@ blank <- function() {
   kphio_amazon = 0.055
   rdark = 0.011
   vwind = 3
-  a_jmax = 3700
+  a_jmax = 7400
   # Plant-FATE uses using_Ib = true, so alpha_ib = 0.001 (not alpha = 0.01).
   # Cost function in phydro: alpha_ib / (I_b + alpha_ib) * jmax + gamma * dpsi^2
   # So nitrogen_store_conversion = I_b + alpha_ib  (matches ParCostNitrogen constructor).
   alpha_ib = 0.01     # test value: 0.001 (ini), 0.1 (~11x variation), 0.25 (~5x), 0.5 (~3x)
-  alpha_0 = 1
-  I_b_low  = 0.5     # no root/myco infrastructure (e.g. seedling)
-  I_b_mid  = 0.75     # medium infrastructure
+  alpha_0 = 0.1008 
+  I_b_low  = 1.0     # no root/myco infrastructure (e.g. seedling)
+  I_b_mid  = 1.0     # medium infrastructure
   I_b_high = 1.0     # well-developed infrastructure
-  par_cost   = list(alpha = alpha_ib * alpha_0, gamma = 0.180496537959982, nitrogen_store_conversion = I_b_low + alpha_ib)
-  par_cost_2 = list(alpha = alpha_ib * alpha_0, gamma = 0.180496537959982, nitrogen_store_conversion = I_b_mid + alpha_ib)
-  par_cost_3 = list(alpha = alpha_ib * alpha_0, gamma = 0.180496537959982, nitrogen_store_conversion = I_b_high + alpha_ib)
+  par_cost   = list(alpha = alpha_0, gamma = 0.180496537959982, nitrogen_store_conversion = 1) # I_b_low + alpha_ib) alpha_ib * alpha_0
+  par_cost_2 = list(alpha = alpha_0, gamma = 0.180496537959982, nitrogen_store_conversion = 1) # I_b_mid + alpha_ib) alpha_ib * alpha_0
+  par_cost_3 = list(alpha = alpha_0, gamma = 0.180496537959982, nitrogen_store_conversion = 1) # I_b_high + alpha_ib) alpha_ib * alpha_0
   par_cost_amazon = list(alpha=0.1008, gamma=1.1875, nitrogen_store_conversion = 1)
-  par_plant = list(conductivity=4.1311874912949e-17, psi50=-0.857817410110663, b=1)
+  par_plant = list(conductivity=4.1311874912949e-17, psi50=-7, b=1) #0.857817410110663, b=1)
   par_plant_amazon = list(conductivity=0.5e-16, psi50=-2.29, b=1)
   co2 = 400
   elv  = 181
   pa = rpmodel::calc_patm(elv)
   pa_amazon = 101325
   psi_soil = -0.01
-  fapar = 0.660413
+  fapar = 1-exp(-0.5*4)
   nitrogen = 1000000
+  fipar = 0.7 # mean(c(1, 0.7, 0.3, 0.1))
   
   options = list(
     gs_method = "GS_APX", 
@@ -772,7 +773,7 @@ blank <- function() {
   phydro_results_2         <- vector("list", nrow(input_climate))
   phydro_results_3         <- vector("list", nrow(input_climate))
   #phydro_results_amazon    <- vector("list", nrow(import_amazon_data))
-  #phydro_results_analytical <- vector("list", nrow(input_climate))
+  phydro_results_analytical <- vector("list", nrow(input_climate))
   #phydro_results_amazon_analytical <- vector("list", nrow(import_amazon_data))
   
   # ---- SAFE WRAPPER ----
@@ -784,39 +785,81 @@ blank <- function() {
              })
   }
   
+  # ---- DAY-LENGTH FRACTION (mirrors C++ decimal_year_to_day_of_year + day_length_fraction) ----
+  # Decimal_year now uses correct 1/12 increments, so this matches exactly what C++ computes
+  # for t_clim (= S.current_time, which also steps by 1/12 from the same start year).
+  f_day_vec <- sapply(input_climate$Decimal_year, function(dec_year) {
+    year         <- floor(dec_year)
+    fraction     <- dec_year - year
+    days_in_year <- if ((year %% 4 == 0 && year %% 100 != 0) || (year %% 400 == 0)) 366L else 365L
+    N            <- max(1L, min(as.integer(round(fraction * days_in_year)) + 1L, days_in_year))
+    day_length_hours(60, N)
+  })
+
   # ---- MAIN LOOPS ----
-  
-  # Boreal (numerical + analytical)
+
+  # Boreal (nested acclimation -> instantaneous, mirrors C++ leaf_assimilation_rate)
   for (month in 1:nrow(input_climate)) {
-    phydro_results[[month]]   <- safe_try(rphydro::rphydro_nitrogen(
-      input_climate$Temp[month], input_climate$Temp[month],
-      input_climate$PPFD[month], input_climate$PPFD_max[month],
-      0.1 * input_climate$VPD[month],
-      co2, pa, nitrogen, fapar, kphio, -input_climate$SWP[month],
+    tc      <- input_climate$Temp[month]
+    vpd     <- 0.1 * input_climate$VPD[month]
+    swp     <- -input_climate$SWP[month]
+    netrad  <- input_climate$PPFD_max[month]  # unused with ET_DIFFUSION
+
+    ppfd_day    <- input_climate$PPFD[month] / f_day_vec[month]  # 24h-mean -> daytime mean
+    ppfd_acclim <- fipar * input_climate$PPFD_max[month]         # step 1: acclimation light
+    ppfd_inst   <- fipar * ppfd_day                              # step 2: instantaneous light
+
+    # --- par_cost 1 ---
+    acclim_1 <- safe_try(rphydro::rphydro_nitrogen(
+      tc, tc, ppfd_acclim, netrad, vpd,
+      co2, pa, nitrogen, fapar, kphio, swp,
       rdark, vwind, a_jmax, par_plant, par_cost, options), month)
-    
-    phydro_results_2[[month]] <- safe_try(rphydro::rphydro_nitrogen(
-      input_climate$Temp[month], input_climate$Temp[month],
-      input_climate$PPFD[month], input_climate$PPFD_max[month],
-      0.1 * input_climate$VPD[month],
-      co2, pa, nitrogen, fapar, kphio, -input_climate$SWP[month],
+    phydro_results[[month]] <- if (!is.null(acclim_1))
+      safe_try(rphydro::rphydro_instantaneous_nitrogen(
+        acclim_1$vcmax25, acclim_1$jmax25,
+        tc, tc, ppfd_inst, netrad, vpd,
+        co2, pa, fapar, kphio, swp,
+        rdark, vwind, a_jmax, par_plant, par_cost, options), month)
+    else NULL
+
+    # --- par_cost 2 ---
+    acclim_2 <- safe_try(rphydro::rphydro_nitrogen(
+      tc, tc, ppfd_acclim, netrad, vpd,
+      co2, pa, nitrogen, fapar, kphio, swp,
       rdark, vwind, a_jmax, par_plant, par_cost_2, options), month)
-    
-    phydro_results_3[[month]] <- safe_try(rphydro::rphydro_nitrogen(
-      input_climate$Temp[month], input_climate$Temp[month],
-      input_climate$PPFD[month], input_climate$PPFD_max[month],
-      0.1 * input_climate$VPD[month],
-      co2, pa, nitrogen, fapar, kphio, -input_climate$SWP[month],
+    phydro_results_2[[month]] <- if (!is.null(acclim_2))
+      safe_try(rphydro::rphydro_instantaneous_nitrogen(
+        acclim_2$vcmax25, acclim_2$jmax25,
+        tc, tc, ppfd_inst, netrad, vpd,
+        co2, pa, fapar, kphio, swp,
+        rdark, vwind, a_jmax, par_plant, par_cost_2, options), month)
+    else NULL
+
+    # --- par_cost 3 ---
+    acclim_3 <- safe_try(rphydro::rphydro_nitrogen(
+      tc, tc, ppfd_acclim, netrad, vpd,
+      co2, pa, nitrogen, fapar, kphio, swp,
       rdark, vwind, a_jmax, par_plant, par_cost_3, options), month)
-    
-    # ---- Analytical Boreal ----
-    # phydro_results_analytical[[month]] <- safe_try(
-    #   rphydro::rphydro_numerical(
-    #     input_climate$Temp[month], input_climate$Temp[month],
-    #     input_climate$PPFD[month], input_climate$PPFD_max[month],
-    #     0.1 * input_climate$VPD[month],
-    #     co2, pa, fapar, kphio, -input_climate$SWP[month],
-    #     rdark, vwind, par_plant, par_cost, options), month)
+    phydro_results_3[[month]] <- if (!is.null(acclim_3))
+      safe_try(rphydro::rphydro_instantaneous_nitrogen(
+        acclim_3$vcmax25, acclim_3$jmax25,
+        tc, tc, ppfd_inst, netrad, vpd,
+        co2, pa, fapar, kphio, swp,
+        rdark, vwind, a_jmax, par_plant, par_cost_3, options), month)
+    else NULL
+
+    # ---- Original model (no nitrogen): nested analytical pair ----
+    acclim_orig <- safe_try(rphydro::rphydro_analytical(
+      tc, tc, ppfd_acclim, netrad, vpd,
+      co2, pa, fapar, kphio, swp,
+      rdark, vwind, par_plant, par_cost, options), month)
+    phydro_results_analytical[[month]] <- if (!is.null(acclim_orig))
+      safe_try(rphydro::rphydro_instantaneous_analytical(
+        acclim_orig$vcmax25, acclim_orig$jmax25,
+        tc, tc, ppfd_inst, netrad, vpd,
+        co2, pa, fapar, kphio, swp,
+        rdark, vwind, par_plant, par_cost, options), month)
+    else NULL
   }
 
   # ---- AMAZON (numerical + analytical) ----
@@ -851,8 +894,9 @@ blank <- function() {
   
   make_df <- function(results, version, amazon) {
     data.frame(
-      Month = 1:length(results),
-      Dates = if (amazon) decimal_to_date(import_amazon_data$Decimal_year) else decimal_to_date(input_climate$Decimal_year),
+      Month  = 1:length(results),
+      Dates  = if (amazon) decimal_to_date(import_amazon_data$Decimal_year) else decimal_to_date(input_climate$Decimal_year),
+      f_day  = if (amazon) rep(NA, length(results)) else f_day_vec,
       a      = sapply(results, extract_safe, "a"),
       jmax   = sapply(results, extract_safe, "jmax"),
       vcmax  = sapply(results, extract_safe, "vcmax"),
@@ -866,20 +910,22 @@ blank <- function() {
   df2  <- make_df(phydro_results_2, paste0("I_b=", I_b_mid),  FALSE)
   df3  <- make_df(phydro_results_3, paste0("I_b=", I_b_high), FALSE)
   # df4  <- make_df(phydro_results_amazon, "Amazon", TRUE)
-  # df5  <- make_df(phydro_results_analytical, "Numerical", FALSE)
+  df5  <- make_df(phydro_results_analytical, "Original (no N)", FALSE)
   # df6  <- make_df(phydro_results_amazon_analytical, "Amazon_Numerical", TRUE)
 
   # ---- CONVERT TO KG C ----
-  conversion_factor <- 12.11 * 1e-9 * 24 * 60 * 60 * 365.25
+  # a is the daytime rate; multiply by f_day to get the 24h-equivalent rate,
+  # then by seconds per year to get annual total.
+  conversion_factor <- 12.011 * 1e-9 * 24 * 60 * 60 * 365.25
 
-  df1$a_scaled <- df1$a * conversion_factor
-  df2$a_scaled <- df2$a * conversion_factor
-  df3$a_scaled <- df3$a * conversion_factor
-  # df4$a_scaled <- df4$a * conversion_factor
-  # df5$a_scaled <- df5$a * conversion_factor
-  # df6$a_scaled <- df6$a * conversion_factor
+  df1$a_scaled <- df1$a * df1$f_day * conversion_factor
+  df2$a_scaled <- df2$a * df2$f_day * conversion_factor
+  df3$a_scaled <- df3$a * df3$f_day * conversion_factor
+  # df4$a_scaled <- df4$a * df4$f_day * conversion_factor
+  df5$a_scaled <- df5$a * df5$f_day * conversion_factor
+  # df6$a_scaled <- df6$a * df6$f_day * conversion_factor
 
-  df_combined <- rbind(df1, df2, df3)
+  df_combined <- rbind(df1, df2, df3, df5)
   
   # ---- VALIDATION DATA ----
   GPP_out_df <- data.frame(
@@ -890,6 +936,18 @@ blank <- function() {
   )
   
   var_order <- c("a", "a_scaled", "vcmax", "jmax", "dpsi", "n_leaf")
+
+  # ---- MSE: df3 (I_b_high nitrogen) vs df5 (Original no N) ----
+  mse_vals <- sapply(var_order, function(v) {
+    v3 <- df3[[v]]; v5 <- df5[[v]]
+    ok <- !is.na(v3) & !is.na(v5)
+    if (sum(ok) == 0) NA_real_ else mean((v3[ok] - v5[ok])^2)
+  })
+  mse_df <- data.frame(
+    Variable = factor(var_order, levels = var_order),
+    label    = ifelse(is.na(mse_vals), "MSE: NA",
+                      paste0("MSE: ", signif(mse_vals, 3)))
+  )
 
   df_long <- df_combined %>%
     tidyr::pivot_longer(
@@ -902,13 +960,18 @@ blank <- function() {
   df_long <- df_long %>%
     mutate(Dates = as.Date(format(Dates, "%Y-%m-01")))
   
-  facet_labels <- c(
+  base_labels <- c(
     a = "a (µmol m⁻² s⁻¹)",
     a_scaled = "a (kg C year⁻¹)",
     jmax = "Jmax (µmol m⁻² s⁻¹)",
     vcmax = "Vcmax (µmol m⁻² s⁻¹)",
     dpsi = "Δψ (MPa)",
     n_leaf = "Leaf N (g g⁻¹)"
+  )
+  facet_labels <- setNames(
+    paste0(base_labels[var_order], " [MSE: ",
+           ifelse(is.na(mse_vals), "NA", signif(mse_vals, 3)), "]"),
+    var_order
   )
   
   GPP_long <- GPP_out_df %>%
@@ -941,8 +1004,8 @@ blank <- function() {
       title = "Comparison of Model Outputs vs Validation GPP",
       x = "Iteration (Month)",
       y = "Value",
-      color = "I_b value",
-      subtitle = paste0("alpha_ib=", alpha_ib, "; nitrogen_store_conversion = I_b + alpha_ib. Black dots = validation GPP data")
+      color = "I_b value" #,
+      #subtitle = paste0("alpha_ib=", alpha_ib, "; nitrogen_store_conversion = I_b + alpha_ib. Black dots = validation GPP data")
     ) +
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
@@ -2329,7 +2392,7 @@ original_life_histroy <- function() {
   plot(df$root_mass)
   plot(df$coarse_root_mass)
   plot(df$belowground_infrastructure)
-  plot(df$leaf_mass)
+  plot(df$transpiration/df$crown_area)
   
   # Shared legend
   par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
