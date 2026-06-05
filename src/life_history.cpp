@@ -20,9 +20,13 @@ void ErgodicEnvironment::updateBackgroundCanopy(double t){
 	double elapsed = t - bg_t0;
 	double openness = (elapsed <= 0) ? bg_co_ini
 	                : bg_co_eq + (bg_co_ini - bg_co_eq) * exp(-elapsed / bg_tau);
-	n_layers = 1;
-	z_star = {bg_z, 0.0};
-	canopy_openness = {1.0, openness};
+	n_layers = 4;
+	z_star          = {bg_z, bg_z*3.0/4.0, bg_z*2.0/4.0, bg_z*1.0/4.0, 0.0};
+	canopy_openness = {1.0,
+	                   pow(openness, 1.0/4.0),
+	                   pow(openness, 2.0/4.0),
+	                   pow(openness, 3.0/4.0),
+	                   openness};
 }
 
 void ErgodicEnvironment::print(double t){
