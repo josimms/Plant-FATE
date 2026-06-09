@@ -9,24 +9,52 @@ ErgodicEnvironment::ErgodicEnvironment() : LightEnvironment(), Climate(){
 }
 
 void ErgodicEnvironment::init(io::Initializer& I){
-	bg_z      = I.get<double>("bg_canopy_z");
-	bg_co_ini = I.get<double>("bg_canopy_openness_ini");
-	bg_co_eq  = I.get<double>("bg_canopy_openness_eq");
-	bg_tau    = I.get<double>("bg_canopy_tau");
-	bg_t0     = I.get<double>("bg_canopy_t0");
+	bg_density_ini = I.get<double>("bg_canopy_density_ini");
+	bg_density_eq  = I.get<double>("bg_canopy_density_eq");
+	bg_tau         = I.get<double>("bg_canopy_tau");
+	bg_t0          = I.get<double>("bg_canopy_t0");
+
 }
 
-void ErgodicEnvironment::updateBackgroundCanopy(double t){
+void ErgodicEnvironment::updateBackgroundCanopy(double t, plant::PlantArchitecture& geom,
+                                                plant::PlantTraits& traits, const plant::PlantParameters& par){
 	double elapsed = t - bg_t0;
-	double openness = (elapsed <= 0) ? bg_co_ini
-	                : bg_co_eq + (bg_co_ini - bg_co_eq) * exp(-elapsed / bg_tau);
-	n_layers = 4;
-	z_star          = {bg_z, bg_z*3.0/4.0, bg_z*2.0/4.0, bg_z*1.0/4.0, 0.0};
-	canopy_openness = {1.0,
-	                   pow(openness, 1.0/4.0),
-	                   pow(openness, 2.0/4.0),
-	                   pow(openness, 3.0/4.0),
-	                   openness};
+	double density = (elapsed <= 0) ? bg_density_ini
+	               : bg_density_eq + (bg_density_ini - bg_density_eq) * exp(-elapsed / bg_tau);
+
+	// Guard: uninitialised or zero-height plant → fully open canopy
+	if (geom.height <= 0 || density <= 0){
+		n_layers = 0;
+		z_star = {0.0};
+		canopy_openness = {1.0};
+		return;
+	}
+
+	// PPA: n_layers from total projected crown area (mirrors patch logic)
+	double fG = 0.99;
+	double total_ca = density * geom.crown_area_extent_projected(0, traits);
+	n_layers = int(total_ca / fG);
+
+	// z_star: root-find where density * crown_area_extent_projected(z) = layer * fG
+	z_star.clear();
+	for (int layer = 1; layer <= n_layers; ++layer){
+		auto f = [&](double z){
+			return density * geom.crown_area_extent_projected(z, traits) - layer * fG;
+		};
+		z_star.push_back(pn::zero(0.0, geom.height, f, 1e-4).root);
+	}
+	z_star.push_back(0.0);
+
+	// Propagate light down through layers using crown_area_above (mirrors patch fapar_layer)
+	canopy_openness.resize(n_layers + 1);
+	canopy_openness[0] = 1.0;
+	for (int layer = 0; layer < n_layers; ++layer){
+		double cap_z    = density * geom.crown_area_above(z_star[layer],     traits);
+		double cap_ztop = (layer > 0) ? density * geom.crown_area_above(z_star[layer - 1], traits) : 0.0;
+		double cap_layer = cap_z - cap_ztop;
+		double fapar = cap_layer * (1.0 - exp(-par.k_light * geom.lai));
+		canopy_openness[layer + 1] = canopy_openness[layer] * (1.0 - fapar);
+	}
 }
 
 void ErgodicEnvironment::print(double t){
@@ -100,7 +128,7 @@ void LifeHistoryOptimizer::init(){
 	C.set_elevation(0);
 	C.set_acclim_timescale(7);
 	c_stream.init();
-	C.updateBackgroundCanopy(C.bg_t0);
+	C.updateBackgroundCanopy(C.bg_t0, P.geometry, P.traits, P.par);
 
 	// We are tracking the life-cycle of a seed: how many seeds does a single seed produce (having gone through dispersal, germination, and plant life stages)
 	P = plant::Plant();
@@ -303,7 +331,7 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 	auto derivs = [this](double t, std::vector<double>& S, std::vector<double>& dSdt){
 		//if (fabs(t - 2050) < 1e-5)
 		update_climate(ts.to_julian(t));
-		C.updateBackgroundCanopy(t);
+		C.updateBackgroundCanopy(t, P.geometry, P.traits, P.par);
 
 		// C.Climate::print(t);
 		set_state(S.begin());
