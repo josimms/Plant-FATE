@@ -1,112 +1,75 @@
 #include "plant.h"
 #include "traits_params.h"
 #include "plant_architecture.h"
-#include "uptake.h" 
+#include "uptake.h"
 using namespace std;
 
 namespace plant {
 
-  // Uptake function
   void Uptake::init(io::Initializer& I){
-    
-    // Nitrogen parameters
-    using_Ib              = (I.get<std::string>("using_Ib") == "true");
-    mycorrhized           = I.get<double>("mycorrhized");
-    u_max                 = I.get<double>("u_max");
-    myco_diameter         = I.get<double>("myco_diameter");
-    rho_myco              = I.get<double>("rho_myco");
-    D                     = I.get<double>("D");
-    N_s                   = I.get<double>("N_s");
-    depth                 = I.get<double>("depth");
-    r_max                 = I.get<double>("r_max");
-    k_8                   = I.get<double>("k_8");
-    k_9                   = I.get<double>("k_9");
-    k_20                  = I.get<double>("k_20");
-    k_21                  = I.get<double>("k_21");
-    k_23                  = I.get<double>("k_23");
-    
+    using_Ib    = (I.get<std::string>("using_Ib") == "true");
+    mycorrhized = I.get<double>("mycorrhized");
+    u_max       = I.get<double>("u_max");
+    myco_diameter = I.get<double>("myco_diameter");
+    rho_myco    = I.get<double>("rho_myco");
+    D           = I.get<double>("D");
+    N_s         = I.get<double>("N_s");
+    depth       = I.get<double>("depth");
+    k_8         = I.get<double>("k_8");
+    k_9         = I.get<double>("k_9");
+    k_13        = I.get<double>("k_13");
+    k_15        = I.get<double>("k_15");
   }
 
-  // Uptake with age reduction
   double Uptake::uptake_age(const PlantArchitecture& G, PlantTraits& T) {
     return 1.0 / (1.0 + exp(G.root_lifespan(T) - k_8));
   }
-  
-  // Nitrogen uptake gate
+
   double Uptake::nitrogen_gate(const PlantArchitecture& G, PlantTraits& T) {
     double surface_area = G.root_no * M_PI * G.root_length * G.root_diameter(T);
-    
-    return surface_area/(surface_area + k_9);
+    return surface_area / (surface_area + k_9);
   }
 
-  // Depletion radius calculation
-  double Uptake::deplition_radius() {
-    return std::min(D * N_s / u_max, r_max);
+  // Numerically stable positive root of:
+  //   N_bar^2 + (k_15 + alpha - N_s)*N_bar - k_15*N_s = 0
+  // Uses the standard/conjugate form depending on sign of b to avoid
+  // catastrophic cancellation when alpha >> N_s (diffusion-limited regime).
+  double Uptake::compute_N_bar(double SA_active, double A_zone, double r_zone) const {
+    if (SA_active <= 0.0 || A_zone <= 0.0) return N_s;
+    double alpha = u_max * SA_active * r_zone / (D * A_zone);
+    double b     = N_s - k_15 - alpha;
+    double disc  = std::sqrt(b * b + 4.0 * k_15 * N_s);
+    return (b >= 0.0) ? 0.5 * (b + disc) : 2.0 * k_15 * N_s / (disc - b);
   }
 
-  // Surface area explored per root biomass
-  double Uptake::e_u_root(double rd, double root_diameter_mm, double root_density) {
-    double d_m = root_diameter_mm / 1000.0;  // diameter in m
-    return 4.0 * pow(rd, 2.0) / (root_density * pow(d_m, 2.0));
-  }
-
-  // Surface area explored per mycorrhizal biomass
-  double Uptake::e_u_myco(double rd, double myco_diameter_m, double myco_density) {
-    return 4.0 * pow(rd, 2.0) / (myco_density * pow(myco_diameter_m, 2.0));
-  }
-
-  // Crowding function
-  double Uptake::S_crowding(double B_root, double B_myco, double rho_root, double e_root, double e_myco, double crown_radius) {
-    
-    // --- Ellipsoid soil volume ---
-    double V_soil = (2.0/3.0) * M_PI * pow(k_20 * crown_radius, 2.0) * depth;
-      
-    // --- Free soil volume corrected for porosity and existing biomass ---
-    double V_free = k_21 * V_soil - B_root / rho_root - B_myco / rho_myco;
-      
-    // --- Total explored volume --- TODO: coarse roots
-    double V_explored = B_root * e_root + B_myco * e_myco;
-      
-    // --- Saturation function ---
-    double S;
-    if (V_explored > V_free) {
-      S = std::max(0.0, V_free) / V_explored;
-    } else {
-      S = 1.0;
-    }
-      
-    return S;
-  }
-
-  // Core uptake function
   void Uptake::uptake_core(const PlantArchitecture& G, PlantTraits& traits, PlantParameters& par) {
-    
-    // --- Generate biomass ---
-    double B_root = G.root_mass(traits);
-    double d_root_mm = G.root_diameter(traits);
-    double rho_root = G.root_density(traits);
-    double d_root_m = d_root_mm / 1000.0;
 
-    // Surface areas (SA * u_max = B * u_Bmax algebraically)
-    double SA_fr = 4.0 * B_root / (rho_root * d_root_m);
+    // Surface areas
+    double SA_fr = G.root_surface_area(traits);
     double SA_m  = 4.0 * G.ectomycorrhiza_mass / (rho_myco * myco_diameter);
 
-    // --- Depletion radius ---
-    rd = deplition_radius();
-
-    // Soil volume explored per unit biomass
-    e_root = e_u_root(rd, d_root_mm, rho_root);
-    e_myco = e_u_myco(rd, myco_diameter, rho_myco);
-
-    // --- Compute saturation factor ---
+    // Zone geometry: semi-ellipsoidal zone, radius R = k_13 * crown_radius
     double crown_radius = std::sqrt(G.crown_area / M_PI);
-    Sval = S_crowding(B_root, G.ectomycorrhiza_mass, rho_root, e_root, e_myco, crown_radius);
+    double R      = k_13 * crown_radius;
+    double A_zone = 2.0 * M_PI * R * R + M_PI * R * depth;
+    r_zone_val    = R;
 
-    double U_s = N_s / (N_s + k_23);
+    // Active surface area: colonised root surface excluded from direct uptake
+    SA_active_val = (1.0 - mycorrhized) * SA_fr + SA_m;
 
-    U_root = SA_fr * u_max * Sval * U_s * par.years_per_tunit_avg;
-    U_myco = SA_m  * u_max * Sval * U_s * par.years_per_tunit_avg;
+    // alpha diagnostic
+    alpha_val = (SA_active_val > 0.0 && A_zone > 0.0)
+        ? u_max * SA_active_val * R / (D * A_zone)
+        : 0.0;
 
+    // N_bar from steady-state diffusion/demand balance
+    N_bar_val = compute_N_bar(SA_active_val, A_zone, R);
+    double mm = N_bar_val / (N_bar_val + k_15);
+
+    // U_root stored without (1-m) factor; (1-m) is applied in nitrogen_plant
+    // so that U_root represents the full root surface potential.
+    U_root = SA_fr * u_max * mm * par.years_per_tunit_avg;
+    U_myco = SA_m  * u_max * mm * par.years_per_tunit_avg;
   }
 
 } // End namespace

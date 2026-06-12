@@ -199,10 +199,10 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
     , "mycorrhizal_export_to_tree"
     , "root_uptake"
     , "myco_uptake"
-    , "crowding"
-    , "deplition_radius"
-    , "soil_area_per_biomass_root"
-    , "soil_area_per_biomass_myco"
+    , "N_bar"
+    , "r_zone"
+    , "alpha"
+    , "SA_active"
 	};
 }
 
@@ -263,10 +263,10 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
     , P.geometry.N_export
     , P.uptake.U_root
     , P.uptake.U_myco
-    , P.uptake.Sval
-    , P.uptake.rd
-    , P.uptake.e_root
-    , P.uptake.e_myco
+    , P.uptake.N_bar_val
+    , P.uptake.r_zone_val
+    , P.uptake.alpha_val
+    , P.uptake.SA_active_val
 	};
 }
 
