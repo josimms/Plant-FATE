@@ -2117,14 +2117,14 @@ original_life_histroy <- function() {
   lho$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_co2File("")
-  lho$set_soil_nitrogen(0.2)
+  lho$set_soil_nitrogen(0.5)
   lho$init()
   
   lho_2 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
   lho_2$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho_2$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho_2$set_co2File("")
-  lho_2$set_soil_nitrogen(0.5)
+  lho_2$set_soil_nitrogen(0.75)
   lho_2$init()
   
   lho_3 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
@@ -2321,16 +2321,16 @@ original_life_histroy <- function() {
   lines(df$date, df$diameter, col = cols[1], lwd = lwd_model)
   
   # (e) Vcmax
-  ylim_vc <- range(df$vcmax/df$lai, df_2$vcmax/df_2$lai, df_3$vcmax/df_3$lai, 90, na.rm = TRUE)
+  ylim_vc <- range(df$vcmax/df$lai, df_2$vcmax/df_2$lai, df_3$vcmax/df_3$lai, 30, na.rm = TRUE)
   plot(df$date, df$vcmax/df$lai, type = "n", col = cols[1], lwd = lwd_model,
        ylim = ylim_vc, xlab = "",
        ylab = expression("V"[cmax]*" ("*mu*"mol m"^{-2}*" s"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
-  rect(par("usr")[1], 0, par("usr")[2], 10,
+  rect(par("usr")[1], 0, par("usr")[2], 30,
        col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
-  lines(df$date, df$vcmax/df$lai, col = cols[1], lwd = lwd_model)
-  lines(df_2$date, df_2$vcmax/df_2$lai, col = cols[2], lwd = lwd_model)
   lines(df_3$date, df_3$vcmax/df_3$lai, col = cols[3], lwd = lwd_model)
+  lines(df_2$date, df_2$vcmax/df_2$lai, col = cols[2], lwd = lwd_model)
+  lines(df$date, df$vcmax/df$lai, col = cols[1], lwd = lwd_model)
   mtext("(e)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
   
