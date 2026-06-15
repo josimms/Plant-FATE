@@ -89,12 +89,12 @@ double PlantArchitecture::diameter_at_height(double z, PlantTraits& traits){
 }
 
 // In plant_architecture.h/cpp
-double PlantArchitecture::n_demand_per_lai_biomass(const PlantTraits& traits) const {
+double PlantArchitecture::n_demand_per_lai_biomass(const PlantTraits& traits, double nc_leaf_actual) const {
   double fine_root_per_unit_lai = M_PI * pow(root_diameter(traits)/2.0, 2.0) * root_length * root_density(traits) * 1e-9 * root_no;
   double l2m_total = traits.lma + fine_root_per_unit_lai;
   double leaf_fraction = traits.lma / l2m_total;
   double root_fraction = 1.0 - leaf_fraction;
-  return 0.5 * (leaf_fraction * traits.nc_leaf + root_fraction * traits.nc_root);
+  return 0.5 * (leaf_fraction * nc_leaf_actual + root_fraction * traits.nc_root);
 }
 
 // **
@@ -265,10 +265,11 @@ void PlantArchitecture::set_root(double _rn, double _rl, PlantTraits& traits){
   ectomycorrhiza_mass = root_mass(traits);
 };
 
-/// @details Sets the following properties: nitrogen_tree, nitrogen_uptake, potential_nitrogen_leaf, ectomycorrhiza_mass 
+/// @details Sets the following properties: nitrogen_tree, nitrogen_uptake, leaf_nitrogen_concentration, ectomycorrhiza_mass
 void PlantArchitecture::set_nitrogen(double _nt, PlantTraits& traits) {
   nitrogen_tree = _nt;
-  potential_nitrogen_leaf = traits.k_10 * std::max(nitrogen_tree, 0.0);
+  double lm = leaf_mass(traits);
+  leaf_nitrogen_concentration = (lm > 0) ? traits.k_10 * std::max(nitrogen_tree, 0.0) / lm : 0.0;
   nitrogen_in_biomass = total_mass_nitrogen(traits);
 }
 

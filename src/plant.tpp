@@ -167,7 +167,7 @@ void Plant::calc_demographic_rates(Env& env, double t){
     
     // Photosynthesis with nitrogen limitation
     double npp_exudates = 0.0;
-    if (geometry.potential_nitrogen_leaf / geometry.leaf_mass(traits) < 1/par.a_jmax) {
+    if (geometry.leaf_nitrogen_concentration < 1/par.a_jmax) {
         // No photosynthesis possible — skip phydro entirely to avoid log(0) crash
         res = PlantAssimilationResult{};  // default-constructed, all zeros
         res.c_open_avg = 1.0;
@@ -196,15 +196,15 @@ void Plant::calc_demographic_rates(Env& env, double t){
     partition_biomass(bp.dmass_dt_tot, bp.dmass_dt_lai, env);
 
     // Nitrogen demand for the LAI changes
-    double N_demand_lai = std::max(bp.dmass_dt_lai, 0.0) * geometry.n_demand_per_lai_biomass(traits);
+    double N_demand_lai = std::max(bp.dmass_dt_lai, 0.0) * geometry.n_demand_per_lai_biomass(traits, res.nitrogen_avg);
 
     // set core rates
     auto growth_rates = size_growth_rate(bp.dmass_dt_growth, env);
     rates.dsize_dt = growth_rates[0];
-    
-    rates.dnitrogen_dt_free = geometry.nitrogen_uptake_roots 
-                            + geometry.N_export 
-                            + traits.k_14 * (res.tleaf * 0.5 * traits.nc_leaf 
+
+    rates.dnitrogen_dt_free = geometry.nitrogen_uptake_roots
+                            + geometry.N_export
+                            + traits.k_14 * (res.tleaf * 0.5 * res.nitrogen_avg
                                            + res.troot * 0.5 * traits.nc_root)
                             - growth_rates[1]
                             - N_demand_lai;

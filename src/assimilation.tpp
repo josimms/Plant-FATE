@@ -33,11 +33,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 	double Iabs_day    = fipar * C.clim_inst.ppfd / f_day_length;
 	double Iabs_24hr   = fipar * C.clim_inst.ppfd;
 	
-	double leaf_nitrogen = G->potential_nitrogen_leaf / G->leaf_mass(traits); // kg N / kg leaf = g g-1
-	if (leaf_nitrogen < 1.0/par.a_jmax) {
-	  leaf_nitrogen = 0;
-	  std::cout << "leaf_nitrogen was less than one unit of Jmax, made leaf nitrogen 0\n";
-	}
+	double leaf_nitrogen = G->leaf_nitrogen_concentration; // kg N / kg leaf = g g-1, set by set_nitrogen()
 
 	auto out_phydro_acclim = phydro::phydro_nitrogen(
 		C.clim_acclim.tc,     // current temperature
@@ -117,6 +113,7 @@ phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, d
 	photo_leaf.a        *= f_day_length;
 	photo_leaf.e        *= f_day_length;
 	photo_leaf.gs       *= f_day_length;
+	photo_leaf.n_leaf    = out_phydro_acclim.n_leaf;
 	// print_phydro(photo_leaf, "inst real 12 hr");
 
 	// auto photo_leaf2 = phydro::phydro_instantaneous_analytical(
@@ -211,7 +208,7 @@ void  Assimilator::calc_plant_assimilation_rate(Env& env, PlantArchitecture* G, 
 		plant_assim.gs_avg     = res.gs;
 		plant_assim.vcmax25_avg = res.vcmax25;
 		plant_assim.mc_avg     = res.mc;
-		plant_assim.nitrogen_avg     = res.n_leaf;
+		plant_assim.nitrogen_avg         = res.n_leaf;
 
 		//std::cout << "--- total (by avg light)\n";
 		//std::cout << "h = " << G->height << ", nz* = " << env.n_layers << ", I = " << plant_assim.c_open_avg << ", fapar = " << fapar << ", A = " << plant_assim.gpp/ca_total << " umol/m2/s x " << ca_total << " = " << plant_assim.gpp << ", vcmax_avg = " << plant_assim.vcmax_avg << "\n"; 

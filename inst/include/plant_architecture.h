@@ -44,7 +44,7 @@ class PlantArchitecture{
 	
 	// nitrogen state
 	double nitrogen_tree;                ///< Nitrogen in the tree [g] TODO: is this in kg rather than g
-	double potential_nitrogen_leaf;      ///< Potential nitrogen in the leaf for the optimisation [g]
+	double leaf_nitrogen_concentration;  ///< Nitrogen concentration in leaf [kg N kg-1 leaf], set by set_nitrogen()
 	double nitrogen_in_biomass;          ///< Nitrogen in the tree's biomass [kg N]
 
 	// variables calculated from state variables
@@ -85,7 +85,7 @@ class PlantArchitecture{
 	double crown_area_extent_projected(double z, PlantTraits& traits);
 	/// @brief  Realized crown projection area at height z. 
 	double crown_area_above(double z, PlantTraits& traits);
-	double n_demand_per_lai_biomass(const PlantTraits& traits) const;
+	double n_demand_per_lai_biomass(const PlantTraits& traits, double nc_leaf_actual) const;
 	/// @}
 
 
