@@ -355,6 +355,8 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 	RK4(t, dt, S, derivs);
 	//Euler(t, dt, S, derivs);
 	set_state(S.begin());
+	C.updateBackgroundCanopy(t + dt, P.geometry, P.traits, P.par);
+	P.calc_demographic_rates(C, t + dt);
 }
 
 
