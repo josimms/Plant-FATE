@@ -177,8 +177,8 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
 		, "total_mass"
     , "tree_nitrogen"
     , "nitrogen_in_biomass"
-    , "potential_leaf_nitrogen"
     , "optimal_leaf_nitrogen"
+    , "leaf_nitrogen_concentration"
 		, "total_rep"
 		// , "seed_pool"
 		// , "germinated"
@@ -241,8 +241,8 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
 		, P.get_biomass()
     , P.geometry.nitrogen_tree
     , P.geometry.nitrogen_in_biomass
-    , P.geometry.potential_nitrogen_leaf
     , P.assimilator.plant_assim.nitrogen_avg
+    , P.geometry.leaf_nitrogen_concentration
 		, rep
 	//  , P.state.seed_pool
 	//  , germinated
