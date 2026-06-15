@@ -46,7 +46,7 @@ namespace plant {
 
     // Surface areas
     double SA_fr = G.root_surface_area(traits);
-    double SA_m  = 4.0 * G.ectomycorrhiza_mass / (rho_myco * myco_diameter);
+    double SA_m  = 4.0 * std::max(0.0, G.ectomycorrhiza_mass) / (rho_myco * myco_diameter);
 
     // Zone geometry: semi-ellipsoidal zone, radius R = k_13 * crown_radius
     double crown_radius = std::sqrt(G.crown_area / M_PI);
