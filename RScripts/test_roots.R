@@ -344,18 +344,18 @@ blank <- function() {
   
   plot(df$date, df$optimal_leaf_nitrogen, type = "l", col = cols[1],
        ylab = "Leaf N Dynamics (g g⁻¹)", main = "Optimal Leaf N", xlab = "Date",
-       ylim = range(df$optimal_leaf_nitrogen, 1000 * df$potential_leaf_nitrogen[5:nrow(df)],
-                    df_2$optimal_leaf_nitrogen, 1000 * df_2$potential_leaf_nitrogen[5:nrow(df_2)],
-                    df_3$optimal_leaf_nitrogen, 1000 * df_3$potential_leaf_nitrogen[5:nrow(df_3)], na.rm = TRUE))
+       ylim = range(df$optimal_leaf_nitrogen, (df$potential_leaf_nitrogen / df$leaf_mass)[5:nrow(df)],
+                    df_2$optimal_leaf_nitrogen, (df_2$potential_leaf_nitrogen / df_2$leaf_mass)[5:nrow(df_2)],
+                    df_3$optimal_leaf_nitrogen, (df_3$potential_leaf_nitrogen / df_3$leaf_mass)[5:nrow(df_3)], na.rm = TRUE))
   lines(df_2$date, df_2$optimal_leaf_nitrogen, col = cols[2])
   lines(df_3$date, df_3$optimal_leaf_nitrogen, col = cols[3])
-  lines(df$date, 1000 * df$potential_leaf_nitrogen, col = cols[1], lty = 2)
-  lines(df_2$date, 1000 * df_2$potential_leaf_nitrogen, col = cols[2], lty = 2)
-  lines(df_3$date, 1000 * df_3$potential_leaf_nitrogen, col = cols[3], lty = 2)
+  lines(df$date, df$potential_leaf_nitrogen / df$leaf_mass, col = cols[1], lty = 2)
+  lines(df_2$date, df_2$potential_leaf_nitrogen / df_2$leaf_mass, col = cols[2], lty = 2)
+  lines(df_3$date, df_3$potential_leaf_nitrogen / df_3$leaf_mass, col = cols[3], lty = 2)
   abline(h = 0.0151, col = "blue", lty = 1)
   legend("topright", legend = c("Potential", "Optimal"), col = "black", lty = c(2, 1), bty = "n", title = "Leaf Nitrogen")
   title(sub = "Korhonen 2012: Socts Pine Needle N", col.sub = "blue")
-  
+
   plot(df$date, df$vcmax, type = "l", col = cols[1], main = "Vcmax", ylab = "µmol m⁻² s⁻¹", xlab = "Date",
        ylim = range(df$vcmax, df_2$vcmax, df_3$vcmax, na.rm = TRUE))
   lines(df_2$date, df_2$vcmax, col = cols[2])
@@ -1843,14 +1843,14 @@ original_life_histroy <- function() {
   
   plot(df$date, df$optimal_leaf_nitrogen, type = "l", col = cols[1],
        ylab = "Leaf N Dynamics (g g⁻¹)", main = "Optimal Leaf N", xlab = "Date",
-       ylim = range(df$optimal_leaf_nitrogen, 1000 * df$potential_leaf_nitrogen[5:nrow(df)],
-                    df_2$optimal_leaf_nitrogen, 1000 * df_2$potential_leaf_nitrogen[5:nrow(df_2)],
-                    df_3$optimal_leaf_nitrogen, 1000 * df_3$potential_leaf_nitrogen[5:nrow(df_3)], na.rm = TRUE))
+       ylim = range(df$optimal_leaf_nitrogen, (df$potential_leaf_nitrogen / df$leaf_mass)[5:nrow(df)],
+                    df_2$optimal_leaf_nitrogen, (df_2$potential_leaf_nitrogen / df_2$leaf_mass)[5:nrow(df_2)],
+                    df_3$optimal_leaf_nitrogen, (df_3$potential_leaf_nitrogen / df_3$leaf_mass)[5:nrow(df_3)], na.rm = TRUE))
   lines(df_2$date, df_2$optimal_leaf_nitrogen, col = cols[2])
   lines(df_3$date, df_3$optimal_leaf_nitrogen, col = cols[3])
-  lines(df$date, 1000 * df$potential_leaf_nitrogen, col = cols[1], lty = 2)
-  lines(df_2$date, 1000 * df_2$potential_leaf_nitrogen, col = cols[2], lty = 2)
-  lines(df_3$date, 1000 * df_3$potential_leaf_nitrogen, col = cols[3], lty = 2)
+  lines(df$date, df$potential_leaf_nitrogen / df$leaf_mass, col = cols[1], lty = 2)
+  lines(df_2$date, df_2$potential_leaf_nitrogen / df_2$leaf_mass, col = cols[2], lty = 2)
+  lines(df_3$date, df_3$potential_leaf_nitrogen / df_3$leaf_mass, col = cols[3], lty = 2)
   abline(h = 0.0151, col = "blue", lty = 1)
   legend("topright", legend = c("Potential", "Optimal"), col = "black", lty = c(2, 1), bty = "n", title = "Leaf Nitrogen")
   title(sub = "Korhonen 2012: Socts Pine Needle N", col.sub = "blue")
@@ -2117,7 +2117,7 @@ original_life_histroy <- function() {
   lho$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_co2File("")
-  lho$set_soil_nitrogen(0.01)
+  lho$set_soil_nitrogen(0.2)
   lho$init()
   
   lho_2 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
@@ -2221,9 +2221,9 @@ original_life_histroy <- function() {
   plot(df$date, df$assim_gross/df$crown_area/2.04, type = "l", col = cols[1], lwd = lwd_model,
        ylim = ylim_gpp, xlab = "", ylab = expression("GPP (kg C m"^{-2}*" year"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df$date, df$assim_gross/df$crown_area/2.04, col = cols[1], lwd = lwd_model)
-  lines(df_2$date, df_2$assim_gross/df_2$crown_area/2.04, col = cols[2], lwd = lwd_model)
   lines(df_3$date, df_3$assim_gross/df_3$crown_area/2.04, col = cols[3], lwd = lwd_model)
+  lines(df_2$date, df_2$assim_gross/df_2$crown_area/2.04, col = cols[2], lwd = lwd_model)
+  lines(df$date, df$assim_gross/df$crown_area/2.04, col = cols[1], lwd = lwd_model)
   points(Eddy_covariance$MonthlyDate, Eddy_covariance$GPP_mean_kg,
          col = col_obs, pch = pch_obs, cex = 0.8)
   mtext("(a)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
@@ -2235,9 +2235,9 @@ original_life_histroy <- function() {
   plot(df_2$date, df_2$assim_net/df_2$crown_area/2.04, col = cols[3], type = "l", lwd = lwd_model,
        ylim = ylim_npp, xlab = "", ylab = expression("NPP (kg C m"^{-2}*" year"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df$date, df$assim_net/df$crown_area/2.04, col = cols[1], lwd = lwd_model)
-  lines(df_2$date, df_2$assim_net/df_2$crown_area/2.04, col = cols[2], lwd = lwd_model)
   lines(df_3$date, df_3$assim_net/df_3$crown_area/2.04, col = cols[3], lwd = lwd_model)
+  lines(df_2$date, df_2$assim_net/df_2$crown_area/2.04, col = cols[2], lwd = lwd_model)
+  lines(df$date, df$assim_net/df$crown_area/2.04, col = cols[1], lwd = lwd_model)
   points(Eddy_covariance$MonthlyDate, -Eddy_covariance$NEE_mean_kg,
          col = col_obs, pch = pch_obs, cex = 0.8)
   mtext("(b)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
@@ -2326,7 +2326,7 @@ original_life_histroy <- function() {
        ylim = ylim_vc, xlab = "",
        ylab = expression("V"[cmax]*" ("*mu*"mol m"^{-2}*" s"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
-  rect(par("usr")[1], 0, par("usr")[2], 80,
+  rect(par("usr")[1], 0, par("usr")[2], 10,
        col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
   lines(df$date, df$vcmax/df$lai, col = cols[1], lwd = lwd_model)
   lines(df_2$date, df_2$vcmax/df_2$lai, col = cols[2], lwd = lwd_model)
@@ -2335,10 +2335,11 @@ original_life_histroy <- function() {
   box(bty = "l")
   
   # (f) Optimal leaf nitrogen
-  ylim_oln <- range(df$optimal_leaf_nitrogen, df_2$optimal_leaf_nitrogen,
-                    df_3$optimal_leaf_nitrogen,
-                    # 1000 * df$potential_leaf_nitrogen, 1000 * df_2$potential_leaf_nitrogen,
-                    # 1000 * df_3$potential_leaf_nitrogen, 
+  ylim_oln <- range(0, df$optimal_leaf_nitrogen * 1.1, df_2$optimal_leaf_nitrogen * 1.1,
+                    df_3$optimal_leaf_nitrogen * 1.1,
+                    #df_3$leaf_nitrogen_concentration,
+                    #df_2$leaf_nitrogen_concentration,
+                    #df$leaf_nitrogen_concentration,
                     na.rm = TRUE)
   plot(df$date, df$optimal_leaf_nitrogen, type = "n", col = cols[1], pch = 20, cex = 1,
        ylim = ylim_oln, xlab = "",
@@ -2346,9 +2347,14 @@ original_life_histroy <- function() {
        cex.axis = cex_axis, cex.lab = cex_lab)
   #rect(par("usr")[1], 11 / 1000, par("usr")[2], 13 / 1000,
   #     col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
-  polygon(c(df$date,   rev(df$date)),   c(1000 * df$potential_leaf_nitrogen,   rep(0, nrow(df))),   col = adjustcolor(cols[1], alpha.f = 0.2), border = NA)
-  polygon(c(df_2$date, rev(df_2$date)), c(1000 * df_2$potential_leaf_nitrogen, rep(0, nrow(df_2))), col = adjustcolor(cols[2], alpha.f = 0.2), border = NA)
-  polygon(c(df_3$date, rev(df_3$date)), c(1000 * df_3$potential_leaf_nitrogen, rep(0, nrow(df_3))), col = adjustcolor(cols[3], alpha.f = 0.2), border = NA)
+  for (i in 3:1) {
+    d_i <- list(df, df_2, df_3)[[i]]
+    idx <- !is.na(d_i$leaf_nitrogen_concentration)
+    polygon(c(d_i$date[idx], rev(d_i$date[idx])),
+            c(d_i$leaf_nitrogen_concentration[idx], rep(0, sum(idx))),
+            col = adjustcolor(cols[i], alpha.f = 0.5), border = NA)
+    #lines(d_i$date, d_i$leaf_nitrogen_concentration, col = cols[i], lwd = lwd_model)
+  }
   points(df_3$date, df_3$optimal_leaf_nitrogen, col = cols[3], pch = 20, cex = 1)
   points(df_2$date, df_2$optimal_leaf_nitrogen, col = cols[2], pch = 20, cex = 1)
   points(df$date, df$optimal_leaf_nitrogen, col = cols[1], pch = 20, cex = 1)
@@ -2376,23 +2382,14 @@ original_life_histroy <- function() {
   # (h) Ectomycorrhizal biomass
   ylim_nb <- range(df$ectomycorrhiza_mass, df_2$ectomycorrhiza_mass,
                    df_3$ectomycorrhiza_mass, na.rm = TRUE)
-  
   plot(df$date, df$ectomycorrhiza_mass, type = "l", col = cols[1], lwd = lwd_model,
-       ylim = ylim_nb, xlab = "",
-       ylab = expression("ECM Biomass (kg Biomass tree"^{-1}*")"),
+       ylim = ylim_nb, xlab = "", ylab = "Belowground\ninfrastructure",
        cex.axis = cex_axis, cex.lab = cex_lab)
   lines(df_3$date, df_3$ectomycorrhiza_mass, col = cols[3], lwd = lwd_model)
   lines(df_2$date, df_2$ectomycorrhiza_mass, col = cols[2], lwd = lwd_model)
   lines(df$date, df$ectomycorrhiza_mass, col = cols[1], lwd = lwd_model)
-  mtext("(h)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  mtext("(a)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
-  
-  par(mfrow = c(4, 2), mar = c(4, 6, 3, 1), oma = c(4, 0, 2, 0),
-      family = "serif", las = 1, tcl = -0.4, mgp = c(4, 1, 0))
-  plot(df$root_mass)
-  plot(df$coarse_root_mass)
-  plot(df$belowground_infrastructure)
-  plot(df$transpiration/df$crown_area)
   
   # Shared legend
   par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
@@ -2404,5 +2401,78 @@ original_life_histroy <- function() {
          lty = c(1, 1, 1, NA, 1),
          pch = c(NA, NA, NA, pch_obs, NA),
          lwd = c(rep(lwd_model, 3), NA, lwd_obs))
+  
+  par(mfrow = c(4, 2), mar = c(4, 6, 3, 1), oma = c(4, 0, 2, 0),
+      family = "serif", las = 1, tcl = -0.4, mgp = c(4, 1, 0))
+
+  # (a) Belowground infrastructure
+  ylim_bi <- range(df$belowground_infrastructure, df_2$belowground_infrastructure,
+                   df_3$belowground_infrastructure, na.rm = TRUE)
+  plot(df$date, df$belowground_infrastructure, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_bi, xlab = "", ylab = "Belowground\ninfrastructure",
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  lines(df_3$date, df_3$belowground_infrastructure, col = cols[3], lwd = lwd_model)
+  lines(df_2$date, df_2$belowground_infrastructure, col = cols[2], lwd = lwd_model)
+  lines(df$date, df$belowground_infrastructure, col = cols[1], lwd = lwd_model)
+  mtext("(a)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  box(bty = "l")
+
+  # (b) N_bar
+  ylim_nb2 <- range(df$N_bar, df_2$N_bar, df_3$N_bar, na.rm = TRUE)
+  plot(df$date, df$N_bar, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_nb2, xlab = "",
+       ylab = expression(bar(N)~"(kg N m"^{-3}*")"),
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  lines(df_3$date, df_3$N_bar, col = cols[3], lwd = lwd_model)
+  lines(df_2$date, df_2$N_bar, col = cols[2], lwd = lwd_model)
+  lines(df$date, df$N_bar, col = cols[1], lwd = lwd_model)
+  mtext("(b)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  box(bty = "l")
+
+  # (c) Mycorrhizal uptake
+  ylim_mu2 <- range(df$myco_uptake, df_2$myco_uptake, df_3$myco_uptake, na.rm = TRUE)
+  plot(df$date, df$myco_uptake, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_mu2, xlab = "",
+       ylab = expression("Myco. uptake (kg N tree"^{-1}*" year"^{-1}*")"),
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  lines(df_3$date, df_3$myco_uptake, col = cols[3], lwd = lwd_model)
+  lines(df_2$date, df_2$myco_uptake, col = cols[2], lwd = lwd_model)
+  lines(df$date, df$myco_uptake, col = cols[1], lwd = lwd_model)
+  
+  mtext("(c)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  box(bty = "l")
+
+  # (d) Root uptake
+  ylim_ru2 <- range(df$root_uptake, df_2$root_uptake, df_3$root_uptake, na.rm = TRUE)
+  plot(df$date, df$root_uptake, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_ru2, xlab = "",
+       ylab = expression("Root uptake (kg N tree"^{-1}*" year"^{-1}*")"),
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  lines(df_3$date, df_3$root_uptake, col = cols[3], lwd = lwd_model)
+  lines(df_2$date, df_2$root_uptake, col = cols[2], lwd = lwd_model)
+  lines(df$date, df$root_uptake, col = cols[1], lwd = lwd_model)
+  mtext("(d)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  box(bty = "l")
+  
+  # (e) tree N store
+  ylim_ru2 <- range(df$tree_nitrogen, df_2$tree_nitrogen, df_3$tree_nitrogen, na.rm = TRUE)
+  plot(df$date, df$tree_nitrogen, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_ru2, xlab = "",
+       ylab = expression("Tree N store (kg N tree"^{-1}*" year"^{-1}*")"),
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  lines(df_3$date, df_3$tree_nitrogen, col = cols[3], lwd = lwd_model)
+  lines(df_2$date, df_2$tree_nitrogen, col = cols[2], lwd = lwd_model)
+  lines(df$date, df$tree_nitrogen, col = cols[1], lwd = lwd_model)
+  mtext("(d)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  box(bty = "l")
+
+  # Shared legend
+  par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
+  plot(0, 0, type = "n", bty = "n", xaxt = "n", yaxt = "n")
+  legend("bottom", horiz = FALSE, bty = "n", cex = cex_legend, ncol = 3,
+         legend = N_labels,
+         col = cols,
+         lty = c(1, 1, 1),
+         lwd = rep(lwd_model, 3))
 }
 
