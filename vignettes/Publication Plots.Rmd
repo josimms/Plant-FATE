@@ -325,6 +325,11 @@ mean_subset_df1 <- mean_df %>%
 mean_subset_df2 <- mean_df %>%
   filter(abs(root_no - 3e5) < 1e-6 * 3e5)
 
+total_mass_range_mean <- range(
+  c(mean_subset_df1$total_mass, mean_subset_df2$total_mass),
+  na.rm = TRUE
+)
+
 p1_mean <- ggplot(mean_subset_df1,
                   aes(x = soil_nitrogen,
                       y = root_no,
@@ -371,11 +376,6 @@ p2_mean +
   geom_line(data = max_line_df2,
             aes(x = soil_nitrogen, y = root_length),
             color = "white", size = 1.2)
-
-total_mass_range_mean <- range(
-  c(mean_subset_df1$total_mass, mean_subset_df2$total_mass),
-  na.rm = TRUE
-)
 
 ```
 
