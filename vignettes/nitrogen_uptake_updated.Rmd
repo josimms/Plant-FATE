@@ -1,0 +1,870 @@
+---
+title: "Nitrogen Uptake Model — Whole-System Diffusion Budget"
+author: ""
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
+                      fig.width = 10, fig.height = 6)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(gridExtra)
+library(patchwork)
+library(viridis)
+```
+
+## Overview
+
+This document implements a nitrogen uptake model based on a whole-system
+diffusion budget. The total nitrogen available to the root system per unit
+time is limited by diffusive flux into the root zone from bulk soil. A
+mean soil concentration $\bar{N}$ adjusts self-consistently until diffusive
+supply equals total biochemical demand.
+
+A fraction $m$ of root surface is colonised by ECM fungi. The colonised
+surface is covered by the Hartig net and does not contribute to direct
+uptake. Active absorbing surface area is therefore:
+
+$$\mathrm{SA}_\text{active} = (1-m)\,\mathrm{SA}_{fr} + \mathrm{SA}_m$$
+
+The steady-state balance is:
+
+$$\frac{D \cdot (N_s - \bar{N}) \cdot A_\text{zone}}{r_\text{zone}}
+= \mathrm{SA}_\text{active} \cdot u_{A\max}
+  \cdot \frac{\bar{N}}{\bar{N} + k_{15}}$$
+
+Cross-multiplying, expanding, and collecting terms gives a quadratic in
+$\bar{N}$. Defining $\alpha = u_{A\max} \cdot \mathrm{SA}_\text{active}
+\cdot r_\text{zone} / (D \cdot A_\text{zone})$:
+
+$$\bar{N}^2 + (k_{15} + \alpha - N_s)\,\bar{N} - k_{15}\,N_s = 0$$
+
+with positive root:
+
+$$\bar{N} = \frac{1}{2}\left[(N_s - k_{15} - \alpha)
+  + \sqrt{(N_s - k_{15} - \alpha)^2 + 4\,k_{15}\,N_s}\right]$$
+
+Uptake by each organ uses $\bar{N}$ and its own active surface:
+
+$$U_{fr} = (1-m)\,\mathrm{SA}_{fr} \cdot u_{A\max}
+           \cdot \frac{\bar{N}}{\bar{N} + k_{15}}$$
+
+$$U_m = \mathrm{SA}_m \cdot u_{A\max}
+        \cdot \frac{\bar{N}}{\bar{N} + k_{15}}$$
+
+---
+
+## Parameters
+
+```{r parameters}
+###
+### SOIL PARAMETERS
+###
+
+u_Amax    <- 0.088     # Area-based max uptake (kg N m^-2 year^-1)
+D_default <- 1e-3     # Effective soil diffusion coefficient (m^2 year^-1)
+k_15      <- 0.5      # Biochemical half-saturation constant (kg N m^-3)
+depth     <- 0.5      # Rooting depth (m)
+
+###
+### ROOT PARAMETERS
+###
+
+myco_diameter <- 1e-5   # Hyphal diameter (m)
+myco_density  <- 330    # Hyphal tissue density (kg m^-3)
+l_hyp         <- 1e-4   # Hyphal segment length (m)
+T_m           <- 2      # Mycorrhizal turnover rate (year^-1)
+mycorrhized   <- 0.9    # Fraction of roots colonised by ECM
+
+n <- 2.75e6
+l <- 1.5
+
+C_r <- 2
+
+###
+### EXTRA PARAMETERS
+###
+
+k_9  <- 0.01
+k_8  <- 2.7
+k_13 <- 5
+k_14 <- 0.7
+
+traits <- list(
+  k_0 = 0.5, k_1 = 0.25, k_2 = 0.15, k_3 = 0.02,
+  k_4 = 350,  k_5 = 150,  k_6 = 3,    k_7 = 3,
+  k_8 = k_8,  k_9 = k_9
+)
+
+crown_area_fixed <- pi * C_r^2
+B_cr_fixed       <- 0
+rho_cr_fixed     <- 500
+```
+
+---
+
+## Equations
+
+```{r equations}
+############################################################
+## ROOT ARCHITECTURE FUNCTIONS
+############################################################
+
+root_diameter <- function(root_length, traits) {
+  traits$k_1 / (root_length ^ traits$k_0)
+}
+
+root_cortex_proportion <- function(root_length, traits) {
+  d <- root_diameter(root_length, traits)
+  (traits$k_2 + traits$k_3 / d)^2
+}
+
+root_density <- function(root_length, traits) {
+  PRD <- root_cortex_proportion(root_length, traits)
+  traits$k_4 * PRD + traits$k_5
+}
+
+root_age <- function(root_length, traits) {
+  d <- root_diameter(root_length, traits)
+  traits$k_6 * (1 - exp(-traits$k_7 * d))
+}
+
+root_biomass_per_crown_area <- function(root_length, root_no, traits) {
+  d_m   <- root_diameter(root_length, traits) / 1000
+  rho   <- root_density(root_length, traits)
+  l_tip <- root_length / 1000
+  rho * (d_m / 2)^2 * l_tip * pi * root_no
+}
+
+root_mass <- function(root_length, root_no, crown_area, traits) {
+  2 * root_biomass_per_crown_area(root_length, root_no, traits) * crown_area
+}
+
+############################################################
+## SURFACE AREAS
+############################################################
+
+root_surface_area <- function(root_length, root_no, traits) {
+  d_m   <- root_diameter(root_length, traits) / 1000
+  l_tip <- root_length / 1000
+  pi * d_m * l_tip * root_no
+}
+
+myco_surface_area <- function(B_m, myco_diameter, myco_density) {
+  L_total <- B_m / (myco_density * pi * (myco_diameter / 2)^2)
+  pi * myco_diameter * L_total
+}
+
+############################################################
+## ROOT ZONE GEOMETRY
+##
+## Semi-ellipsoidal root zone of radius R = k_13 * C_r
+## and depth q.
+##   A_zone = 2*pi*R^2 + pi*R*q  (lateral + base)
+##   r_zone = R
+############################################################
+
+zone_geometry <- function(C_r, q, k_13) {
+  R      <- k_13 * C_r
+  A_zone <- 2 * pi * R^2 + pi * R * q
+  r_zone <- R
+  list(A_zone = A_zone, r_zone = r_zone)
+}
+
+############################################################
+## ACTIVE SURFACE AREA
+##
+## SA_active = (1 - m) * SA_fr + SA_m
+##
+## Colonised root surface (m * SA_fr) is excluded from
+## direct uptake — nitrogen there is transferred via the
+## fungal pool N_m rather than absorbed directly.
+############################################################
+
+active_surface_area <- function(SA_fr, SA_m, m) {
+  (1 - m) * SA_fr + SA_m
+}
+
+############################################################
+## MEAN SOIL CONCENTRATION N_bar
+##
+## From steady-state balance between diffusive supply
+## and biochemical demand:
+##
+##   D*(N_s - N_bar)*A_zone/r_zone
+##       = SA_active * u_Amax * N_bar/(N_bar + k_15)
+##
+## Cross-multiplying and collecting gives quadratic:
+##   N_bar^2 + (k_15 + alpha - N_s)*N_bar - k_15*N_s = 0
+##
+## where alpha = u_Amax * SA_active * r_zone / (D * A_zone)
+##
+## Positive root:
+##   b     = N_s - k_15 - alpha
+##   N_bar = 0.5 * (b + sqrt(b^2 + 4*k_15*N_s))
+############################################################
+
+N_bar <- function(N_s, D, u_Amax, k_15,
+                  SA_active, A_zone, r_zone) {
+  if (SA_active <= 0) return(N_s)
+  alpha <- u_Amax * SA_active * r_zone / (D * A_zone)
+  b     <- N_s - k_15 - alpha
+  disc  <- sqrt(b^2 + 4 * k_15 * N_s)
+  if (b >= 0) 0.5 * (b + disc) else 2 * k_15 * N_s / (disc - b)
+}
+
+############################################################
+## ORGAN UPTAKE
+##
+## U_fr = (1-m) * SA_fr * u_Amax * N_bar/(N_bar + k_15)
+## U_m  =         SA_m  * u_Amax * N_bar/(N_bar + k_15)
+##
+## Both use N_bar. The (1-m) on U_fr is already embedded
+## in SA_active used to compute N_bar, but also applied
+## here to allocate the shared flux correctly between
+## the two organ types.
+############################################################
+
+uptake_root <- function(SA_fr, m, u_Amax, k_15, Nbar) {
+  (1 - m) * SA_fr * u_Amax * (Nbar / (Nbar + k_15))
+}
+
+uptake_myco <- function(SA_m, u_Amax, k_15, Nbar) {
+  SA_m * u_Amax * (Nbar / (Nbar + k_15))
+}
+
+############################################################
+## UPTAKE MODIFIERS
+############################################################
+
+uptake_age_modifier <- function(root_length, traits) {
+  age <- root_age(root_length, traits)
+  1 / (1 + exp(age - traits$k_8))
+}
+
+nitrogen_gate <- function(root_no, root_length, traits) {
+  d  <- root_diameter(root_length, traits)
+  SA <- root_no * pi * d * root_length
+  SA / (SA + traits$k_9)
+}
+
+############################################################
+## WHOLE-PLANT UPTAKE
+##
+## U_a = a_u * [U_fr + m * g(n,l) * T_m * max(0, N_m)]
+##
+## Note: (1-m) is already inside U_fr via uptake_root().
+## The ECM transfer term handles nitrogen from colonised
+## roots via the fungal pool N_m.
+############################################################
+
+plant_uptake <- function(N_s, N_m,
+                         crown_area, root_length, root_no,
+                         B_m, B_cr, rho_cr,
+                         traits,
+                         mycorrhized, T_m,
+                         myco_diameter, myco_density, l_hyp,
+                         C_r, q = 0.5, k_13 = 2, k_14 = 0.5,
+                         u_Amax, D, k_15) {
+
+  B_fr  <- root_mass(root_length, root_no, crown_area, traits)
+  SA_fr <- root_surface_area(root_length, root_no, traits) * crown_area
+  SA_m  <- myco_surface_area(B_m, myco_diameter, myco_density)
+
+  geom    <- zone_geometry(C_r, q, k_13)
+  SA_act  <- active_surface_area(SA_fr, SA_m, mycorrhized)
+
+  Nbar     <- N_bar(N_s, D, u_Amax, k_15,
+                    SA_act, geom$A_zone, geom$r_zone)
+  F_supply <- D * N_s * geom$A_zone / geom$r_zone
+
+  U_fr <- uptake_root(SA_fr, mycorrhized, u_Amax, k_15, Nbar)
+  U_m  <- uptake_myco(SA_m, u_Amax, k_15, Nbar)
+
+  a_u <- uptake_age_modifier(root_length, traits)
+  g   <- nitrogen_gate(root_no, root_length, traits)
+
+  ECM_transfer <- mycorrhized * g * T_m * max(0, N_m)
+  U_a <- a_u * (U_fr + ECM_transfer)
+
+  return(list(
+    N_total      = U_a,
+    U_fr         = U_fr,
+    U_m          = U_m,
+    SA_fr        = SA_fr,
+    SA_m         = SA_m,
+    SA_active    = SA_act,
+    ECM_transfer = ECM_transfer,
+    N_bar        = Nbar,
+    F_supply     = F_supply,
+    A_zone       = geom$A_zone,
+    r_zone       = geom$r_zone,
+    a_u          = a_u,
+    g            = g,
+    B_fr         = B_fr
+  ))
+}
+```
+
+---
+
+## Diagnostic: $\bar{N}$ and Uptake Behaviour
+
+```{r diagnostics, fig.height=8}
+N_s_vals    <- seq(0.001, 2,  length.out = 200)
+n_vals      <- 10^seq(3, 7,   length.out = 5)
+D_vals_diag <- c(1e-5, 1e-4, 1e-3, 1e-2)
+
+geom_fixed <- zone_geometry(C_r, depth, k_13)
+D_fmt <- formatC(D_vals_diag, format = "e", digits = 2)
+cb_D  <- setNames(c("#E69F00", "#56B4E9", "#009E73", "#CC79A7"), D_fmt)
+
+# N_bar vs N_s by D
+df_D <- expand_grid(N_s = N_s_vals, D = D_vals_diag) %>%
+  rowwise() %>%
+  mutate(
+    SA_fr   = root_surface_area(l, n, traits) * crown_area_fixed,
+    SA_m    = myco_surface_area(0, myco_diameter, myco_density),
+    SA_act  = active_surface_area(SA_fr, SA_m, mycorrhized),
+    Nbar    = N_bar(N_s, D, u_Amax, k_15,
+                    SA_act, geom_fixed$A_zone, geom_fixed$r_zone),
+    D_label = factor(formatC(D, format = "e", digits = 2), levels = D_fmt)
+  ) %>%
+  ungroup()
+
+# N_bar and uptake vs tip density
+df_diag <- expand_grid(N_s = N_s_vals, n_tip = n_vals) %>%
+  rowwise() %>%
+  mutate(
+    B_fr   = root_mass(l, n_tip, crown_area_fixed, traits),
+    SA_fr  = root_surface_area(l, n_tip, traits) * crown_area_fixed,
+    SA_act = active_surface_area(SA_fr, 0, mycorrhized),
+    Nbar   = N_bar(N_s, D_default, u_Amax, k_15,
+                   SA_act, geom_fixed$A_zone, geom_fixed$r_zone),
+    U_fr   = uptake_root(SA_fr, mycorrhized, u_Amax, k_15, Nbar),
+    U_per_B = U_fr / B_fr,
+    F_sup  = D_default * N_s * geom_fixed$A_zone / geom_fixed$r_zone
+  ) %>%
+  ungroup() %>%
+  mutate(n_label = factor(signif(n_tip, 2)))
+
+nbar_bounds <- data.frame(
+  xintercept = c(0.0012, 0.003),
+  label      = c("Korhonen (mineral)", "With amino acids")
+)
+
+p_Nbar_D <- ggplot(df_D, aes(N_s, Nbar, colour = D_label)) +
+  geom_line(linewidth = 1.1) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
+  geom_vline(data = nbar_bounds,
+             aes(xintercept = xintercept, linetype = label),
+             colour = "blue", linewidth = 0.8) +
+  scale_linetype_manual(name = "N_s reference",
+                        values = c("Korhonen (mineral)" = "dashed",
+                                   "With amino acids"   = "dotdash")) +
+  scale_colour_manual(values = cb_D,
+                      name = expression(D~"(m"^2~"yr"^{-1}*")")) +
+  labs(title = expression(bar(N)~"vs"~N[s]~"by D"),
+       subtitle = "Dashed = no depletion; high D approaches dashed",
+       x = expression(N[s]~"(kg N m"^{-3}*")"),
+       y = expression(bar(N)~"(kg N m"^{-3}*")")) +
+  theme_bw(base_size = 12)
+
+p_Nbar_n <- ggplot(df_diag, aes(N_s, Nbar, colour = n_label)) +
+  geom_line(linewidth = 1.1) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
+  geom_vline(data = nbar_bounds,
+             aes(xintercept = xintercept, linetype = label),
+             colour = "blue", linewidth = 0.8) +
+  scale_linetype_manual(name = "N_s reference",
+                        values = c("Korhonen (mineral)" = "dashed",
+                                   "With amino acids"   = "dotdash")) +
+  scale_colour_viridis_d(name = "n (tips/m\u00b2)") +
+  labs(title = expression(bar(N)~"vs"~N[s]~"by tip density"),
+       subtitle = "More roots -> more depletion -> lower N_bar",
+       x = expression(N[s]~"(kg N m"^{-3}*")"),
+       y = expression(bar(N)~"(kg N m"^{-3}*")")) +
+  theme_bw(base_size = 12)
+
+p_U_Ns <- ggplot(df_diag, aes(N_s, U_fr, colour = n_label)) +
+  geom_line(linewidth = 1.1) +
+  geom_line(aes(y = F_sup), colour = "black",
+            linetype = "dashed", linewidth = 0.8) +
+  scale_colour_viridis_d(name = "n (tips/m\u00b2)") +
+  scale_y_log10(labels = scales::scientific) +
+  labs(title = "Total root uptake vs N_s",
+       subtitle = "Dashed = diffusive supply ceiling",
+       x = expression(N[s]~"(kg N m"^{-3}*")"),
+       y = expression(U[fr]~"(kg N yr"^{-1}*")")) +
+  theme_bw(base_size = 12)
+
+p_U_B <- ggplot(df_diag, aes(B_fr, U_per_B, colour = n_label)) +
+  geom_line(linewidth = 1.1) +
+  scale_colour_viridis_d(name = "n (tips/m\u00b2)") +
+  scale_x_log10(labels = scales::scientific) +
+  scale_y_continuous(labels = scales::scientific) +
+  labs(title = "Uptake per biomass vs B_fr — should saturate",
+       x = expression(B[fr]~"(kg)"),
+       y = expression(U[fr]~B[fr]^{-1}~"(kg N kg"^{-1}~"yr"^{-1}*")")) +
+  theme_bw(base_size = 12)
+
+(p_Nbar_D | p_Nbar_n) / (p_U_Ns | p_U_B)
+```
+
+---
+
+## Root and Mycorrhizal Uptake
+
+```{r uptake_plots, fig.height=8}
+D_vals        <- c(1e-5, 1e-4, 1e-3, 1e-2)
+D_levels      <- formatC(D_vals, format = "e", digits = 2)
+u_max_fixed   <- 0.88/10
+N_s_vals      <- seq(0.01, 1.0, length.out = 200)
+N_s_highlight <- c(0.2, 0.6)
+
+cb_two <- setNames(c("#E69F00", "#56B4E9", "#009E73", "#CC79A7"), D_levels)
+
+D_labels_plot <- setNames(
+  list(expression(10^{-5}), expression(10^{-4}),
+       expression(10^{-3}), expression(10^{-2})),
+  D_levels
+)
+
+df_basis <- tibble(n = seq(1e1, 1e10, length.out = 20), l = 1.5) %>%
+  rowwise() %>%
+  mutate(
+    B_fr  = root_mass(l, n, crown_area_fixed, traits),
+    SA_fr = root_surface_area(l, n, traits) * crown_area_fixed
+  ) %>%
+  ungroup()
+
+B_highlight  <- c(df_basis$B_fr[7],  max(df_basis$B_fr))
+SA_highlight <- c(df_basis$SA_fr[7], max(df_basis$SA_fr))
+n_highlight  <- c(df_basis$n[7],     max(df_basis$n))
+
+theme_pub <- theme_bw(base_size = 14) +
+  theme(panel.grid.minor = element_blank(), strip.background = element_blank(),
+        legend.position = "right", legend.text = element_text(size = 11),
+        legend.title = element_text(size = 12), legend.key.size = unit(0.4, "cm"))
+
+highlight_df <- tibble(B_fr  = B_highlight,
+                       SA_fr = SA_highlight,
+                       n_val = n_highlight)
+
+# helper — uses mycorrhized and active_surface_area
+get_Nbar <- function(N_s, D, SA_fr, B_m, C_r, q, k_13, m) {
+  SA_m   <- myco_surface_area(B_m, myco_diameter, myco_density)
+  SA_act <- active_surface_area(SA_fr, SA_m, m)
+  geom   <- zone_geometry(C_r, q, k_13)
+  N_bar(N_s, D, u_max_fixed, k_15,
+        SA_act, geom$A_zone, geom$r_zone)
+}
+
+# ---- (a) U_fr per biomass vs N_s ----
+df_root_Ns <- crossing(highlight_df,
+                       myco = c("no myco", "myco"),
+                       N_s  = N_s_vals,
+                       D    = D_vals) %>%
+  rowwise() %>%
+  mutate(
+    B_m_use    = ifelse(myco == "myco", 1.0, 0),
+    m_use      = ifelse(myco == "myco", mycorrhized, 0),
+    Nbar       = get_Nbar(N_s, D, SA_fr, B_m_use, C_r, depth, k_13, m_use),
+    U_fr       = uptake_root(SA_fr, m_use, u_max_fixed, k_15, Nbar),
+    U_fr_per_B = U_fr / B_fr,
+    D_label    = factor(formatC(D, format = "e", digits = 2), levels = D_levels),
+    B_label    = factor(ifelse(B_fr == min(B_highlight), "low", "high"),
+                        levels = c("low", "high"))
+  ) %>%
+  ungroup() %>%
+  mutate(panel = factor(ifelse(myco == "no myco",
+                               "(a.i) Without ECM", "(a.ii) With ECM"),
+                        levels = c("(a.i) Without ECM", "(a.ii) With ECM")))
+
+p_root_Ns <- ggplot(df_root_Ns,
+       aes(x = N_s, y = U_fr_per_B, colour = D_label, linetype = B_label)) +
+  geom_line(linewidth = 1.1) + facet_wrap(~ panel) +
+  scale_colour_manual(values = cb_two, labels = D_labels_plot,
+                      name = expression(D~"(m"^2~"yr"^{-1}*")")) +
+  scale_linetype_manual(values = c("low" = 3, "high" = 1), name = expression(B[fr])) +
+  scale_y_log10(labels = scales::scientific) +
+  labs(x = expression(N[s]~"(kg N m"^{-3}*")"),
+       y = expression(U[fr]~B[fr]^{-1}~"(kg N kg"^{-1}~"yr"^{-1}*")")) +
+  theme_pub + theme(strip.text = element_text(size = 10))
+
+# ---- (b) U_fr per biomass vs B_fr ----
+df_root_B <- df_basis %>%
+  crossing(myco = c("no myco", "myco"), N_s = N_s_highlight, D = D_vals) %>%
+  rowwise() %>%
+  mutate(
+    B_m_use    = ifelse(myco == "myco", 1.0, 0),
+    m_use      = ifelse(myco == "myco", mycorrhized, 0),
+    Nbar       = get_Nbar(N_s, D, SA_fr, B_m_use, C_r, depth, k_13, m_use),
+    U_fr       = uptake_root(SA_fr, m_use, u_max_fixed, k_15, Nbar),
+    U_fr_per_B = U_fr / B_fr,
+    D_label    = factor(formatC(D, format = "e", digits = 2), levels = D_levels),
+    N_label    = factor(as.character(N_s), levels = as.character(N_s_highlight))
+  ) %>%
+  ungroup() %>%
+  mutate(panel = factor(ifelse(myco == "no myco",
+                               "(b.i) Without ECM", "(b.ii) With ECM"),
+                        levels = c("(b.i) Without ECM", "(b.ii) With ECM")))
+
+p_root_B <- ggplot(df_root_B,
+       aes(x = B_fr, y = U_fr_per_B, colour = D_label, linetype = N_label)) +
+  geom_line(linewidth = 1.1) + facet_wrap(~ panel) +
+  scale_colour_manual(values = cb_two, labels = D_labels_plot,
+                      name = expression(D~"(m"^2~"yr"^{-1}*")")) +
+  scale_linetype_manual(values = c("0.2" = 3, "0.6" = 1),
+                        labels = c("0.2" = expression(N[s] == 0.2),
+                                   "0.6" = expression(N[s] == 0.6)),
+                        name = expression(N[s]~"(kg N m"^{-3}*")")) +
+  scale_x_log10(labels = scales::scientific) +
+  scale_y_continuous(labels = scales::scientific) +
+  labs(x = expression(B[fr]~"(kg)"),
+       y = expression(U[fr]~B[fr]^{-1}~"(kg N kg"^{-1}~"yr"^{-1}*")")) +
+  theme_pub + theme(strip.text = element_text(size = 10))
+
+# ---- (c) U_m per biomass vs N_s ----
+# B_m highlights are independent ECM biomass values, not derived from df_basis
+B_m_highlight <- c(0.01, 1.0)   # low and high ECM biomass (kg)
+
+df_myco_Ns <- crossing(
+    tibble(B_m   = B_m_highlight),
+    root = c("no root", "root"),
+    N_s  = N_s_vals,
+    D    = D_vals) %>%
+  rowwise() %>%
+  mutate(
+    SA_m      = myco_surface_area(B_m, myco_diameter, myco_density),
+    SA_fr_use = ifelse(root == "root",
+                       root_surface_area(l, n, traits) * crown_area_fixed, 0),
+    m_use     = ifelse(root == "root", mycorrhized, 0),
+    Nbar      = get_Nbar(N_s, D, SA_fr_use, B_m, C_r, depth, k_13, m_use),
+    U_m       = uptake_myco(SA_m, u_max_fixed, k_15, Nbar),
+    U_m_per_B = U_m / B_m,
+    D_label   = factor(formatC(D, format = "e", digits = 2), levels = D_levels),
+    B_label   = factor(ifelse(B_m == min(B_m_highlight), "low", "high"),
+                       levels = c("low", "high"))
+  ) %>%
+  ungroup() %>%
+  mutate(panel = factor(ifelse(root == "no root",
+                               "(c.i) Without roots", "(c.ii) With roots"),
+                        levels = c("(c.i) Without roots", "(c.ii) With roots")))
+
+p_myco_Ns <- ggplot(df_myco_Ns,
+       aes(x = N_s, y = U_m_per_B, colour = D_label, linetype = B_label)) +
+  geom_line(linewidth = 1.1) + facet_wrap(~ panel) +
+  scale_colour_manual(values = cb_two, labels = D_labels_plot,
+                      name = expression(D~"(m"^2~"yr"^{-1}*")")) +
+  scale_linetype_manual(values = c("low" = 3, "high" = 1), name = expression(B[m])) +
+  scale_y_log10(labels = scales::scientific) +
+  labs(x = expression(N[s]~"(kg N m"^{-3}*")"),
+       y = expression(U[m]~B[m]^{-1}~"(kg N kg"^{-1}~"yr"^{-1}*")")) +
+  theme_pub + theme(strip.text = element_text(size = 10))
+
+# ---- (d) U_m per biomass vs B_m ----
+# B_m swept independently over a wide range so D controls
+# where saturation occurs — not derived from df_basis
+f_root <- 0.5   # fraction of total biomass allocated to roots vs ECM
+
+df_myco_B <- crossing(
+    tibble(B_total = 10^seq(-4, 2, length.out = 60)),
+    root = c("no root", "root"),
+    N_s  = N_s_highlight,
+    D    = D_vals) %>%
+  rowwise() %>%
+  mutate(
+    B_m       = ifelse(root == "root", (1 - f_root) * B_total, B_total),
+    B_fr_use  = ifelse(root == "root", f_root * B_total, 0),
+    n_use     = ifelse(root == "root",
+                  # invert root_mass to get n from B_fr
+                  B_fr_use / (2 * root_biomass_per_crown_area(l, 1, traits)
+                               * crown_area_fixed), 0),
+    SA_fr_use = root_surface_area(l, n_use, traits) * crown_area_fixed,
+    m_use     = ifelse(root == "root", mycorrhized, 0),
+    SA_m      = myco_surface_area(B_m, myco_diameter, myco_density),
+    Nbar      = get_Nbar(N_s, D, SA_fr_use, B_m, C_r, depth, k_13, m_use),
+    U_m       = uptake_myco(SA_m, u_max_fixed, k_15, Nbar),
+    U_m_per_B = U_m / B_m,
+    D_label   = factor(formatC(D, format = "e", digits = 2), levels = D_levels),
+    N_label   = factor(as.character(N_s), levels = as.character(N_s_highlight))
+  ) %>%
+  ungroup() %>%
+  mutate(panel = factor(ifelse(root == "no root",
+                               "(d.i) Without roots", "(d.ii) With roots"),
+                        levels = c("(d.i) Without roots", "(d.ii) With roots")))
+
+p_myco_B <- ggplot(df_myco_B,
+       aes(x = B_total, y = U_m_per_B, colour = D_label, linetype = N_label)) +
+  geom_line(linewidth = 1.1) + facet_wrap(~ panel) +
+  scale_colour_manual(values = cb_two, labels = D_labels_plot,
+                      name = expression(D~"(m"^2~"yr"^{-1}*")")) +
+  scale_linetype_manual(values = c("0.2" = 3, "0.6" = 1),
+                        labels = c("0.2" = expression(N[s] == 0.2),
+                                   "0.6" = expression(N[s] == 0.6)),
+                        name = expression(N[s]~"(kg N m"^{-3}*")")) +
+  scale_x_log10(labels = scales::scientific) +
+  scale_y_continuous(labels = scales::scientific) +
+  labs(x = expression(B[tot]~"(kg)"),
+       y = expression(U[m]~B[m]^{-1}~"(kg N kg"^{-1}~"yr"^{-1}*")")) +
+  theme_pub + theme(strip.text = element_text(size = 10))
+
+# per biomass figure
+fig_uptake <- (p_root_Ns | p_root_B) / (p_myco_Ns | p_myco_B) +
+  plot_layout(guides = "collect") & theme(legend.position = "right")
+fig_uptake
+```
+
+```{r uptake_total, fig.height=8}
+p_root_Ns_tot <- ggplot(df_root_Ns,
+       aes(x = N_s, y = U_fr, colour = D_label, linetype = B_label)) +
+  geom_line(linewidth = 1.1) + facet_wrap(~ panel) +
+  scale_colour_manual(values = cb_two, labels = D_labels_plot,
+                      name = expression(D~"(m"^2~"yr"^{-1}*")")) +
+  scale_linetype_manual(values = c("low" = 3, "high" = 1), name = expression(B[fr])) +
+  scale_y_log10(labels = scales::scientific) +
+  labs(x = expression(N[s]~"(kg N m"^{-3}*")"),
+       y = expression(U[fr]~"(kg N yr"^{-1}*")")) +
+  theme_pub + theme(strip.text = element_text(size = 10))
+
+p_root_B_tot <- ggplot(df_root_B,
+       aes(x = B_fr, y = U_fr, colour = D_label, linetype = N_label)) +
+  geom_line(linewidth = 1.1) + facet_wrap(~ panel) +
+  scale_colour_manual(values = cb_two, labels = D_labels_plot,
+                      name = expression(D~"(m"^2~"yr"^{-1}*")")) +
+  scale_linetype_manual(values = c("0.2" = 3, "0.6" = 1),
+                        labels = c("0.2" = expression(N[s] == 0.2),
+                                   "0.6" = expression(N[s] == 0.6)),
+                        name = expression(N[s]~"(kg N m"^{-3}*")")) +
+  scale_x_log10(labels = scales::scientific) +
+  scale_y_continuous(labels = scales::scientific) +
+  labs(x = expression(B[fr]~"(kg)"),
+       y = expression(U[fr]~"(kg N yr"^{-1}*")")) +
+  theme_pub + theme(strip.text = element_text(size = 10))
+
+p_myco_Ns_tot <- ggplot(df_myco_Ns,
+       aes(x = N_s, y = U_m, colour = D_label, linetype = B_label)) +
+  geom_line(linewidth = 1.1) + facet_wrap(~ panel) +
+  scale_colour_manual(values = cb_two, labels = D_labels_plot,
+                      name = expression(D~"(m"^2~"yr"^{-1}*")")) +
+  scale_linetype_manual(values = c("low" = 3, "high" = 1), name = expression(B[m])) +
+  scale_y_log10(labels = scales::scientific) +
+  labs(x = expression(N[s]~"(kg N m"^{-3}*")"),
+       y = expression(U[m]~"(kg N yr"^{-1}*")")) +
+  theme_pub + theme(strip.text = element_text(size = 10))
+
+p_myco_B_tot <- ggplot(df_myco_B,
+       aes(x = B_total, y = U_m, colour = D_label, linetype = N_label)) +
+  geom_line(linewidth = 1.1) + facet_wrap(~ panel) +
+  scale_colour_manual(values = cb_two, labels = D_labels_plot,
+                      name = expression(D~"(m"^2~"yr"^{-1}*")")) +
+  scale_linetype_manual(values = c("0.2" = 3, "0.6" = 1),
+                        labels = c("0.2" = expression(N[s] == 0.2),
+                                   "0.6" = expression(N[s] == 0.6)),
+                        name = expression(N[s]~"(kg N m"^{-3}*")")) +
+  scale_x_log10(labels = scales::scientific) +
+  scale_y_continuous(labels = scales::scientific) +
+  labs(x = expression(B[tot]~"(kg)"),
+       y = expression(U[m]~"(kg N yr"^{-1}*")")) +
+  theme_pub + theme(strip.text = element_text(size = 10))
+
+fig_uptake_total <- (p_root_Ns_tot | p_root_B_tot) /
+                    (p_myco_Ns_tot | p_myco_B_tot) +
+  plot_layout(guides = "collect") & theme(legend.position = "right")
+fig_uptake_total
+```
+
+---
+
+## Sensitivity Analysis
+
+```{r sensitivity, fig.height=8}
+N_s_fixed <- 1.0
+N_m_fixed <- 0.1
+B_m_fixed <- 0.5
+
+run_uptake <- function(depth_val, k15_val, k13_val, k14_val) {
+  plant_uptake(
+    N_s = N_s_fixed, N_m = N_m_fixed,
+    crown_area = crown_area_fixed,
+    root_length = l, root_no = n,
+    B_m = B_m_fixed, B_cr = B_cr_fixed, rho_cr = rho_cr_fixed,
+    traits = traits, mycorrhized = mycorrhized, T_m = T_m,
+    myco_diameter = myco_diameter, myco_density = myco_density, l_hyp = l_hyp,
+    C_r = C_r, q = depth_val, k_13 = k13_val, k_14 = k14_val,
+    u_Amax = u_Amax, D = D_default, k_15 = k15_val
+  )$N_total
+}
+
+baseline_uptake <- run_uptake(depth, k_15, k_13, k_14)
+
+n_pts <- 60
+param_ranges <- list(
+  depth = seq(0.05, 2.0,  length.out = n_pts),
+  k_15  = seq(0.05, 3.0,  length.out = n_pts),
+  k_13  = seq(0.5,  20.0, length.out = n_pts),
+  k_14  = seq(0.05, 0.95, length.out = n_pts)
+)
+
+df_sa <- bind_rows(
+  tibble(param = "depth", value = param_ranges$depth,
+         uptake = sapply(param_ranges$depth, \(v) run_uptake(v,     k_15, k_13, k_14))),
+  tibble(param = "k_15",  value = param_ranges$k_15,
+         uptake = sapply(param_ranges$k_15,  \(v) run_uptake(depth, v,    k_13, k_14))),
+  tibble(param = "k_13",  value = param_ranges$k_13,
+         uptake = sapply(param_ranges$k_13,  \(v) run_uptake(depth, k_15, v,    k_14))),
+  tibble(param = "k_14",  value = param_ranges$k_14,
+         uptake = sapply(param_ranges$k_14,  \(v) run_uptake(depth, k_15, k_13, v   )))
+) %>%
+  mutate(param = factor(param, levels = c("depth", "k_15", "k_13", "k_14")))
+
+eps <- 0.01
+si_df <- tibble(
+  param       = c("depth", "k_15", "k_13", "k_14"),
+  default_val = c(depth,   k_15,   k_13,   k_14),
+  SI = c(
+    (run_uptake(depth*(1+eps), k_15,          k_13,          k_14        ) -
+     run_uptake(depth*(1-eps), k_15,          k_13,          k_14        )) / (2*eps*baseline_uptake),
+    (run_uptake(depth,          k_15*(1+eps),  k_13,          k_14        ) -
+     run_uptake(depth,          k_15*(1-eps),  k_13,          k_14        )) / (2*eps*baseline_uptake),
+    (run_uptake(depth,          k_15,          k_13*(1+eps),  k_14        ) -
+     run_uptake(depth,          k_15,          k_13*(1-eps),  k_14        )) / (2*eps*baseline_uptake),
+    (run_uptake(depth,          k_15,          k_13,          k_14*(1+eps)) -
+     run_uptake(depth,          k_15,          k_13,          k_14*(1-eps))) / (2*eps*baseline_uptake)
+  )
+)
+
+cb_sa <- c(depth = "#E69F00", k_15 = "#56B4E9", k_13 = "#009E73", k_14 = "#CC79A7")
+
+df_spider <- df_sa %>%
+  left_join(tibble(param = c("depth","k_15","k_13","k_14"),
+                   default_val = c(depth, k_15, k_13, k_14)), by = "param") %>%
+  mutate(rel_param  = value / default_val,
+         rel_uptake = uptake / baseline_uptake)
+
+p_spider <- ggplot(df_spider, aes(rel_param, rel_uptake, colour = param)) +
+  geom_line(linewidth = 1.2) +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  scale_colour_manual(values = cb_sa) +
+  labs(title = "Sensitivity spider plot",
+       x = "Relative parameter value (\u00d7 baseline)",
+       y = "Relative uptake (\u00d7 baseline)") + theme_bw()
+
+p_tornado <- ggplot(si_df, aes(x = param, y = SI, fill = param)) +
+  geom_col(width = 0.6, show.legend = FALSE) + coord_flip() +
+  scale_fill_manual(values = cb_sa) +
+  labs(title = "Normalised sensitivity index", x = NULL, y = "SI") + theme_bw()
+
+baseline_vlines <- tibble(param = c("depth","k_15","k_13","k_14"),
+                           xint  = c(depth,   k_15,  k_13,  k_14))
+
+p_sweeps <- ggplot(df_sa, aes(value, uptake, colour = param)) +
+  geom_line(linewidth = 1.1, show.legend = FALSE) +
+  geom_vline(data = baseline_vlines, aes(xintercept = xint), linetype = "dashed") +
+  facet_wrap(~param, scales = "free_x") +
+  scale_colour_manual(values = cb_sa) +
+  labs(title = "Parameter sweeps", x = "Parameter value",
+       y = "N uptake (kg N yr\u207b\u00b9)") + theme_bw()
+
+p_sweeps / (p_spider | p_tornado)
+```
+
+---
+
+## Elasticity Analysis
+
+```{r elasticity, fig.height=6}
+eps       <- 1e-4
+N_vals    <- seq(0.01, 2, length.out = 80)
+N_m_fixed <- 0.1
+B_m_fixed <- 0.5
+
+params     <- c("depth", "k_15", "k_13", "k_14", "u_Amax")
+components <- c("U_root", "U_myco")
+
+run_U <- function(N, depth, k_15, k_13, k_14, u_Amax) {
+  out <- plant_uptake(
+    N_s = N, N_m = N_m_fixed, crown_area = crown_area_fixed,
+    root_length = l, root_no = n,
+    B_m = B_m_fixed, B_cr = B_cr_fixed, rho_cr = rho_cr_fixed,
+    traits = traits, mycorrhized = mycorrhized, T_m = T_m,
+    myco_diameter = myco_diameter, myco_density = myco_density, l_hyp = l_hyp,
+    C_r = C_r, q = depth, k_13 = k_13, k_14 = k_14,
+    u_Amax = u_Amax, D = D_default, k_15 = k_15
+  )
+  c(U_total = out$N_total, U_root = out$U_fr, U_myco = out$U_m)
+}
+
+elasticity <- function(N, param, component, depth, k_15, k_13, k_14, u_Amax) {
+  component <- as.character(component)
+  base <- run_U(N, depth, k_15, k_13, k_14, u_Amax)[component]
+  pert <- switch(param,
+    depth  = run_U(N, depth*(1+eps),  k_15,          k_13,          k_14,          u_Amax        )[component],
+    k_15   = run_U(N, depth,           k_15*(1+eps),  k_13,          k_14,          u_Amax        )[component],
+    k_13   = run_U(N, depth,           k_15,           k_13*(1+eps),  k_14,          u_Amax        )[component],
+    k_14   = run_U(N, depth,           k_15,           k_13,          k_14*(1+eps),  u_Amax        )[component],
+    u_Amax = run_U(N, depth,           k_15,           k_13,          k_14,          u_Amax*(1+eps))[component]
+  )
+  (pert - base) / (eps * base + 1e-12)
+}
+
+grid <- expand.grid(N = N_vals, param = params,
+                    component = components, KEEP.OUT.ATTRS = FALSE)
+
+df <- grid %>%
+  rowwise() %>%
+  mutate(SI = elasticity(N, param, component,
+                         depth = depth, k_15 = k_15,
+                         k_13 = k_13, k_14 = k_14, u_Amax = u_Amax)) %>%
+  ungroup() %>%
+  mutate(SI_abs    = abs(SI),
+         SI_scaled = SI / max(abs(SI), na.rm = TRUE))
+
+importance <- df %>%
+  group_by(param, component) %>%
+  summarise(mean_abs_SI = mean(abs(SI), na.rm = TRUE), .groups = "drop")
+
+cb_el <- c(depth = "#E69F00", k_15 = "#56B4E9", k_13 = "#009E73",
+           k_14 = "#CC79A7", u_Amax = "#D55E00")
+
+param_labels <- c(
+  depth  = "Depth",
+  k_15   = expression(k[15]~"(half-saturation)"),
+  k_13   = expression(k[13]~"(soil scaling)"),
+  k_14   = expression(k[14]~"(porosity)"),
+  u_Amax = expression(u[max]~"(uptake capacity)")
+)
+
+comp_labels <- c(U_root = "Root uptake", U_myco = "Mycorrhizal uptake")
+
+ggplot(df, aes(x = N, y = SI_scaled, colour = param)) +
+  geom_hline(yintercept = 0, linewidth = 0.3, colour = "grey60") +
+  geom_line(linewidth = 1) +
+  facet_wrap(~ component, labeller = labeller(component = comp_labels)) +
+  scale_colour_manual(values = cb_el, labels = param_labels) +
+  scale_x_continuous(expand = expansion(mult = c(0.02, 0.05))) +
+  scale_y_continuous(limits = c(-1, 1), oob = scales::squish) +
+  labs(x = expression(N[s]~"(kg N m"^{-3}*")"),
+       y = "Standardised elasticity", colour = "Parameter") +
+  theme_bw(base_size = 12) +
+  theme(legend.position = "right", strip.background = element_blank(),
+        panel.grid.minor = element_blank())
+
+ggplot(importance, aes(param, mean_abs_SI, fill = param)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ component) +
+  scale_fill_manual(values = cb_el) +
+  theme_bw() +
+  labs(x = NULL, y = "Mean absolute elasticity")
+```
