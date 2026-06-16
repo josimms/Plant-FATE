@@ -20,6 +20,7 @@ library(purrr)
 library(gridExtra)
 library(patchwork)
 library(viridis)
+dir.create("vignettes/plots", showWarnings = FALSE, recursive = TRUE)
 ```
 
 ## Overview
@@ -427,7 +428,9 @@ p_U_B <- ggplot(df_diag, aes(B_fr, U_per_B, colour = n_label)) +
        y = expression(U[fr]~B[fr]^{-1}~"(kg N kg"^{-1}~"yr"^{-1}*")")) +
   theme_bw(base_size = 12)
 
-(p_Nbar_D | p_Nbar_n) / (p_U_Ns | p_U_B)
+fig_diagnostics <- (p_Nbar_D | p_Nbar_n) / (p_U_Ns | p_U_B)
+fig_diagnostics
+ggsave("vignettes/plots/01_diagnostics.png", plot = fig_diagnostics, width = 12, height = 8)
 ```
 
 ---
@@ -633,6 +636,7 @@ p_myco_B <- ggplot(df_myco_B,
 fig_uptake <- (p_root_Ns | p_root_B) / (p_myco_Ns | p_myco_B) +
   plot_layout(guides = "collect") & theme(legend.position = "right")
 fig_uptake
+ggsave("vignettes/plots/02_uptake_per_biomass.png", plot = fig_uptake, width = 14, height = 10)
 ```
 
 ```{r uptake_total, fig.height=8}
@@ -692,6 +696,7 @@ fig_uptake_total <- (p_root_Ns_tot | p_root_B_tot) /
                     (p_myco_Ns_tot | p_myco_B_tot) +
   plot_layout(guides = "collect") & theme(legend.position = "right")
 fig_uptake_total
+ggsave("vignettes/plots/03_uptake_total.png", plot = fig_uptake_total, width = 14, height = 10)
 ```
 
 ---
@@ -787,7 +792,9 @@ p_sweeps <- ggplot(df_sa, aes(value, uptake, colour = param)) +
   labs(title = "Parameter sweeps", x = "Parameter value",
        y = "N uptake (kg N yr\u207b\u00b9)") + theme_bw()
 
-p_sweeps / (p_spider | p_tornado)
+fig_sensitivity <- p_sweeps / (p_spider | p_tornado)
+fig_sensitivity
+ggsave("vignettes/plots/04_sensitivity.png", plot = fig_sensitivity, width = 12, height = 8)
 ```
 
 ---
@@ -858,7 +865,7 @@ param_labels <- c(
 
 comp_labels <- c(U_root = "Root uptake", U_myco = "Mycorrhizal uptake")
 
-ggplot(df, aes(x = N, y = SI_scaled, colour = param)) +
+fig_elasticity <- ggplot(df, aes(x = N, y = SI_scaled, colour = param)) +
   geom_hline(yintercept = 0, linewidth = 0.3, colour = "grey60") +
   geom_line(linewidth = 1) +
   facet_wrap(~ component, labeller = labeller(component = comp_labels)) +
@@ -870,11 +877,15 @@ ggplot(df, aes(x = N, y = SI_scaled, colour = param)) +
   theme_bw(base_size = 12) +
   theme(legend.position = "right", strip.background = element_blank(),
         panel.grid.minor = element_blank())
+fig_elasticity
+ggsave("vignettes/plots/05_elasticity.png", plot = fig_elasticity, width = 12, height = 6)
 
-ggplot(importance, aes(param, mean_abs_SI, fill = param)) +
+fig_importance <- ggplot(importance, aes(param, mean_abs_SI, fill = param)) +
   geom_col(show.legend = FALSE) +
   facet_wrap(~ component) +
   scale_fill_manual(values = cb_el) +
   theme_bw() +
   labs(x = NULL, y = "Mean absolute elasticity")
+fig_importance
+ggsave("vignettes/plots/06_elasticity_importance.png", plot = fig_importance, width = 10, height = 5)
 ```

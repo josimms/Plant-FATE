@@ -218,8 +218,9 @@ blank <- function() {
     labs(title = "Soil Water Potential", x = "Time", y = "SWP (MPa)")
   
   # Combine all plots vertically (or use / for rows, | for columns)
-  (p1 + p2 / p3 + p4 / p5) +
-    plot_annotation(title = "Climate Inputs")
+  ggsave("RScripts/plots/00a_climate_boreal.png",
+         plot = (p1 + p2 / p3 + p4 / p5) + plot_annotation(title = "Climate Inputs"),
+         width = 12, height = 8)
 
   # Amazon
   import_amazon_data <- fread("~/Documents/Austria/Plant-FATE/tests/data/MetData_AmzFACE_Monthly_2000_2015_PlantFATE_new.csv")
@@ -245,16 +246,20 @@ blank <- function() {
     labs(title = "Soil Water Potential", x = "Time", y = "SWP (MPa)")
   
   # Combine all plots vertically (or use / for rows, | for columns)
-  (p1 + p2 / p3 + p4 / p5) +
-    plot_annotation(title = "Climate Inputs")
-  
+  ggsave("RScripts/plots/00b_climate_amazon.png",
+         plot = (p1 + p2 / p3 + p4 / p5) + plot_annotation(title = "Climate Inputs"),
+         width = 12, height = 8)
+
   #####
   # Model
   #####
-  
+
+  dir.create("RScripts/plots", showWarnings = FALSE, recursive = TRUE)
+
   # ----------------------------
   # 1. Gross Assimilation & Tree Growth
   # ----------------------------
+  png("RScripts/plots/01_growth_assimilation.png", width = 1200, height = 900)
   par(mfrow = c(3, 2))
   
   # 1. Gross Assimilation
@@ -327,12 +332,14 @@ blank <- function() {
   points(as.Date("2017-06-01"), A_c_high, pch = 8, col = "blue")
   segments(as.Date("2017-06-01"), A_c_low, as.Date("2017-06-01"), A_c_high, col = "blue", lwd = 2)
   title(sub = "Halme 2022 (star)", col.sub = "blue")
-  
+  dev.off()
+
   # ----------------------------
   # 2. Nitrogen Variables
   # ----------------------------
   date_point <- as.Date("2007-06-21")
-  
+
+  png("RScripts/plots/02_nitrogen_variables.png", width = 1200, height = 900)
   par(mfrow = c(3, 2))
   plot(df$date, df$tree_nitrogen, type = "l", col = cols[1],
        ylab = "kg N", main = "Free Tree Nitrogen", xlab = "Date",
@@ -409,10 +416,13 @@ blank <- function() {
   segments(date_point, low, date_point, high, col = "blue", lwd = 2)
   title(sub = "Korhonen 2012: Standing Biomass / Tree Number", col.sub = "blue")
   
+  dev.off()
+
   # ----------------------------
   # 2.5. Mycorrhiza and root logic
   # ----------------------------
   
+  png("RScripts/plots/03_mycorrhiza_root_logic.png", width = 1200, height = 900)
   par(mfrow = c(3, 2))
   plot(df$date, df$ectomycorrhiza_mass, type = "l", col = cols[1],
        ylab = "kg C", main = "Ectomycorrhizal Mass", xlab = "Date",
@@ -458,10 +468,13 @@ blank <- function() {
   lines(df_2$date, df_2$fineroot_lifespan, col = cols[2])
   lines(df_3$date, df_3$fineroot_lifespan, col = cols[3])
   
+  dev.off()
+
   # ----------------------------
   # 2.75. Mycorrhiza and roots behaviour
   # ----------------------------
   
+  png("RScripts/plots/04_mycorrhiza_root_behaviour.png", width = 1200, height = 900)
   par(mfrow = c(2, 3), mar = c(4, 4.5, 2.5, 1),
       family = "serif", las = 1, tcl = -0.3, mgp = c(2.8, 0.6, 0))
   
@@ -518,13 +531,19 @@ blank <- function() {
   lines(df_3$date, df_3$myco_uptake, col = cols[3], lwd = lwd_model)
   mtext("(f) ECM uptake", side = 3, adj = 0, line = 0.3, font = 2, cex = 0.85)
   
+  dev.off()
+
+  png("RScripts/plots/05_ratio_uptake.png", width = 800, height = 600)
   par(mfrow = c(1, 1))
   plot(df$date, df$soil_area_per_biomass_myco/df$soil_area_per_biomass_root, 
        xlab = "Date", ylab = "", main = "Ratio of uptake", sub = "Myco / Root")
   
+  dev.off()
+
   # ----------------------------
   # 3. Respiration
   # ----------------------------
+  png("RScripts/plots/06_respiration.png", width = 1200, height = 900)
   par(mfrow = c(2, 2))
   
   plot(df$date, df$rl, type = "l", col = cols[1], main = "Leaf Respiration", ylab = "kg/year", xlab = "Date")
@@ -567,9 +586,12 @@ blank <- function() {
          col = "blue", pch = "x")
   title(sub = "Ilvisniemi, Average litter fall (kg C tree-1 year-1)", col.sub = "blue")
   
+  dev.off()
+
   # ----------------------------
   # 4. Biomass: Leaf, Root, Stem
   # ----------------------------
+  png("RScripts/plots/07_biomass.png", width = 1200, height = 900)
   par(mfrow = c(2, 2))
   
   plot(df$date, df$leaf_mass, type = "l", col = cols[1], main = "Leaf Mass", ylab = "kg", xlab = "Date",
@@ -605,9 +627,12 @@ blank <- function() {
   lines(df_2$date, df_2$root_mass, col = cols[2])
   lines(df_3$date, df_3$root_mass, col = cols[3])
   
+  dev.off()
+
   # ----------------------------
   # 5. Additional variables: LAI, Crown, Lifespan, Mortality
   # ----------------------------
+  png("RScripts/plots/08_additional_variables.png", width = 1200, height = 900)
   par(mfrow = c(2, 2))
   
   plot(df$date, df$leaf_lifespan, type = "l", col = cols[1], main = "Leaf Lifespan", ylab = "years", xlab = "Date",)
@@ -633,9 +658,12 @@ blank <- function() {
   points(Eddy_covariance$MonthlyDate, Eddy_covariance$ET/100, col = "black", pch = 16)
   legend("topleft", legend = c(N_labels, "Eddy ET"), col = c(cols, "black"), lty = 1, bty = "n")
   
+  dev.off()
+
   # ----------------------------
   # 7. Total Production, Fitness, Mortality
   # ----------------------------
+  png("RScripts/plots/09_total_production.png", width = 1200, height = 900)
   par(mfrow = c(2, 2))
   
   plot(df$date, df$total_prod, type = "l", col = cols[1], main = "Total Production", ylab = "?",
@@ -658,9 +686,12 @@ blank <- function() {
   lines(df_2$date, df_2$mortality, col = cols[2])
   lines(df_3$date, df_3$mortality, col = cols[3])
   
+  dev.off()
+
   # ----------------------------
   # 8. Mortality breakdown (growth, hyd, d, inst)
   # ----------------------------
+  png("RScripts/plots/10_mortality_breakdown.png", width = 1200, height = 900)
   par(mfrow = c(2, 2))
   
   plot(df$date, df$mortrate_growth, type = "l", col = cols[1], main = "Mortality Growth", ylab = "?",
@@ -682,7 +713,8 @@ blank <- function() {
        ylim = range(df$mortality_inst, df_2$mortality_inst, df_3$mortality_inst, na.rm = TRUE))
   lines(df_2$date, df_2$mortality_inst, col = cols[2])
   lines(df_3$date, df_3$mortality_inst, col = cols[3])
-  
+  dev.off()
+
   ###
   # Daylight hours
   ###
@@ -721,10 +753,13 @@ blank <- function() {
     return(L)
   }
   
+  png("RScripts/plots/11_day_length.png", width = 800, height = 600)
   plot(1:365, day_length_hours(60, 1:365), main = "Correction for day length", xlab = "Day of Year", ylab = "Hours of sunlight", ylim = c(0, 1), type = "l", col = "green")
   lines(1:365, day_length_hours(0, 1:365), main = "Correction for day length", xlab = "Day of Year", ylab = "Hours of sunlight", col = "blue")
   lines(1:365, day_length_hours(-60, 1:365), main = "Correction for day length", xlab = "Day of Year", ylab = "Hours of sunlight", col = "red")
   legend("top", legend = c(60, 0, -60), col = c("green", "blue", "red"), lty = 1, bty = "n", title = "Latitude", horiz = TRUE)
+  dev.off()
+
  
   ###
   # PHYDRO
@@ -989,7 +1024,7 @@ blank <- function() {
     )
   
   # ---- PLOT ----
-  ggplot(df_long, aes(x = Month, y = Value, color = Version, group = Version)) +
+  p_phydro <- ggplot(df_long, aes(x = Month, y = Value, color = Version, group = Version)) +
     geom_line() +
     geom_point() +
     geom_point(data = GPP_long,
@@ -1009,6 +1044,7 @@ blank <- function() {
     ) +
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  ggsave("RScripts/plots/12_phydro.png", plot = p_phydro, width = 14, height = 10)
   
   start_date <- max(min(df_long$Dates), min(GPP_long$Dates))
   end_date   <- min(max(df_long$Dates), max(GPP_long$Dates))
