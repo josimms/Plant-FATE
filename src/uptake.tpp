@@ -22,10 +22,14 @@ void Uptake::nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& p
   double age_factor = uptake_age(G, T);
 
   // TEMPERATURE EFFECT ON UPTAKE
-  // Reuse phydro's Heskel et al. (2016) enzyme-kinetics response (same family as root/microbial processes).
-  // Hard-zero below 0 C: soil uptake stops when frozen.
+  // Arrhenius response for root N transporter kinetics (u_max temperature sensitivity).
+  // Ea = 50 kJ/mol gives Q10 ≈ 2 in the boreal temperature range, consistent with
+  // measured root ion uptake kinetics (Kronzucker et al.; Bassirirad 2000).
+  // Normalised to 1 at 25 °C (tkref = 298.15 K).
+  // Hard-zero below 0 °C: frozen soil shuts off uptake.
+  static constexpr double Ea_uptake = 50000.0; // J/mol, activation energy for N uptake
   double f_temp = (C.clim_inst.tc > 0.0)
-      ? phydro::calc_ftemp_inst_rd(C.clim_inst.tc)
+      ? phydro::calc_ftemp_arrhenius(C.clim_inst.tc + 273.15, Ea_uptake)
       : 0.0;
 
   // CORE UPTAKE
@@ -53,7 +57,7 @@ void Uptake::nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& p
   G.nitrogen_uptake_roots = age_factor * uptake_roots_term;
 
   // Mycorrhizal reduction due to root structure
-  mycorrhizal_root_reduction = age_factor * nitrogen_gate(G, T) * mycorrhized;
+  mycorrhizal_root_reduction = age_factor * nitrogen_gate(G, T) * mycorrhized * f_temp;
 }
 
 } // namespace plant
