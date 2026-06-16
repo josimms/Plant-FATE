@@ -70,10 +70,10 @@ $$U_m = \mathrm{SA}_m \cdot u_{A\max}
 ### SOIL PARAMETERS
 ###
 
-u_Amax    <- 0.088     # Area-based max uptake (kg N m^-2 year^-1)
-D_default <- 1e-3     # Effective soil diffusion coefficient (m^2 year^-1)
-k_15      <- 0.5      # Biochemical half-saturation constant (kg N m^-3)
-depth     <- 0.5      # Rooting depth (m)
+u_Amax    <- 0.088   # Area-based max uptake (kg N m^-2 year^-1)
+D_default <- 0.01    # Effective soil diffusion coefficient (m^2 year^-1)
+k_15      <- 0.05    # Biochemical half-saturation constant (kg N m^-3)
+depth     <- 0.1     # Rooting depth (m)
 
 ###
 ### ROOT PARAMETERS
@@ -85,7 +85,7 @@ l_hyp         <- 1e-4   # Hyphal segment length (m)
 T_m           <- 2      # Mycorrhizal turnover rate (year^-1)
 mycorrhized   <- 0.9    # Fraction of roots colonised by ECM
 
-n <- 2.75e6
+n <- 3e5
 l <- 1.5
 
 C_r <- 2
@@ -96,12 +96,12 @@ C_r <- 2
 
 k_9  <- 0.01
 k_8  <- 2.7
-k_13 <- 5
-k_14 <- 0.7
+k_13 <- 2.5
+k_14 <- 0.44
 
 traits <- list(
-  k_0 = 0.5, k_1 = 0.25, k_2 = 0.15, k_3 = 0.02,
-  k_4 = 350,  k_5 = 150,  k_6 = 3,    k_7 = 3,
+  k_0 = 0.5, k_1 = 0.35,       k_2 = 0.2,           k_3 = 0.014,
+  k_4 = 11632.91276, k_5 = -334.3626755, k_6 = 3,    k_7 = 3,
   k_8 = k_8,  k_9 = k_9
 )
 
@@ -246,6 +246,19 @@ uptake_myco <- function(SA_m, u_Amax, k_15, Nbar) {
 ## UPTAKE MODIFIERS
 ############################################################
 
+# Arrhenius temperature response for u_max (root N transporter kinetics).
+# Ea = 50 kJ/mol => Q10 ~ 2 in boreal range. Normalised to 1 at 25 degC.
+# Hard-zero below 0 degC (frozen soil).
+Ea_uptake <- 50000  # J/mol
+R_gas     <- 8.3145 # J/mol/K
+T_ref     <- 298.15 # K (25 degC)
+
+ftemp_arrhenius_uptake <- function(tc) {
+  if (tc <= 0) return(0)
+  tk <- tc + 273.15
+  exp(Ea_uptake * (tk - T_ref) / (T_ref * R_gas * tk))
+}
+
 uptake_age_modifier <- function(root_length, traits) {
   age <- root_age(root_length, traits)
   1 / (1 + exp(age - traits$k_8))
@@ -274,7 +287,8 @@ plant_uptake <- function(N_s, N_m,
                          mycorrhized, T_m,
                          myco_diameter, myco_density, l_hyp,
                          C_r, q = 0.5, k_13 = 2, k_14 = 0.5,
-                         u_Amax, D, k_15) {
+                         u_Amax, D, k_15,
+                         tc = 25) {
 
   B_fr  <- root_mass(root_length, root_no, crown_area, traits)
   SA_fr <- root_surface_area(root_length, root_no, traits) * crown_area
@@ -283,12 +297,14 @@ plant_uptake <- function(N_s, N_m,
   geom    <- zone_geometry(C_r, q, k_13)
   SA_act  <- active_surface_area(SA_fr, SA_m, mycorrhized)
 
-  Nbar     <- N_bar(N_s, D, u_Amax, k_15,
+  f_temp <- ftemp_arrhenius_uptake(tc)
+
+  Nbar     <- N_bar(N_s, D, u_Amax * f_temp, k_15,
                     SA_act, geom$A_zone, geom$r_zone)
   F_supply <- D * N_s * geom$A_zone / geom$r_zone
 
-  U_fr <- uptake_root(SA_fr, mycorrhized, u_Amax, k_15, Nbar)
-  U_m  <- uptake_myco(SA_m, u_Amax, k_15, Nbar)
+  U_fr <- uptake_root(SA_fr, mycorrhized, u_Amax * f_temp, k_15, Nbar)
+  U_m  <- uptake_myco(SA_m, u_Amax * f_temp, k_15, Nbar)
 
   a_u <- uptake_age_modifier(root_length, traits)
   g   <- nitrogen_gate(root_no, root_length, traits)
@@ -365,9 +381,6 @@ nbar_bounds <- data.frame(
 p_Nbar_D <- ggplot(df_D, aes(N_s, Nbar, colour = D_label)) +
   geom_line(linewidth = 1.1) +
   geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
-  geom_vline(data = nbar_bounds,
-             aes(xintercept = xintercept, linetype = label),
-             colour = "blue", linewidth = 0.8) +
   scale_linetype_manual(name = "N_s reference",
                         values = c("Korhonen (mineral)" = "dashed",
                                    "With amino acids"   = "dotdash")) +
@@ -382,9 +395,6 @@ p_Nbar_D <- ggplot(df_D, aes(N_s, Nbar, colour = D_label)) +
 p_Nbar_n <- ggplot(df_diag, aes(N_s, Nbar, colour = n_label)) +
   geom_line(linewidth = 1.1) +
   geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
-  geom_vline(data = nbar_bounds,
-             aes(xintercept = xintercept, linetype = label),
-             colour = "blue", linewidth = 0.8) +
   scale_linetype_manual(name = "N_s reference",
                         values = c("Korhonen (mineral)" = "dashed",
                                    "With amino acids"   = "dotdash")) +
