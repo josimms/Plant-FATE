@@ -2117,21 +2117,21 @@ original_life_histroy <- function() {
   lho$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho$set_co2File("")
-  lho$set_soil_nitrogen(0.5)
+  lho$set_soil_nitrogen(0.2)
   lho$init()
   
   lho_2 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
   lho_2$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho_2$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho_2$set_co2File("")
-  lho_2$set_soil_nitrogen(0.75)
+  lho_2$set_soil_nitrogen(0.4)
   lho_2$init()
   
   lho_3 <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
   lho_3$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho_3$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho_3$set_co2File("")
-  lho_3$set_soil_nitrogen(1.0)
+  lho_3$set_soil_nitrogen(0.6)
   lho_3$init()
   
   dt <- 1/12
@@ -2366,9 +2366,11 @@ original_life_histroy <- function() {
   uptake_1 <- df$mycorrhizal_export_to_tree + df$root_uptake
   uptake_2 <- df_2$mycorrhizal_export_to_tree + df_2$root_uptake
   uptake_3 <- df_3$mycorrhizal_export_to_tree + df_3$root_uptake
-  ylim_nu <- range(uptake_1, uptake_2, uptake_3, 12 / 1000, na.rm = TRUE)
+  nuptake_obs_val  <- 0.013
+  nuptake_obs_date <- as.Date("2008-01-01")
+  ylim_nu <- range(uptake_1, uptake_2, uptake_3, nuptake_obs_val, na.rm = TRUE)
   # 1.432125
-  
+
   plot(df$date, uptake_1, type = "l", col = cols[1], lwd = lwd_model,
        ylim = ylim_nu, xlab = "",
        ylab = expression("N uptake (kg N tree"^{-1}*" year"^{-1}*")"),
@@ -2376,6 +2378,7 @@ original_life_histroy <- function() {
   lines(df_3$date, uptake_3, col = cols[3], lwd = lwd_model)
   lines(df_2$date, uptake_2, col = cols[2], lwd = lwd_model)
   lines(df$date, uptake_1, col = cols[1], lwd = lwd_model)
+  points(nbar_obs_date, nbar_obs_val, col = col_range, pch = pch_obs, cex = 0.8)
   mtext("(g)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
   
@@ -2418,11 +2421,16 @@ original_life_histroy <- function() {
   box(bty = "l")
 
   # (b) N_bar
-  ylim_nb2 <- range(df$N_bar, df_2$N_bar, df_3$N_bar, na.rm = TRUE)
-  plot(df$date, df$N_bar, type = "l", col = cols[1], lwd = lwd_model,
+  nbar_lower    <- 0.0012              # Korhonen: A horizon mineral N
+  nbar_upper    <- 0.003               # A horizon mineral N + amino acids
+  ylim_nb2 <- range(df$N_bar, df_2$N_bar, df_3$N_bar,
+                    nbar_lower, nbar_upper, nbar_obs_val, na.rm = TRUE)
+  plot(df$date, df$N_bar, type = "n", lwd = lwd_model,
        ylim = ylim_nb2, xlab = "",
        ylab = expression(bar(N)~"(kg N m"^{-3}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
+  rect(par("usr")[1], nbar_lower, par("usr")[2], nbar_upper,
+       col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
   lines(df_3$date, df_3$N_bar, col = cols[3], lwd = lwd_model)
   lines(df_2$date, df_2$N_bar, col = cols[2], lwd = lwd_model)
   lines(df$date, df$N_bar, col = cols[1], lwd = lwd_model)
