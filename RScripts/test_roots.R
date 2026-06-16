@@ -2424,7 +2424,7 @@ original_life_histroy <- function() {
   nbar_lower    <- 0.0012              # Korhonen: A horizon mineral N
   nbar_upper    <- 0.003               # A horizon mineral N + amino acids
   ylim_nb2 <- range(df$N_bar, df_2$N_bar, df_3$N_bar,
-                    nbar_lower, nbar_upper, nbar_obs_val, na.rm = TRUE)
+                    nbar_lower, nbar_upper, na.rm = TRUE)
   plot(df$date, df$N_bar, type = "n", lwd = lwd_model,
        ylim = ylim_nb2, xlab = "",
        ylab = expression(bar(N)~"(kg N m"^{-3}*")"),
