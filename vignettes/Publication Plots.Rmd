@@ -37,6 +37,9 @@ useful_data <- merge(data[[2]], data[[5]], c('plotID', 'eventID', 'eventYear'), 
 ## Simulations
 
 ```{r pressure, echo=FALSE}
+# Set to TRUE for fast testing (fewer grid points, shorter run), FALSE for full publication run
+testing_mode <- TRUE
+
 plan(multicore, workers = parallel::detectCores() - 1)
 
 # Fixed baseline values
@@ -44,11 +47,14 @@ fixed_root_length <- 1.5
 fixed_root_no     <- 3e5
 fixed_ecto_allo   <- 0.1
 
-# Parameter ranges
-root_length_values <- seq(1, 2, length.out = 21)
-root_no_values     <- 3*10^seq(3, 6, length.out = 21)
-nitrogen_values    <- seq(0.01, 2, length.out = 21)
-ecto_allo_values   <- seq(0.0, 0.5, length.out = 11)
+# Parameter ranges (fewer points in testing mode for speed)
+n_pts_main <- if (testing_mode) 5 else 21
+n_pts_ecto <- if (testing_mode) 3 else 11
+
+root_length_values <- seq(1, 2, length.out = n_pts_main)
+root_no_values     <- 3*10^seq(3, 6, length.out = n_pts_main)
+nitrogen_values    <- seq(0.01, 2, length.out = n_pts_main)
+ecto_allo_values   <- seq(0.0, 0.5, length.out = n_pts_ecto)
 
 param_file <- "/home/josimms/Documents/Austria/Plant-FATE/tests/params/p_test_boreal.ini"
 weather_file <- "/home/josimms/Documents/Austria/Plant-FATE/data/ERAS_Monthly.csv"
@@ -66,9 +72,9 @@ run_sim_parallel <- function(rl, rn, n, eb) {
     lho$init()
     lho$traits0$investment_from_tree <- eb
     lho$root_override(rn, rl)
-    
+
     dt <- 1/12
-    start_year <- 1960
+    start_year <- if (testing_mode) 2010 else 1960
     end_year   <- 2022
     years_seq  <- seq(start_year, end_year, dt)
     
@@ -99,11 +105,6 @@ run_sim_parallel <- function(rl, rn, n, eb) {
     NULL
   })
 }
-
-# Then use future_lapply only over **simple args**, not objects:
-all_n_df <- future_lapply(nitrogen_values, function(n) {
-  run_sim_parallel(fixed_root_length, fixed_root_no, n, fixed_ecto_allo)
-})
 
 # -------------------------------
 # Helper: safe wrapper for run_sim_parallel
@@ -186,12 +187,12 @@ total_mass_range <- range(
 # --- Compute max total_mass points ---
 max_line_root_length <- subset_root_length %>%
   group_by(soil_nitrogen) %>%
-  slice_max(total_mass, n = 1, with_ties = FALSE) %>%
+  slice_max(total_mass, n = 1, with_ties = FALSE, na_rm = TRUE) %>%
   ungroup()
 
 max_line_root_no <- subset_root_no %>%
   group_by(soil_nitrogen) %>%
-  slice_max(total_mass, n = 1, with_ties = FALSE) %>%
+  slice_max(total_mass, n = 1, with_ties = FALSE, na_rm = TRUE) %>%
   ungroup()
 
 # --- Plot 1: Root Number heatmap ---
@@ -222,9 +223,13 @@ p2 <- ggplot(subset_root_no, aes(x = soil_nitrogen, y = root_length, fill = tota
   pub_theme
 
 # --- Combine plots vertically with shared legend ---
-(p2 / p1) +
+length_no_N_gradient <- (p2 / p1) +
   plot_layout(guides = "collect") &
   theme(legend.position = "right")
+length_no_N_gradient
+
+ggsave("vignettes/plots/07_length_no_N_gradient.png",
+       plot = length_no_N_gradient, width = 16, height = 10)
 ```
 
 ## Trajectory
@@ -237,7 +242,7 @@ soilN_values <- nitrogen_values[seq(1, length(nitrogen_values), length.out = 5)]
 trajectory_max_root_no <- final_df_no_na %>%
   filter(soil_nitrogen %in% soilN_values) %>%
   group_by(date, soil_nitrogen) %>%
-  slice_max(total_mass, with_ties = TRUE) %>%
+  slice_max(total_mass, with_ties = TRUE, na_rm = TRUE) %>%
   ungroup() %>%
   select(date, soil_nitrogen, root_no)
 
@@ -245,7 +250,7 @@ trajectory_max_root_no <- final_df_no_na %>%
 trajectory_max_root_length <- final_df_no_na %>%
   filter(soil_nitrogen %in% soilN_values) %>%
   group_by(date, soil_nitrogen) %>%
-  slice_max(total_mass, with_ties = TRUE) %>%
+  slice_max(total_mass, with_ties = TRUE, na_rm = TRUE) %>%
   ungroup() %>%
   select(date, soil_nitrogen, root_length)
 
@@ -255,7 +260,7 @@ p1 <- ggplot(trajectory_max_root_no,
                  color = factor(soil_nitrogen),
                  group = soil_nitrogen)) +
   geom_point(alpha = 0.6, size = 1.5,
-             position = position_jitter(width = 0, height = 0.05 * max(root_no_values))) +
+             position = position_jitter(width = 0.1, height = 0)) +
   scale_y_log10(limits = range(root_no_values)) +
   scale_color_viridis_d(option = "cividis") +
   labs(
@@ -281,9 +286,13 @@ p2 <- ggplot(trajectory_max_root_length,
   pub_theme
 
 # ---- Combine plots vertically with shared legend ----
-(p2 / p1) +
+trajector_with_age <- (p2 / p1) +
   plot_layout(guides = "collect") &
   theme(legend.position = "right")
+trajector_with_age
+
+ggsave("vignettes/plots/08_trajector_with_age.png",
+       plot = trajector_with_age, width = 16, height = 10)
 ```
 
 ```{r}
@@ -307,76 +316,6 @@ ggplot(max_ecto_vs_soilN,
     color = "Total Biomass (kg)"
   ) +
   pub_theme
-```
-
-## mean
-
-```{r}
-mean_df <- final_df_no_na %>%
-  group_by(soil_nitrogen, root_no, root_length) %>%
-  summarise(
-    total_mass = mean(total_mass, na.rm = TRUE),
-    .groups = "drop"
-  )
-
-mean_subset_df1 <- mean_df %>%
-  filter(abs(root_length - 1.5) < 1e-6)
-
-mean_subset_df2 <- mean_df %>%
-  filter(abs(root_no - 3e5) < 1e-6 * 3e5)
-
-total_mass_range_mean <- range(
-  c(mean_subset_df1$total_mass, mean_subset_df2$total_mass),
-  na.rm = TRUE
-)
-
-p1_mean <- ggplot(mean_subset_df1,
-                  aes(x = soil_nitrogen,
-                      y = root_no,
-                      fill = total_mass)) +
-  geom_tile() +
-  scale_y_log10() +
-  scale_fill_viridis_c(option = "cividis",
-                       limits = total_mass_range_mean) +
-  labs(x = "Soil N (g m⁻³)",
-       y = "Root Number\nper Unit Crown Area (log)",
-       fill = "Mean Total Biomass") +
-  pub_theme
-
-p2_mean <- ggplot(mean_subset_df2,
-                  aes(x = soil_nitrogen,
-                      y = root_length,
-                      fill = total_mass)) +
-  geom_tile() +
-  scale_fill_viridis_c(option = "cividis",
-                       limits = total_mass_range_mean) +
-  labs(x = "Soil N (g m⁻³)",
-       y = "Root Length (mm)",
-       fill = "Mean Total Biomass") +
-  pub_theme
-
-# Compute maximum fitness at each soil nitrogen
-max_line_df2 <- mean_subset_df2 %>%
-  group_by(soil_nitrogen) %>%
-  slice_max(total_mass, n = 1, with_ties = FALSE) %>%
-  ungroup()
-
-# Compute maximum fitness at each soil nitrogen
-max_line_df1 <- mean_subset_df1 %>%
-  group_by(soil_nitrogen) %>%
-  slice_max(total_mass, n = 1, with_ties = FALSE) %>%
-  ungroup()
-
-p1_mean +
-  geom_line(data = max_line_df1,
-            aes(x = soil_nitrogen, y = root_no),
-            color = "white", size = 1.2)
-
-p2_mean +
-  geom_line(data = max_line_df2,
-            aes(x = soil_nitrogen, y = root_length),
-            color = "white", size = 1.2)
-
 ```
 
 ## Trade offs: Ectomycorrhizal biomass
@@ -452,7 +391,11 @@ p_ecto_allo <- ggplot(heatmap_ecto_allo,
   ) +
   pub_theme
 
-(p_ecm_mass / p_ecto_allo) +
+ectomycorrizal_beha_gradient <- (p_ecm_mass / p_ecto_allo) +
   plot_layout(guides = "collect") &
   theme(legend.position = "right")
+ectomycorrizal_beha_gradient
+
+ggsave("vignettes/plots/09_ectomycorrizal_beha_gradient.png",
+       plot = ectomycorrizal_beha_gradient, width = 16, height = 10)
 ```
