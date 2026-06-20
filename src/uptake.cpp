@@ -51,7 +51,14 @@ namespace plant {
     // Zone geometry: semi-ellipsoidal zone, radius R = k_13 * crown_radius
     double crown_radius = std::sqrt(G.crown_area / M_PI);
     double R      = k_13 * crown_radius;
-    double A_zone = 2.0 * M_PI * R * R + M_PI * R * depth;
+    double A_zone;
+    if (R > depth) {
+      double e = std::sqrt(R * R - depth * depth);
+      A_zone = 2.0 * M_PI * R * R + M_PI * (depth * depth / e) * std::log((R + e) / depth);
+    } else {
+      // fallback: sphere (R == depth) or approximate
+      A_zone = 2.0 * M_PI * R * R + M_PI * R * depth;
+    }
     r_zone_val    = R;
 
     // Active surface area: colonised root surface excluded from direct uptake
