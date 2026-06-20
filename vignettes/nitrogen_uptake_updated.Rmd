@@ -437,14 +437,20 @@ ggsave("vignettes/plots/01_diagnostics.png", plot = fig_diagnostics, width = 12,
 
 ## Root and Mycorrhizal Uptake
 
-```{r uptake_plots, fig.height=8}
+```{r uptake_plots, fig.height=10}
+# =====================================================================
+# PARAMETERS
+# =====================================================================
 D_vals        <- c(1e-5, 1e-4, 1e-3, 1e-2)
 D_levels      <- formatC(D_vals, format = "e", digits = 2)
-u_max_fixed   <- 0.88/10
-N_s_vals      <- seq(0.01, 1.0, length.out = 200)
+u_max_fixed   <- 0.88 / 10
+N_s_vals      <- seq(0.001, 1.0, length.out = 200)
 N_s_highlight <- c(0.2, 0.6)
+B_m_highlight <- c(0.5, 1.0)
+n_a_vals      <- c(800, 1e7)          # tip densities for a/c panels
+B_m_sweep     <- 10^seq(-3, log10(2), length.out = 60)
 
-cb_two <- setNames(c("#E69F00", "#56B4E9", "#009E73", "#CC79A7"), D_levels)
+cb_four <- setNames(c("#E69F00", "#56B4E9", "#009E73", "#CC79A7"), D_levels)
 
 D_labels_plot <- setNames(
   list(expression(10^{-5}), expression(10^{-4}),
@@ -452,7 +458,9 @@ D_labels_plot <- setNames(
   D_levels
 )
 
-df_basis <- tibble(n = seq(1e1, 1e10, length.out = 20), l = 1.5) %>%
+n_key_labels <- formatC(n_a_vals, format = "e", digits = 0)  # "8e+02", "1e+07"
+
+df_basis <- tibble(n = 10^seq(1, 10, length.out = 60), l = 1.5) %>%
   rowwise() %>%
   mutate(
     B_fr  = root_mass(l, n, crown_area_fixed, traits),
@@ -460,155 +468,158 @@ df_basis <- tibble(n = seq(1e1, 1e10, length.out = 20), l = 1.5) %>%
   ) %>%
   ungroup()
 
-B_highlight  <- c(df_basis$B_fr[7],  max(df_basis$B_fr))
-SA_highlight <- c(df_basis$SA_fr[7], max(df_basis$SA_fr))
-n_highlight  <- c(df_basis$n[7],     max(df_basis$n))
+# SA_fr at the two specific n values used in a/c panels
+SA_at_n <- sapply(n_a_vals, function(nv)
+  root_surface_area(l, nv, traits) * crown_area_fixed)
 
-theme_pub <- theme_bw(base_size = 14) +
-  theme(panel.grid.minor = element_blank(), strip.background = element_blank(),
-        legend.position = "right", legend.text = element_text(size = 11),
-        legend.title = element_text(size = 12), legend.key.size = unit(0.4, "cm"))
+# SA reference (low n) used as the "fixed root" in c/d panels
+SA_highlight_ref <- SA_at_n[1]
 
-highlight_df <- tibble(B_fr  = B_highlight,
-                       SA_fr = SA_highlight,
-                       n_val = n_highlight)
+theme_pub <- theme_bw(base_size = 18) +
+  theme(panel.grid.minor = element_blank(),
+        strip.background = element_blank(),
+        strip.text        = element_text(size = 16),
+        legend.position   = "right",
+        legend.text       = element_text(size = 15),
+        legend.title      = element_text(size = 16),
+        legend.key.size   = unit(0.55, "cm"))
 
-# helper — uses mycorrhized and active_surface_area
 get_Nbar <- function(N_s, D, SA_fr, B_m, C_r, q, k_13, m) {
   SA_m   <- myco_surface_area(B_m, myco_diameter, myco_density)
   SA_act <- active_surface_area(SA_fr, SA_m, m)
   geom   <- zone_geometry(C_r, q, k_13)
-  N_bar(N_s, D, u_max_fixed, k_15,
-        SA_act, geom$A_zone, geom$r_zone)
+  N_bar(N_s, D, u_max_fixed, k_15, SA_act, geom$A_zone, geom$r_zone)
 }
 
-# ---- (a) U_fr per biomass vs N_s ----
-df_root_Ns <- crossing(highlight_df,
-                       myco = c("no myco", "myco"),
-                       N_s  = N_s_vals,
-                       D    = D_vals) %>%
+# =====================================================================
+# LIMIT RIBBON DATA
+# =====================================================================
+geom_ref <- zone_geometry(C_r, depth, k_13)
+D_max    <- max(D_vals)
+
+# b panels: (b.i) roots only; (b.ii) roots + ECM at B_m_highlight[2]
+N_s_ref_b  <- N_s_highlight[2]
+SA_m_b_ref <- myco_surface_area(B_m_highlight[2], myco_diameter, myco_density)
+df_lim_b <- df_basis %>%
+  select(B_fr, SA_fr) %>%
+  crossing(
+    tibble(
+      myco_case = c("no myco", "myco"),
+      panel     = factor(c("(b.i) Without ECM", "(b.ii) With ECM"),
+                         levels = c("(b.i) Without ECM", "(b.ii) With ECM"))
+    )
+  ) %>%
+  mutate(
+    SA_m_use = ifelse(myco_case == "myco", SA_m_b_ref, 0),
+    m_use    = ifelse(myco_case == "myco", mycorrhized, 0),
+    root_eff = (1 - m_use) * SA_fr,
+    SA_total = root_eff + SA_m_use,
+    U_bio    = SA_fr * u_max_fixed * N_s_ref_b / (N_s_ref_b + k_15),
+    F_diff   = D_max * N_s_ref_b * geom_ref$A_zone / geom_ref$r_zone * root_eff / SA_total
+  )
+
+# d panels: (d.i) ECM only; (d.ii) ECM + roots at SA_highlight_ref
+N_s_ref_d <- N_s_highlight[2]
+df_lim_d <- crossing(
+  tibble(B_m = B_m_sweep),
+  tibble(
+    root_case = c("no root", "root"),
+    panel     = factor(c("(d.i) Without roots", "(d.ii) With roots"),
+                       levels = c("(d.i) Without roots", "(d.ii) With roots"))
+  )
+) %>%
   rowwise() %>%
   mutate(
-    B_m_use    = ifelse(myco == "myco", 1.0, 0),
-    m_use      = ifelse(myco == "myco", mycorrhized, 0),
-    Nbar       = get_Nbar(N_s, D, SA_fr, B_m_use, C_r, depth, k_13, m_use),
-    U_fr       = uptake_root(SA_fr, m_use, u_max_fixed, k_15, Nbar),
-    U_fr_per_B = U_fr / B_fr,
-    D_label    = factor(formatC(D, format = "e", digits = 2), levels = D_levels),
-    B_label    = factor(ifelse(B_fr == min(B_highlight), "low", "high"),
-                        levels = c("low", "high"))
+    SA_m_val  = myco_surface_area(B_m, myco_diameter, myco_density),
+    SA_fr_use = ifelse(root_case == "root", SA_highlight_ref, 0),
+    m_use     = ifelse(root_case == "root", mycorrhized, 0),
+    root_eff  = (1 - m_use) * SA_fr_use,
+    SA_total  = root_eff + SA_m_val,
+    U_bio     = SA_m_val * u_max_fixed * N_s_ref_d / (N_s_ref_d + k_15),
+    F_diff    = D_max * N_s_ref_d * geom_ref$A_zone / geom_ref$r_zone * SA_m_val / SA_total
+  ) %>%
+  ungroup()
+
+# =====================================================================
+# DATA: U_fr and U_m vs N_s  (a and c panels)
+# =====================================================================
+
+# ---- (a) U_fr vs N_s: two n values, faceted by ECM presence ----
+df_root_Ns <- crossing(
+    tibble(n_val = n_a_vals, SA_fr = SA_at_n),
+    myco = c("no myco", "myco"),
+    N_s  = N_s_vals,
+    D    = D_vals) %>%
+  rowwise() %>%
+  mutate(
+    B_m_use = ifelse(myco == "myco", B_m_highlight[2], 0),
+    m_use   = ifelse(myco == "myco", mycorrhized, 0),
+    Nbar    = get_Nbar(N_s, D, SA_fr, B_m_use, C_r, depth, k_13, m_use),
+    U_fr    = uptake_root(SA_fr, m_use, u_max_fixed, k_15, Nbar),
+    D_label = factor(formatC(D, format = "e", digits = 2), levels = D_levels),
+    n_label = factor(formatC(n_val, format = "e", digits = 0),
+                     levels = n_key_labels)
   ) %>%
   ungroup() %>%
   mutate(panel = factor(ifelse(myco == "no myco",
                                "(a.i) Without ECM", "(a.ii) With ECM"),
                         levels = c("(a.i) Without ECM", "(a.ii) With ECM")))
 
-p_root_Ns <- ggplot(df_root_Ns,
-       aes(x = N_s, y = U_fr_per_B, colour = D_label, linetype = B_label)) +
-  geom_line(linewidth = 1.1) + facet_wrap(~ panel) +
-  scale_colour_manual(values = cb_two, labels = D_labels_plot,
-                      name = expression(D~"(m"^2~"yr"^{-1}*")")) +
-  scale_linetype_manual(values = c("low" = 3, "high" = 1), name = expression(B[fr])) +
-  scale_y_log10(labels = scales::scientific) +
-  labs(x = expression(N[s]~"(kg N m"^{-3}*")"),
-       y = expression(U[fr]~B[fr]^{-1}~"(kg N kg"^{-1}~"yr"^{-1}*")")) +
-  theme_pub + theme(strip.text = element_text(size = 10))
-
-# ---- (b) U_fr per biomass vs B_fr ----
-df_root_B <- df_basis %>%
-  crossing(myco = c("no myco", "myco"), N_s = N_s_highlight, D = D_vals) %>%
-  rowwise() %>%
-  mutate(
-    B_m_use    = ifelse(myco == "myco", 1.0, 0),
-    m_use      = ifelse(myco == "myco", mycorrhized, 0),
-    Nbar       = get_Nbar(N_s, D, SA_fr, B_m_use, C_r, depth, k_13, m_use),
-    U_fr       = uptake_root(SA_fr, m_use, u_max_fixed, k_15, Nbar),
-    U_fr_per_B = U_fr / B_fr,
-    D_label    = factor(formatC(D, format = "e", digits = 2), levels = D_levels),
-    N_label    = factor(as.character(N_s), levels = as.character(N_s_highlight))
-  ) %>%
-  ungroup() %>%
-  mutate(panel = factor(ifelse(myco == "no myco",
-                               "(b.i) Without ECM", "(b.ii) With ECM"),
-                        levels = c("(b.i) Without ECM", "(b.ii) With ECM")))
-
-p_root_B <- ggplot(df_root_B,
-       aes(x = B_fr, y = U_fr_per_B, colour = D_label, linetype = N_label)) +
-  geom_line(linewidth = 1.1) + facet_wrap(~ panel) +
-  scale_colour_manual(values = cb_two, labels = D_labels_plot,
-                      name = expression(D~"(m"^2~"yr"^{-1}*")")) +
-  scale_linetype_manual(values = c("0.2" = 3, "0.6" = 1),
-                        labels = c("0.2" = expression(N[s] == 0.2),
-                                   "0.6" = expression(N[s] == 0.6)),
-                        name = expression(N[s]~"(kg N m"^{-3}*")")) +
-  scale_x_log10(labels = scales::scientific) +
-  scale_y_continuous(labels = scales::scientific) +
-  labs(x = expression(B[fr]~"(kg)"),
-       y = expression(U[fr]~B[fr]^{-1}~"(kg N kg"^{-1}~"yr"^{-1}*")")) +
-  theme_pub + theme(strip.text = element_text(size = 10))
-
-# ---- (c) U_m per biomass vs N_s ----
-# B_m highlights are independent ECM biomass values, not derived from df_basis
-B_m_highlight <- c(0.01, 1.0)   # low and high ECM biomass (kg)
-
+# ---- (c) U_m vs N_s: two B_m values, faceted by root presence ----
 df_myco_Ns <- crossing(
-    tibble(B_m   = B_m_highlight),
+    tibble(B_m = B_m_highlight),
     root = c("no root", "root"),
     N_s  = N_s_vals,
     D    = D_vals) %>%
   rowwise() %>%
   mutate(
     SA_m      = myco_surface_area(B_m, myco_diameter, myco_density),
-    SA_fr_use = ifelse(root == "root",
-                       root_surface_area(l, n, traits) * crown_area_fixed, 0),
+    SA_fr_use = ifelse(root == "root", SA_highlight_ref, 0),
     m_use     = ifelse(root == "root", mycorrhized, 0),
     Nbar      = get_Nbar(N_s, D, SA_fr_use, B_m, C_r, depth, k_13, m_use),
     U_m       = uptake_myco(SA_m, u_max_fixed, k_15, Nbar),
-    U_m_per_B = U_m / B_m,
     D_label   = factor(formatC(D, format = "e", digits = 2), levels = D_levels),
-    B_label   = factor(ifelse(B_m == min(B_m_highlight), "low", "high"),
-                       levels = c("low", "high"))
+    Bm_label  = factor(as.character(B_m), levels = as.character(B_m_highlight))
   ) %>%
   ungroup() %>%
   mutate(panel = factor(ifelse(root == "no root",
                                "(c.i) Without roots", "(c.ii) With roots"),
                         levels = c("(c.i) Without roots", "(c.ii) With roots")))
 
-p_myco_Ns <- ggplot(df_myco_Ns,
-       aes(x = N_s, y = U_m_per_B, colour = D_label, linetype = B_label)) +
-  geom_line(linewidth = 1.1) + facet_wrap(~ panel) +
-  scale_colour_manual(values = cb_two, labels = D_labels_plot,
-                      name = expression(D~"(m"^2~"yr"^{-1}*")")) +
-  scale_linetype_manual(values = c("low" = 3, "high" = 1), name = expression(B[m])) +
-  scale_y_log10(labels = scales::scientific) +
-  labs(x = expression(N[s]~"(kg N m"^{-3}*")"),
-       y = expression(U[m]~B[m]^{-1}~"(kg N kg"^{-1}~"yr"^{-1}*")")) +
-  theme_pub + theme(strip.text = element_text(size = 10))
+# =====================================================================
+# DATA: U_fr and U_m vs biomass  (b and d panels)
+# =====================================================================
 
-# ---- (d) U_m per biomass vs B_m ----
-# B_m swept independently over a wide range so D controls
-# where saturation occurs — not derived from df_basis
-f_root <- 0.5   # fraction of total biomass allocated to roots vs ECM
+# ---- (b) U_fr vs B_fr: N_s as linewidth, faceted by ECM ----
+df_root_B <- df_basis %>%
+  crossing(myco = c("no myco", "myco"), N_s = N_s_highlight, D = D_vals) %>%
+  rowwise() %>%
+  mutate(
+    B_m_use = ifelse(myco == "myco", B_m_highlight[2], 0),
+    m_use   = ifelse(myco == "myco", mycorrhized, 0),
+    Nbar    = get_Nbar(N_s, D, SA_fr, B_m_use, C_r, depth, k_13, m_use),
+    U_fr    = uptake_root(SA_fr, m_use, u_max_fixed, k_15, Nbar),
+    D_label = factor(formatC(D, format = "e", digits = 2), levels = D_levels),
+    N_label = factor(as.character(N_s), levels = as.character(N_s_highlight))
+  ) %>%
+  ungroup() %>%
+  mutate(panel = factor(ifelse(myco == "no myco",
+                               "(b.i) Without ECM", "(b.ii) With ECM"),
+                        levels = c("(b.i) Without ECM", "(b.ii) With ECM")))
 
+# ---- (d) U_m vs B_m: N_s as linetype, faceted by root presence ----
 df_myco_B <- crossing(
-    tibble(B_total = 10^seq(-4, 2, length.out = 60)),
+    tibble(B_m = B_m_sweep),
     root = c("no root", "root"),
     N_s  = N_s_highlight,
     D    = D_vals) %>%
   rowwise() %>%
   mutate(
-    B_m       = ifelse(root == "root", (1 - f_root) * B_total, B_total),
-    B_fr_use  = ifelse(root == "root", f_root * B_total, 0),
-    n_use     = ifelse(root == "root",
-                  # invert root_mass to get n from B_fr
-                  B_fr_use / (2 * root_biomass_per_crown_area(l, 1, traits)
-                               * crown_area_fixed), 0),
-    SA_fr_use = root_surface_area(l, n_use, traits) * crown_area_fixed,
+    SA_fr_use = ifelse(root == "root", SA_highlight_ref, 0),
     m_use     = ifelse(root == "root", mycorrhized, 0),
     SA_m      = myco_surface_area(B_m, myco_diameter, myco_density),
     Nbar      = get_Nbar(N_s, D, SA_fr_use, B_m, C_r, depth, k_13, m_use),
     U_m       = uptake_myco(SA_m, u_max_fixed, k_15, Nbar),
-    U_m_per_B = U_m / B_m,
     D_label   = factor(formatC(D, format = "e", digits = 2), levels = D_levels),
     N_label   = factor(as.character(N_s), levels = as.character(N_s_highlight))
   ) %>%
@@ -616,90 +627,340 @@ df_myco_B <- crossing(
   mutate(panel = factor(ifelse(root == "no root",
                                "(d.i) Without roots", "(d.ii) With roots"),
                         levels = c("(d.i) Without roots", "(d.ii) With roots")))
-
-p_myco_B <- ggplot(df_myco_B,
-       aes(x = B_total, y = U_m_per_B, colour = D_label, linetype = N_label)) +
-  geom_line(linewidth = 1.1) + facet_wrap(~ panel) +
-  scale_colour_manual(values = cb_two, labels = D_labels_plot,
-                      name = expression(D~"(m"^2~"yr"^{-1}*")")) +
-  scale_linetype_manual(values = c("0.2" = 3, "0.6" = 1),
-                        labels = c("0.2" = expression(N[s] == 0.2),
-                                   "0.6" = expression(N[s] == 0.6)),
-                        name = expression(N[s]~"(kg N m"^{-3}*")")) +
-  scale_x_log10(labels = scales::scientific) +
-  scale_y_continuous(labels = scales::scientific) +
-  labs(x = expression(B[tot]~"(kg)"),
-       y = expression(U[m]~B[m]^{-1}~"(kg N kg"^{-1}~"yr"^{-1}*")")) +
-  theme_pub + theme(strip.text = element_text(size = 10))
-
-# per biomass figure
-fig_uptake <- (p_root_Ns | p_root_B) / (p_myco_Ns | p_myco_B) +
-  plot_layout(guides = "collect") & theme(legend.position = "right")
-fig_uptake
-ggsave("vignettes/plots/02_uptake_per_biomass.png", plot = fig_uptake, width = 14, height = 10)
-```
-
-```{r uptake_total, fig.height=8}
-p_root_Ns_tot <- ggplot(df_root_Ns,
-       aes(x = N_s, y = U_fr, colour = D_label, linetype = B_label)) +
-  geom_line(linewidth = 1.1) + facet_wrap(~ panel) +
-  scale_colour_manual(values = cb_two, labels = D_labels_plot,
-                      name = expression(D~"(m"^2~"yr"^{-1}*")")) +
-  scale_linetype_manual(values = c("low" = 3, "high" = 1), name = expression(B[fr])) +
-  scale_y_log10(labels = scales::scientific) +
-  labs(x = expression(N[s]~"(kg N m"^{-3}*")"),
-       y = expression(U[fr]~"(kg N yr"^{-1}*")")) +
-  theme_pub + theme(strip.text = element_text(size = 10))
-
-p_root_B_tot <- ggplot(df_root_B,
-       aes(x = B_fr, y = U_fr, colour = D_label, linetype = N_label)) +
-  geom_line(linewidth = 1.1) + facet_wrap(~ panel) +
-  scale_colour_manual(values = cb_two, labels = D_labels_plot,
-                      name = expression(D~"(m"^2~"yr"^{-1}*")")) +
-  scale_linetype_manual(values = c("0.2" = 3, "0.6" = 1),
-                        labels = c("0.2" = expression(N[s] == 0.2),
-                                   "0.6" = expression(N[s] == 0.6)),
-                        name = expression(N[s]~"(kg N m"^{-3}*")")) +
-  scale_x_log10(labels = scales::scientific) +
-  scale_y_continuous(labels = scales::scientific) +
-  labs(x = expression(B[fr]~"(kg)"),
-       y = expression(U[fr]~"(kg N yr"^{-1}*")")) +
-  theme_pub + theme(strip.text = element_text(size = 10))
-
-p_myco_Ns_tot <- ggplot(df_myco_Ns,
-       aes(x = N_s, y = U_m, colour = D_label, linetype = B_label)) +
-  geom_line(linewidth = 1.1) + facet_wrap(~ panel) +
-  scale_colour_manual(values = cb_two, labels = D_labels_plot,
-                      name = expression(D~"(m"^2~"yr"^{-1}*")")) +
-  scale_linetype_manual(values = c("low" = 3, "high" = 1), name = expression(B[m])) +
-  scale_y_log10(labels = scales::scientific) +
-  labs(x = expression(N[s]~"(kg N m"^{-3}*")"),
-       y = expression(U[m]~"(kg N yr"^{-1}*")")) +
-  theme_pub + theme(strip.text = element_text(size = 10))
-
-p_myco_B_tot <- ggplot(df_myco_B,
-       aes(x = B_total, y = U_m, colour = D_label, linetype = N_label)) +
-  geom_line(linewidth = 1.1) + facet_wrap(~ panel) +
-  scale_colour_manual(values = cb_two, labels = D_labels_plot,
-                      name = expression(D~"(m"^2~"yr"^{-1}*")")) +
-  scale_linetype_manual(values = c("0.2" = 3, "0.6" = 1),
-                        labels = c("0.2" = expression(N[s] == 0.2),
-                                   "0.6" = expression(N[s] == 0.6)),
-                        name = expression(N[s]~"(kg N m"^{-3}*")")) +
-  scale_x_log10(labels = scales::scientific) +
-  scale_y_continuous(labels = scales::scientific) +
-  labs(x = expression(B[tot]~"(kg)"),
-       y = expression(U[m]~"(kg N yr"^{-1}*")")) +
-  theme_pub + theme(strip.text = element_text(size = 10))
-
-fig_uptake_total <- (p_root_Ns_tot | p_root_B_tot) /
-                    (p_myco_Ns_tot | p_myco_B_tot) +
-  plot_layout(guides = "collect") & theme(legend.position = "right")
-fig_uptake_total
-ggsave("vignettes/plots/03_uptake_total.png", plot = fig_uptake_total, width = 14, height = 10)
 ```
 
 ---
+
+```{r uptake_total, fig.height=10}
+fmt_log   <- scales::trans_format("log10", scales::math_format(10^.x))
+x_lim_B   <- c(1e-4, 2)           # shared x-limit for b and d biomass panels
+
+Bm_key_labels <- as.character(B_m_highlight)
+
+# Filtered limit frames clipped to the biomass x-range
+df_lim_b_clip <- filter(df_lim_b, B_fr >= x_lim_B[1], B_fr <= x_lim_B[2])
+
+# a panels: (a.i) roots only; (a.ii) roots + ECM at B_m_highlight[2]
+SA_m_high <- myco_surface_area(B_m_highlight[2], myco_diameter, myco_density)
+df_lim_a <- crossing(
+  tibble(N_s = N_s_vals),
+  tibble(
+    myco_case = c("no myco", "myco"),
+    panel     = factor(c("(a.i) Without ECM", "(a.ii) With ECM"),
+                       levels = c("(a.i) Without ECM", "(a.ii) With ECM"))
+  )
+) %>%
+  mutate(
+    SA_m_use = ifelse(myco_case == "myco", SA_m_high, 0),
+    m_use    = ifelse(myco_case == "myco", mycorrhized, 0),
+    root_eff = (1 - m_use) * SA_at_n[2],
+    SA_total = root_eff + SA_m_use,
+    U_bio    = SA_at_n[2] * u_max_fixed * N_s / (N_s + k_15),
+    F_diff   = D_max * N_s * geom_ref$A_zone / geom_ref$r_zone * root_eff / SA_total
+  )
+
+# c panels: (c.i) ECM only; (c.ii) ECM + roots at SA_highlight_ref
+df_lim_c <- crossing(
+  tibble(N_s = N_s_vals),
+  tibble(
+    root_case = c("no root", "root"),
+    panel     = factor(c("(c.i) Without roots", "(c.ii) With roots"),
+                       levels = c("(c.i) Without roots", "(c.ii) With roots"))
+  )
+) %>%
+  mutate(
+    SA_fr_use = ifelse(root_case == "root", SA_highlight_ref, 0),
+    m_use     = ifelse(root_case == "root", mycorrhized, 0),
+    root_eff  = (1 - m_use) * SA_fr_use,
+    SA_total  = root_eff + SA_m_high,
+    U_bio     = SA_m_high * u_max_fixed * N_s / (N_s + k_15),
+    F_diff    = D_max * N_s * geom_ref$A_zone / geom_ref$r_zone * SA_m_high / SA_total
+  )
+
+# Datasets for limits figure: orange (D=10^-5) + purple (D=10^-2) only
+D_edge_vals   <- c(D_vals[1], D_vals[4])
+D_edge_labels <- D_levels[c(1, 4)]
+cb_edge       <- cb_four[D_edge_labels]
+
+df_root_Ns_hi <- filter(df_root_Ns, D %in% D_edge_vals)
+df_myco_Ns_hi <- filter(df_myco_Ns, D %in% D_edge_vals)
+df_root_B_hi  <- filter(df_root_B,  D %in% D_edge_vals)
+df_myco_B_hi  <- filter(df_myco_B,  D %in% D_edge_vals)
+
+# Larger text theme with diagonal x-axis labels (used for limits figure)
+theme_pub_lg <- theme_pub + theme(
+  text           = element_text(size = 22),
+  axis.title     = element_text(size = 22),
+  axis.text      = element_text(size = 20),
+  axis.text.x    = element_text(size = 20, angle = 45, hjust = 1),
+  strip.text     = element_text(size = 20),
+  legend.text    = element_text(size = 18),
+  legend.title   = element_text(size = 20),
+  legend.key.size = unit(0.7, "cm")
+)
+
+# ==================================================================
+# SHARED SCALE OBJECTS
+# N_s uses LINETYPE in BOTH b and d panels so legends merge
+# ==================================================================
+sc_col_all  <- scale_colour_manual(values = cb_four, labels = D_labels_plot,
+                                   name = expression(D~"(m"^2~"yr"^{-1}*")"))
+sc_col_edge <- scale_colour_manual(
+  values = setNames(c("white", "black"), D_edge_labels),
+  labels = D_labels_plot[D_edge_labels],
+  name   = expression(D~"(m"^2~"yr"^{-1}*")")
+)
+sc_lt_n     <- scale_linetype_manual(
+                 values = setNames(c(3, 1), n_key_labels),
+                 labels = setNames(n_key_labels, n_key_labels),
+                 name   = expression(n~"(tips m"^{-2}*")"))
+sc_lt_Bm    <- scale_linetype_manual(
+                 values = setNames(c(3, 1), Bm_key_labels),
+                 labels = setNames(paste(Bm_key_labels, "kg"), Bm_key_labels),
+                 name   = expression(B[m]~"(kg)"))
+sc_lt_Ns    <- scale_linetype_manual(          # same for b AND d panels
+                 values = c("0.2" = 2, "0.6" = 1),
+                 labels = c("0.2" = expression(N[s] == 0.2),
+                            "0.6" = expression(N[s] == 0.6)),
+                 name   = expression(N[s]~"(kg N m"^{-3}*")"))
+
+# Ribbon style: fill upward from the bottom so uptake lines ride the limit ceiling
+# Biochemical limit (light) fills higher; diffusion limit (darker) fills lower when
+# diffusion constrains — uptake lines sit at the top edge of the binding constraint.
+y_min_rib <- 1e-15
+
+# High-ref ribbons: grey fills
+make_ribbons <- function(df, x_col) {
+  list(
+    geom_ribbon(data = df,
+                aes(x = .data[[x_col]], ymin = y_min_rib, ymax = U_bio,
+                    fill = "Biochemical limit"),
+                alpha = 0.55, inherit.aes = FALSE),
+    geom_ribbon(data = df,
+                aes(x = .data[[x_col]], ymin = y_min_rib, ymax = F_diff,
+                    fill = "Diffusion limit"),
+                alpha = 0.55, inherit.aes = FALSE)
+  )
+}
+
+# Low-ref ribbons: purple fills (lighter alpha for bio, darker for diff)
+make_ribbons_lo <- function(df, x_col) {
+  list(
+    geom_ribbon(data = df,
+                aes(x = .data[[x_col]], ymin = y_min_rib, ymax = U_bio,
+                    fill = "Biochemical limit (low ref.)"),
+                alpha = 0.35, inherit.aes = FALSE),
+    geom_ribbon(data = df,
+                aes(x = .data[[x_col]], ymin = y_min_rib, ymax = F_diff,
+                    fill = "Diffusion limit (low ref.)"),
+                alpha = 0.55, inherit.aes = FALSE)
+  )
+}
+
+sc_fill_combined <- scale_fill_manual(
+  values = c(
+    "Biochemical limit"            = "grey82",
+    "Diffusion limit"              = "grey58",
+    "Biochemical limit (low ref.)" = "#0072B2",
+    "Diffusion limit (low ref.)"   = "#0072B2"
+  ),
+  name = expression("Limits (D = 10"^{-2}*")")
+)
+
+ribbon_layers_a <- make_ribbons(df_lim_a, "N_s")
+ribbon_layers_b <- make_ribbons(df_lim_b_clip, "B_fr")
+ribbon_layers_c <- make_ribbons(df_lim_c, "N_s")
+ribbon_layers_d <- make_ribbons(df_lim_d, "B_m")
+
+# ==================================================================
+# FIGURE 1: All four D values, NO limit ribbons
+# N_s uses linetype in both b and d panels → single merged legend entry
+# ==================================================================
+p_a1 <- ggplot(df_root_Ns,
+               aes(x = N_s, y = U_fr, colour = D_label, linetype = n_label)) +
+  geom_line(linewidth = 0.9) + facet_wrap(~ panel) +
+  sc_col_all + sc_lt_n +
+  scale_y_log10(labels = fmt_log) +
+  labs(x = expression(N[s]~"(kg N m"^{-3}*")"),
+       y = expression(U[fr]~"(kg N yr"^{-1}*")")) + theme_pub_lg
+
+p_b1 <- ggplot(df_root_B,
+               aes(x = B_fr, y = U_fr, colour = D_label, linetype = N_label)) +
+  geom_line(linewidth = 0.9) + facet_wrap(~ panel) +
+  sc_col_all + sc_lt_Ns +
+  scale_x_log10(labels = fmt_log, limits = x_lim_B) +
+  scale_y_log10(labels = fmt_log) +
+  labs(x = expression(B[fr]~"(kg)"),
+       y = expression(U[fr]~"(kg N yr"^{-1}*")")) + theme_pub_lg
+
+p_c1 <- ggplot(df_myco_Ns,
+               aes(x = N_s, y = U_m, colour = D_label, linetype = Bm_label)) +
+  geom_line(linewidth = 0.9) + facet_wrap(~ panel) +
+  sc_col_all + sc_lt_Bm +
+  scale_y_log10(labels = fmt_log) +
+  labs(x = expression(N[s]~"(kg N m"^{-3}*")"),
+       y = expression(U[m]~"(kg N yr"^{-1}*")")) + theme_pub_lg
+
+p_d1 <- ggplot(df_myco_B,
+               aes(x = B_m, y = U_m, colour = D_label, linetype = N_label)) +
+  geom_line(linewidth = 0.9) + facet_wrap(~ panel) +
+  sc_col_all + sc_lt_Ns +
+  scale_x_log10(labels = fmt_log) +
+  scale_y_log10(labels = fmt_log) +
+  labs(x = expression(B[m]~"(kg)"),
+       y = expression(U[m]~"(kg N yr"^{-1}*")")) + theme_pub_lg
+
+fig_all_lines <- (p_a1 | p_b1) / (p_c1 | p_d1) +
+  plot_layout(guides = "collect") & theme(legend.position = "right")
+fig_all_lines
+ggsave("vignettes/plots/03_all_lines.png",
+       plot = fig_all_lines, width = 16, height = 10)
+
+# ==================================================================
+# FIGURE 2: Orange + purple, WITH limit ribbons
+#   Grey  = high reference (high n / high B_m / N_s = 0.6)
+#   Purple = low reference (low n / low B_m / N_s = 0.2), panel-specific
+# ==================================================================
+
+# ==================================================================
+# FIGURE 3: Lower-purple limits — D = 10^-2, lower reference:
+#   LHS: low n (800) / low B_m (0.5 kg)
+#   RHS: low N_s = 0.2
+#   Biochemical limit (U_bio): root/ECM SA × u_max × N_s/(N_s+k15)
+#     — same in .i and .ii (property of the absorber alone)
+#   Diffusion limit (F_diff): total flux × absorber_share
+#     — lower in .ii because partner organ competes for the same flux
+# ==================================================================
+SA_ref_lo_a <- SA_at_n[1]   # n = 800
+SA_m_ref_lo <- myco_surface_area(B_m_highlight[1], myco_diameter, myco_density)  # B_m = 0.5
+SA_m_hi     <- myco_surface_area(B_m_highlight[2], myco_diameter, myco_density)  # B_m = 1.0 (b.ii)
+N_s_ref_lo  <- N_s_highlight[1]  # N_s = 0.2
+
+# a panels: absorber = roots; (a.ii) adds ECM so root gets reduced share of flux
+df_lim_a_lo <- crossing(
+  tibble(N_s = N_s_vals),
+  tibble(
+    myco_case = c("no myco", "myco"),
+    panel     = factor(c("(a.i) Without ECM", "(a.ii) With ECM"),
+                       levels = c("(a.i) Without ECM", "(a.ii) With ECM"))
+  )
+) %>%
+  mutate(
+    SA_m_use  = ifelse(myco_case == "myco", SA_m_ref_lo, 0),
+    m_use     = ifelse(myco_case == "myco", mycorrhized, 0),
+    root_eff  = (1 - m_use) * SA_ref_lo_a,
+    SA_total  = root_eff + SA_m_use,
+    U_bio     = SA_ref_lo_a * u_max_fixed * N_s / (N_s + k_15),
+    F_diff    = D_max * N_s * geom_ref$A_zone / geom_ref$r_zone * root_eff / SA_total
+  )
+
+# b panels: absorber = roots sweeping SA_fr; (b.ii) adds ECM at B_m_highlight[2]; low N_s
+df_lim_b_lo_clip <- df_lim_b_clip %>%
+  select(B_fr, SA_fr) %>%
+  crossing(
+    tibble(
+      myco_case = c("no myco", "myco"),
+      panel     = factor(c("(b.i) Without ECM", "(b.ii) With ECM"),
+                         levels = c("(b.i) Without ECM", "(b.ii) With ECM"))
+    )
+  ) %>%
+  mutate(
+    SA_m_use = ifelse(myco_case == "myco", SA_m_hi, 0),
+    m_use    = ifelse(myco_case == "myco", mycorrhized, 0),
+    root_eff = (1 - m_use) * SA_fr,
+    SA_total = root_eff + SA_m_use,
+    U_bio    = SA_fr * u_max_fixed * N_s_ref_lo / (N_s_ref_lo + k_15),
+    F_diff   = D_max * N_s_ref_lo * geom_ref$A_zone / geom_ref$r_zone * root_eff / SA_total
+  )
+
+# c panels: absorber = ECM at low B_m; (c.ii) adds roots so ECM gets reduced share of flux
+df_lim_c_lo <- crossing(
+  tibble(N_s = N_s_vals),
+  tibble(
+    root_case = c("no root", "root"),
+    panel     = factor(c("(c.i) Without roots", "(c.ii) With roots"),
+                       levels = c("(c.i) Without roots", "(c.ii) With roots"))
+  )
+) %>%
+  mutate(
+    SA_fr_use = ifelse(root_case == "root", SA_highlight_ref, 0),
+    m_use     = ifelse(root_case == "root", mycorrhized, 0),
+    root_eff  = (1 - m_use) * SA_fr_use,
+    SA_total  = root_eff + SA_m_ref_lo,
+    U_bio     = SA_m_ref_lo * u_max_fixed * N_s / (N_s + k_15),
+    F_diff    = D_max * N_s * geom_ref$A_zone / geom_ref$r_zone * SA_m_ref_lo / SA_total
+  )
+
+# d panels: absorber = ECM sweeping B_m; (d.ii) adds roots at SA_highlight_ref; low N_s
+df_lim_d_lo <- crossing(
+  tibble(B_m = B_m_sweep),
+  tibble(
+    root_case = c("no root", "root"),
+    panel     = factor(c("(d.i) Without roots", "(d.ii) With roots"),
+                       levels = c("(d.i) Without roots", "(d.ii) With roots"))
+  )
+) %>%
+  rowwise() %>%
+  mutate(
+    SA_m_val  = myco_surface_area(B_m, myco_diameter, myco_density),
+    SA_fr_use = ifelse(root_case == "root", SA_highlight_ref, 0),
+    m_use     = ifelse(root_case == "root", mycorrhized, 0),
+    root_eff  = (1 - m_use) * SA_fr_use,
+    SA_total  = root_eff + SA_m_val,
+    U_bio     = SA_m_val * u_max_fixed * N_s_ref_lo / (N_s_ref_lo + k_15),
+    F_diff    = D_max * N_s_ref_lo * geom_ref$A_zone / geom_ref$r_zone * SA_m_val / SA_total
+  ) %>%
+  ungroup()
+
+ribbon_layers_a_lo <- make_ribbons_lo(df_lim_a_lo,     "N_s")
+ribbon_layers_b_lo <- make_ribbons_lo(df_lim_b_lo_clip, "B_fr")
+ribbon_layers_c_lo <- make_ribbons_lo(df_lim_c_lo,     "N_s")
+ribbon_layers_d_lo <- make_ribbons_lo(df_lim_d_lo,     "B_m")
+
+p_a2 <- ggplot(df_root_Ns_hi,
+               aes(x = N_s, y = U_fr, colour = D_label, linetype = n_label)) +
+  ribbon_layers_a + ribbon_layers_a_lo +
+  geom_line(linewidth = 1.1) + facet_wrap(~ panel) +
+  sc_col_edge + sc_lt_n + sc_fill_combined +
+  scale_y_log10(labels = fmt_log) +
+  labs(x = expression(N[s]~"(kg N m"^{-3}*")"),
+       y = expression(U[fr]~"(kg N yr"^{-1}*")")) + theme_pub_lg
+
+p_b2 <- ggplot(df_root_B_hi,
+               aes(x = B_fr, y = U_fr, colour = D_label, linetype = N_label)) +
+  ribbon_layers_b + ribbon_layers_b_lo +
+  geom_line(linewidth = 1.1) + facet_wrap(~ panel) +
+  sc_col_edge + sc_lt_Ns + sc_fill_combined +
+  scale_x_log10(labels = fmt_log, limits = x_lim_B) +
+  scale_y_log10(labels = fmt_log) +
+  labs(x = expression(B[fr]~"(kg)"),
+       y = expression(U[fr]~"(kg N yr"^{-1}*")")) + theme_pub_lg
+
+p_c2 <- ggplot(df_myco_Ns_hi,
+               aes(x = N_s, y = U_m, colour = D_label, linetype = Bm_label)) +
+  ribbon_layers_c + ribbon_layers_c_lo +
+  geom_line(linewidth = 1.1) + facet_wrap(~ panel) +
+  sc_col_edge + sc_lt_Bm + sc_fill_combined +
+  scale_y_log10(labels = fmt_log) +
+  labs(x = expression(N[s]~"(kg N m"^{-3}*")"),
+       y = expression(U[m]~"(kg N yr"^{-1}*")")) + theme_pub_lg
+
+p_d2 <- ggplot(df_myco_B_hi,
+               aes(x = B_m, y = U_m, colour = D_label, linetype = N_label)) +
+  ribbon_layers_d + ribbon_layers_d_lo +
+  geom_line(linewidth = 1.1) + facet_wrap(~ panel) +
+  sc_col_edge + sc_lt_Ns + sc_fill_combined +
+  scale_x_log10(labels = fmt_log) +
+  scale_y_log10(labels = fmt_log) +
+  labs(x = expression(B[m]~"(kg)"),
+       y = expression(U[m]~"(kg N yr"^{-1}*")")) + theme_pub_lg
+
+fig_limits <- (p_a2 | p_b2) / (p_c2 | p_d2) +
+  plot_layout(guides = "collect") & theme(legend.position = "right")
+fig_limits
+ggsave("vignettes/plots/03_limits.png",
+       plot = fig_limits, width = 16, height = 10)
+```
 
 ## Sensitivity Analysis
 
