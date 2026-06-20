@@ -2167,7 +2167,7 @@ original_life_histroy <- function() {
   lho_3$set_i_metFile("tests/data/ERAS_Monthly.csv")
   lho_3$set_a_metFile("tests/data/ERAS_Monthly.csv")
   lho_3$set_co2File("")
-  lho_3$set_soil_nitrogen(0.6)
+  lho_3$set_soil_nitrogen(1.0)
   lho_3$init()
   
   dt <- 1/12
@@ -2258,7 +2258,7 @@ original_life_histroy <- function() {
        ylim = ylim_gpp, xlab = "", ylab = expression("GPP (kg C m"^{-2}*" year"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
   lines(df_3$date, df_3$assim_gross/df_3$crown_area/2.04, col = cols[3], lwd = lwd_model)
-  lines(df_2$date, df_2$assim_gross/df_2$crown_area/2.04, col = cols[2], lwd = lwd_model)
+  #lines(df_2$date, df_2$assim_gross/df_2$crown_area/2.04, col = cols[2], lwd = lwd_model)
   lines(df$date, df$assim_gross/df$crown_area/2.04, col = cols[1], lwd = lwd_model)
   points(Eddy_covariance$MonthlyDate, Eddy_covariance$GPP_mean_kg,
          col = col_obs, pch = pch_obs, cex = 0.8)
@@ -2272,7 +2272,7 @@ original_life_histroy <- function() {
        ylim = ylim_npp, xlab = "", ylab = expression("NPP (kg C m"^{-2}*" year"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
   lines(df_3$date, df_3$assim_net/df_3$crown_area/2.04, col = cols[3], lwd = lwd_model)
-  lines(df_2$date, df_2$assim_net/df_2$crown_area/2.04, col = cols[2], lwd = lwd_model)
+  #lines(df_2$date, df_2$assim_net/df_2$crown_area/2.04, col = cols[2], lwd = lwd_model)
   lines(df$date, df$assim_net/df$crown_area/2.04, col = cols[1], lwd = lwd_model)
   points(Eddy_covariance$MonthlyDate, -Eddy_covariance$NEE_mean_kg,
          col = col_obs, pch = pch_obs, cex = 0.8)
@@ -2314,9 +2314,10 @@ original_life_histroy <- function() {
   }
   mtext("(c)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
-  lines(df$date, df$height, col = cols[1], lwd = lwd_model)
-  lines(df_2$date, df_2$height, col = cols[2], lwd = lwd_model)
   lines(df_3$date, df_3$height, col = cols[3], lwd = lwd_model)
+  lines(df$date, df$height, col = cols[1], lwd = lwd_model)
+  #lines(df_2$date, df_2$height, col = cols[2], lwd = lwd_model)
+  
   
   # (d) Diameter
   smear_d_idx <- loaded_data$smearII_data$variable == "pine diameter BA weighted mean"
@@ -2325,10 +2326,10 @@ original_life_histroy <- function() {
   ylim_d <- range(df$diameter, df_2$diameter, df_3$diameter, smear_d_val,
                   0.01 * useful_data$averageTreeDiameter, na.rm = TRUE)
   
-  plot(df_2$date, df_2$diameter, type = "l", col = cols[2], lwd = lwd_model,
+  plot(df_3$date, df_3$diameter, type = "l", col = cols[2], lwd = lwd_model,
        ylim = ylim_d, xlab = "", ylab = "Diameter (m)",
        cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df_3$date, df_3$diameter, col = cols[3], lwd = lwd_model)
+  # lines(df_2$date, df_2$diameter, col = cols[3], lwd = lwd_model)
   lines(df$date, df$diameter, col = cols[1], lwd = lwd_model)
   points(smear_d_date, smear_d_val, col = adjustcolor(col_range, alpha.f = 0.15), pch = 4, cex = 1.5, lwd = lwd_obs)
   for (id in unique(useful_data$plotID)) {
@@ -2353,7 +2354,7 @@ original_life_histroy <- function() {
   mtext("(d)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
   lines(df_3$date, df_3$diameter, col = cols[3], lwd = lwd_model)
-  lines(df_2$date, df_2$diameter, col = cols[2], lwd = lwd_model)
+  #lines(df_2$date, df_2$diameter, col = cols[2], lwd = lwd_model)
   lines(df$date, df$diameter, col = cols[1], lwd = lwd_model)
   
   # (e) Vcmax
@@ -2365,7 +2366,7 @@ original_life_histroy <- function() {
   rect(par("usr")[1], 0, par("usr")[2], 30,
        col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
   lines(df_3$date, df_3$vcmax/df_3$lai, col = cols[3], lwd = lwd_model)
-  lines(df_2$date, df_2$vcmax/df_2$lai, col = cols[2], lwd = lwd_model)
+  #lines(df_2$date, df_2$vcmax/df_2$lai, col = cols[2], lwd = lwd_model)
   lines(df$date, df$vcmax/df$lai, col = cols[1], lwd = lwd_model)
   mtext("(e)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
@@ -2383,7 +2384,7 @@ original_life_histroy <- function() {
        cex.axis = cex_axis, cex.lab = cex_lab)
   #rect(par("usr")[1], 11 / 1000, par("usr")[2], 13 / 1000,
   #     col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
-  for (i in 3:1) {
+  for (i in c(3, 1)) {
     d_i <- list(df, df_2, df_3)[[i]]
     idx <- !is.na(d_i$leaf_nitrogen_concentration)
     polygon(c(d_i$date[idx], rev(d_i$date[idx])),
@@ -2392,7 +2393,7 @@ original_life_histroy <- function() {
     #lines(d_i$date, d_i$leaf_nitrogen_concentration, col = cols[i], lwd = lwd_model)
   }
   points(df_3$date, df_3$optimal_leaf_nitrogen, col = cols[3], pch = 20, cex = 1)
-  points(df_2$date, df_2$optimal_leaf_nitrogen, col = cols[2], pch = 20, cex = 1)
+  #points(df_2$date, df_2$optimal_leaf_nitrogen, col = cols[2], pch = 20, cex = 1)
   points(df$date, df$optimal_leaf_nitrogen, col = cols[1], pch = 20, cex = 1)
 
   mtext("(f)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
@@ -2411,8 +2412,10 @@ original_life_histroy <- function() {
        ylim = ylim_nu, xlab = "",
        ylab = expression("N uptake (kg N tree"^{-1}*" year"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
+  nbar_obs_val = 1/13 # TODO: check this number
+  nbar_obs_date = as.Date("2008-08-01", format = "%Y-%m-%d")
   lines(df_3$date, uptake_3, col = cols[3], lwd = lwd_model)
-  lines(df_2$date, uptake_2, col = cols[2], lwd = lwd_model)
+  #lines(df_2$date, uptake_2, col = cols[2], lwd = lwd_model)
   lines(df$date, uptake_1, col = cols[1], lwd = lwd_model)
   points(nbar_obs_date, nbar_obs_val, col = col_range, pch = pch_obs, cex = 0.8)
   mtext("(g)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
@@ -2425,7 +2428,7 @@ original_life_histroy <- function() {
        ylim = ylim_nb, xlab = "", ylab = "Belowground\ninfrastructure",
        cex.axis = cex_axis, cex.lab = cex_lab)
   lines(df_3$date, df_3$ectomycorrhiza_mass, col = cols[3], lwd = lwd_model)
-  lines(df_2$date, df_2$ectomycorrhiza_mass, col = cols[2], lwd = lwd_model)
+  #lines(df_2$date, df_2$ectomycorrhiza_mass, col = cols[2], lwd = lwd_model)
   lines(df$date, df$ectomycorrhiza_mass, col = cols[1], lwd = lwd_model)
   mtext("(a)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
@@ -2451,7 +2454,7 @@ original_life_histroy <- function() {
        ylim = ylim_bi, xlab = "", ylab = "Belowground\ninfrastructure",
        cex.axis = cex_axis, cex.lab = cex_lab)
   lines(df_3$date, df_3$belowground_infrastructure, col = cols[3], lwd = lwd_model)
-  lines(df_2$date, df_2$belowground_infrastructure, col = cols[2], lwd = lwd_model)
+  #lines(df_2$date, df_2$belowground_infrastructure, col = cols[2], lwd = lwd_model)
   lines(df$date, df$belowground_infrastructure, col = cols[1], lwd = lwd_model)
   mtext("(a)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
@@ -2468,7 +2471,7 @@ original_life_histroy <- function() {
   rect(par("usr")[1], nbar_lower, par("usr")[2], nbar_upper,
        col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
   lines(df_3$date, df_3$N_bar, col = cols[3], lwd = lwd_model)
-  lines(df_2$date, df_2$N_bar, col = cols[2], lwd = lwd_model)
+  #lines(df_2$date, df_2$N_bar, col = cols[2], lwd = lwd_model)
   lines(df$date, df$N_bar, col = cols[1], lwd = lwd_model)
   mtext("(b)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
@@ -2480,8 +2483,8 @@ original_life_histroy <- function() {
        ylab = expression("Myco. uptake (kg N tree"^{-1}*" year"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
   lines(df_3$date, df_3$myco_uptake, col = cols[3], lwd = lwd_model)
-  lines(df_2$date, df_2$myco_uptake, col = cols[2], lwd = lwd_model)
   lines(df$date, df$myco_uptake, col = cols[1], lwd = lwd_model)
+  #lines(df_2$date, df_2$myco_uptake, col = cols[2], lwd = lwd_model)
   
   mtext("(c)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
@@ -2493,7 +2496,7 @@ original_life_histroy <- function() {
        ylab = expression("Root uptake (kg N tree"^{-1}*" year"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
   lines(df_3$date, df_3$root_uptake, col = cols[3], lwd = lwd_model)
-  lines(df_2$date, df_2$root_uptake, col = cols[2], lwd = lwd_model)
+  #lines(df_2$date, df_2$root_uptake, col = cols[2], lwd = lwd_model)
   lines(df$date, df$root_uptake, col = cols[1], lwd = lwd_model)
   mtext("(d)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
@@ -2505,7 +2508,7 @@ original_life_histroy <- function() {
        ylab = expression("Tree N store (kg N tree"^{-1}*" year"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
   lines(df_3$date, df_3$tree_nitrogen, col = cols[3], lwd = lwd_model)
-  lines(df_2$date, df_2$tree_nitrogen, col = cols[2], lwd = lwd_model)
+  #lines(df_2$date, df_2$tree_nitrogen, col = cols[2], lwd = lwd_model)
   lines(df$date, df$tree_nitrogen, col = cols[1], lwd = lwd_model)
   mtext("(d)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
@@ -2518,5 +2521,154 @@ original_life_histroy <- function() {
          col = cols,
          lty = c(1, 1, 1),
          lwd = rep(lwd_model, 3))
+
+  # ----------------------------
+  # Diagnostic: why does uptake increase so much at high N?
+  # N_s values must match lho / lho_2 / lho_3 setup above
+  # ----------------------------
+  N_s_vals <- c(0.2, 0.4, 1.0)   # Low, Medium, High
+
+  uptake_1 <- df$mycorrhizal_export_to_tree  + df$root_uptake
+  uptake_2 <- df_2$mycorrhizal_export_to_tree + df_2$root_uptake
+  uptake_3 <- df_3$mycorrhizal_export_to_tree + df_3$root_uptake
+  bg_mass_1 <- df$root_mass  + df$ectomycorrhiza_mass
+  bg_mass_2 <- df_2$root_mass + df_2$ectomycorrhiza_mass
+  bg_mass_3 <- df_3$root_mass + df_3$ectomycorrhiza_mass
+
+  par(mfrow = c(2, 2), mar = c(4, 6, 3, 1), oma = c(4, 0, 2, 0),
+      family = "serif", las = 1, tcl = -0.4, mgp = c(4, 1, 0))
+
+  # (i) N_bar / N_s — depletion ratio
+  # = 1 means no depletion (biochemically limited); << 1 means strongly depleted (diffusion limited)
+  dep_1 <- df$N_bar   / N_s_vals[1]
+  dep_2 <- df_2$N_bar / N_s_vals[2]
+  dep_3 <- df_3$N_bar / N_s_vals[3]
+  ylim_dep <- range(dep_1, dep_2, dep_3, 0, 1, na.rm = TRUE)
+  plot(df$date, dep_1, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_dep, xlab = "",
+       ylab = expression(bar(N) / N[s]~"(depletion ratio)"),
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  lines(df_2$date, dep_2, col = cols[2], lwd = lwd_model)
+  lines(df_3$date, dep_3, col = cols[3], lwd = lwd_model)
+  abline(h = 1, lty = 2, col = "grey50")
+  legend("topright", legend = N_labels, col = cols, lty = 1, lwd = lwd_model,
+         bty = "n", cex = cex_legend)
+  mtext("(i)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  title(sub = "= 1: no depletion (biochem.-limited);  < 1: diffusion-limited",
+        col.sub = "grey40")
+  box(bty = "l")
+
+  # (iii) Uptake per unit belowground mass — per-root efficiency
+  # If lines collapse onto each other, the per-root rate is the same and the total
+  # uptake difference is driven purely by how much belowground biomass was built.
+  eff_1 <- uptake_1 / bg_mass_1
+  eff_2 <- uptake_2 / bg_mass_2
+  eff_3 <- uptake_3 / bg_mass_3
+  ylim_eff <- range(eff_1, eff_2, eff_3, na.rm = TRUE)
+  plot(df$date, eff_1, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_eff, xlab = "",
+       ylab = expression("N uptake / BG mass (kg N kg C"^{-1}*" yr"^{-1}*")"),
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  lines(df_2$date, eff_2, col = cols[2], lwd = lwd_model)
+  lines(df_3$date, eff_3, col = cols[3], lwd = lwd_model)
+  mtext("(iii)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  title(sub = "Separates SA effect from N_bar effect on total uptake",
+        col.sub = "grey40")
+  box(bty = "l")
+
+  # (iv) BG fraction — root+ECM as share of total biomass
+  # In nature this should DECREASE at high N (plants invest less in roots when N is plentiful).
+  # If the lines converge or reverse, the optimizer is correctly allocating less to roots per C fixed.
+  total_mass_1 <- df$stem_mass   + df$leaf_mass   + bg_mass_1
+  total_mass_2 <- df_2$stem_mass + df_2$leaf_mass + bg_mass_2
+  total_mass_3 <- df_3$stem_mass + df_3$leaf_mass + bg_mass_3
+  bgfrac_1 <- bg_mass_1 / total_mass_1
+  bgfrac_2 <- bg_mass_2 / total_mass_2
+  bgfrac_3 <- bg_mass_3 / total_mass_3
+  ylim_bgf <- range(bgfrac_1, bgfrac_2, bgfrac_3, na.rm = TRUE)
+  plot(df$date, bgfrac_1, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_bgf, xlab = "",
+       ylab = "BG fraction (root+ECM / total mass)",
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  lines(df_2$date, bgfrac_2, col = cols[2], lwd = lwd_model)
+  lines(df_3$date, bgfrac_3, col = cols[3], lwd = lwd_model)
+  mtext("(iv)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  title(sub = "Should decrease at high N — if not, optimizer over-invests in roots",
+        col.sub = "grey40")
+  box(bty = "l")
+
+  # ----------------------------
+  # Diagnostic: is root density per soil volume realistic?
+  # Compute SA_active from morphology parameters (must match p_test_boreal.ini)
+  # ----------------------------
+  k_1_par      <- 0.35    # mm^(3/2)  root diameter-length allometry
+  k_13_par     <- 2.5     # zone radius factor
+  depth_par    <- 1.1     # m  soil depth
+  rho_myco_par <- 330     # kg m-3
+  myco_d_par   <- 1e-5    # m
+  mycorrhized_par <- 0.9
+
+  compute_sa_density <- function(d) {
+    root_d_mm   <- k_1_par / sqrt(d$root_length)            # mm
+    SA_fr       <- pi * (root_d_mm/1000) * (d$root_length/1000) * d$root_no * d$crown_area * d$lai
+    SA_m        <- 4 * d$ectomycorrhiza_mass / (rho_myco_par * myco_d_par)
+    SA_active   <- (1 - mycorrhized_par) * SA_fr + SA_m
+    crown_r     <- sqrt(d$crown_area / pi)
+    R           <- k_13_par * crown_r
+    V_zone      <- (2/3) * pi * R^2 * depth_par             # semi-ellipsoid volume m3
+    list(SA_active = SA_active, V_zone = V_zone,
+         density = SA_active / V_zone,
+         SA_fr = SA_fr, SA_m = SA_m)
+  }
+
+  sa1 <- compute_sa_density(df)
+  sa2 <- compute_sa_density(df_2)
+  sa3 <- compute_sa_density(df_3)
+
+  par(mfrow = c(2, 2), mar = c(4, 6, 3, 1), oma = c(4, 0, 2, 0),
+      family = "serif", las = 1, tcl = -0.4, mgp = c(4, 1, 0))
+
+  # (v) SA_active / V_zone — root + ECM density in soil zone
+  # Realistic boreal range: ~10–80 m2 root SA per m3 soil
+  ylim_sad <- range(sa1$density, sa2$density, sa3$density, na.rm = TRUE)
+  plot(df$date, sa1$density, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_sad, xlab = "",
+       ylab = expression("SA"["active"]*" / V"["zone"]~"(m"^2~"m"^{-3}*")"),
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  lines(df_2$date, sa2$density, col = cols[2], lwd = lwd_model)
+  lines(df_3$date, sa3$density, col = cols[3], lwd = lwd_model)
+  rect(par("usr")[1], 10, par("usr")[2], 80,
+       col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
+  legend("topright", legend = N_labels, col = cols, lty = 1, lwd = lwd_model,
+         bty = "n", cex = cex_legend)
+  mtext("(v)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  title(sub = "Shading: ~10–80 m2/m3 typical boreal fine root + ECM density",
+        col.sub = "grey40")
+  box(bty = "l")
+
+  # (vi) Root SA vs ECM SA breakdown — which term dominates?
+  ylim_sasp <- range(sa1$SA_fr, sa2$SA_fr, sa3$SA_fr,
+                     sa1$SA_m,  sa2$SA_m,  sa3$SA_m, na.rm = TRUE)
+  plot(df$date, sa1$SA_fr, type = "l", col = cols[1], lwd = lwd_model, lty = 1,
+       ylim = ylim_sasp, xlab = "",
+       ylab = expression("Surface area (m"^2*")"),
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  lines(df_2$date, sa2$SA_fr, col = cols[2], lwd = lwd_model, lty = 1)
+  lines(df_3$date, sa3$SA_fr, col = cols[3], lwd = lwd_model, lty = 1)
+  lines(df$date,   sa1$SA_m,  col = cols[1], lwd = lwd_model, lty = 2)
+  lines(df_2$date, sa2$SA_m,  col = cols[2], lwd = lwd_model, lty = 2)
+  lines(df_3$date, sa3$SA_m,  col = cols[3], lwd = lwd_model, lty = 2)
+  legend("topleft", legend = c("Root SA (solid)", "ECM SA (dashed)"),
+         lty = c(1, 2), col = "black", lwd = lwd_model, bty = "n", cex = cex_legend)
+  mtext("(vi)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  title(sub = "ECM dominates SA_active when mycorrhized = 0.9",
+        col.sub = "grey40")
+  box(bty = "l")
+
+  # Shared legend
+  par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
+  plot(0, 0, type = "n", bty = "n", xaxt = "n", yaxt = "n")
+  legend("bottom", horiz = TRUE, bty = "n", cex = cex_legend,
+         legend = N_labels, col = cols, lty = 1, lwd = rep(lwd_model, 3))
 }
 
