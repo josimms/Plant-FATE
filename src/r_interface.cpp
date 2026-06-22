@@ -2,9 +2,11 @@
 using namespace Rcpp;
 
 #include "traits_params.h"
+#include "uptake.h"
 
 RCPP_EXPOSED_CLASS_NODECL(plant::PlantTraits)
 RCPP_EXPOSED_CLASS_NODECL(plant::PlantParameters)
+RCPP_EXPOSED_CLASS_NODECL(plant::Uptake)
 
 #include "climate.h"
 #include "light_environment.h"
@@ -36,6 +38,10 @@ RCPP_EXPOSED_CLASS_NODECL(pfate::Acc_traits);
 RCPP_EXPOSED_CLASS_NODECL(pfate::Misc);
 
 RCPP_MODULE(plantfate_module){
+	class_ <plant::Uptake>("Uptake")
+		.field("mycorrhized", &plant::Uptake::mycorrhized)
+		;
+
 	class_ <plant::PlantTraits>("PlantTraits")
 		.field("lma", &plant::PlantTraits::lma)
 		.field("zeta", &plant::PlantTraits::zeta)
@@ -152,6 +158,7 @@ RCPP_MODULE(plantfate_module){
 		.field("env", &pfate::LifeHistoryOptimizer::C)
 		.field("traits0", &pfate::LifeHistoryOptimizer::traits0)
 		.field("par0", &pfate::LifeHistoryOptimizer::par0)
+		.field("uptake0", &pfate::LifeHistoryOptimizer::uptake0)
 
 		.constructor<std::string>()
 		.method("set_i_metFile", &pfate::LifeHistoryOptimizer::set_i_metFile)
