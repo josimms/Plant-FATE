@@ -185,6 +185,7 @@ void PlantArchitecture::dmyco_dt(
     const PlantTraits& traits,
     double U_myco,
     double mycorrhizal_root_reduction,
+    double max_N_transfer,
     const PlantParameters& par
 ) {
   // --- Carbon-driven potential growth ---
@@ -197,7 +198,8 @@ void PlantArchitecture::dmyco_dt(
   double nitrogen_transfer = ectomycorrhiza_N_free * traits.mycorrhizal_turnover * par.years_per_tunit_avg;
   double fN = (N_needed > 0.0) ? std::min(1.0, (nitrogen_transfer + U_myco) / N_needed) : 1.0;
   
-  N_export = std::max(0.0, nitrogen_transfer) * mycorrhizal_root_reduction;
+  // Cap export at the maximum transfer rate across the root-fungus membrane interface
+  N_export = std::min(std::max(0.0, nitrogen_transfer) * mycorrhizal_root_reduction, max_N_transfer);
   
   dmass_myco_dt = growth_C_potential * fN - ectomycorrhiza_mass * traits.mycorrhizal_turnover;
   // TODO: is this kg biomass or kg carbon?

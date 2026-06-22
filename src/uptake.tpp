@@ -8,12 +8,6 @@ namespace plant{
 template<class _Climate>
 void Uptake::nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& par, PlantTraits& T) {
 
-  // Efficiency of N transfer from mycorrhiza to tree (lagged one timestep)
-  // eta = N actually exported to tree / N taken up by mycorrhiza
-  transfer_efficiency_photosynthesis = (U_myco > 1e-10)
-      ? std::min(1.0, G.N_export / U_myco)
-      : 0.0;
-
   // PARAMETERS
   // Use dynamic climate nitrogen as the soil concentration (N_s is the ini fallback)
   N_s = C.clim_acclim.nitrogen;
@@ -39,11 +33,16 @@ void Uptake::nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& p
   U_root *= f_temp;
   U_myco *= f_temp;
 
-  // Recompute I_b with temperature and age corrections so it matches the
-  // nitrogen that actually enters dnitrogen_dt_free.
+  // Maximum N transfer rate across the root-fungus membrane interface.
+  // Caps how much mycorrhizal N the root can actually absorb, regardless of
+  // how much the fungus takes up. Analogous to u_max for direct root uptake.
+  max_N_transfer = u_transfer * mycorrhized * G.root_surface_area(T) * par.years_per_tunit_avg;
+
+  // I_b: cap mycorrhizal contribution at the membrane transfer limit.
+  // Both U_myco and max_N_transfer carry years_per_tunit_avg, so units match.
   {
-    double N_eff = age_factor * ((1.0 - mycorrhized) * U_root
-        + transfer_efficiency_photosynthesis * mycorrhized * nitrogen_gate(G, T) * U_myco);
+    double myco_capped = std::min(U_myco, max_N_transfer);
+    double N_eff = age_factor * ((1.0 - mycorrhized) * U_root + myco_capped);
     I_b = std::max(N_eff / G.crown_area, 1e-10);
   }
 
@@ -56,8 +55,9 @@ void Uptake::nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& p
   // CORRECTED FOR TIMESTEP AND TEMPERATURE
   G.nitrogen_uptake_roots = age_factor * uptake_roots_term;
 
-  // Mycorrhizal reduction due to root structure
-  mycorrhizal_root_reduction = age_factor * nitrogen_gate(G, T) * mycorrhized * f_temp;
+  // Mycorrhizal reduction factor (age, colonisation fraction, temperature).
+  // The surface-area cap is applied inside dmyco_dt where N available is known.
+  mycorrhizal_root_reduction = age_factor * mycorrhized * f_temp;
 }
 
 } // namespace plant

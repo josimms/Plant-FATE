@@ -16,18 +16,13 @@ namespace plant {
     N_s         = I.get<double>("N_s");
     depth       = I.get<double>("depth");
     k_8         = I.get<double>("k_8");
-    k_9         = I.get<double>("k_9");
     k_13        = I.get<double>("k_13");
     k_15        = I.get<double>("k_15");
+    u_transfer  = I.get<double>("u_transfer");
   }
 
   double Uptake::uptake_age(const PlantArchitecture& G, PlantTraits& T) {
     return 1.0 / (1.0 + exp(G.root_lifespan(T) - k_8));
-  }
-
-  double Uptake::nitrogen_gate(const PlantArchitecture& G, PlantTraits& T) {
-    double surface_area = G.root_no * M_PI * G.root_length * G.root_diameter(T);
-    return surface_area / (surface_area + k_9);
   }
 
   // Numerically stable positive root of:

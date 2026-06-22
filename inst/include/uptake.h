@@ -24,7 +24,6 @@ public:
 
   double mycorrhized;
   double mycorrhizal_root_reduction;
-  double transfer_efficiency_photosynthesis;
   double myco_diameter;
   double rho_myco;
   double D;
@@ -33,14 +32,14 @@ public:
   double depth;
 
   double k_8;
-  double k_9;
   double k_13;   ///< Zone radius factor: R_zone = k_13 * crown_radius
   double k_15;   ///< Biochemical half-saturation constant [kg N m^-3]
+  double u_transfer; ///< Max N transfer rate at root-fungus interface [kg N m^-2 yr^-1]
+  double max_N_transfer = 0.0; ///< Computed max mycorrhizal transfer per timestep [kg N]
 
   // Uptake equations
   /// @{brief Uptake Functions
   double uptake_age(const PlantArchitecture& G, PlantTraits& T);
-  double nitrogen_gate(const PlantArchitecture& G, PlantTraits& T);
 
   double compute_N_bar(double SA_active, double A_zone, double r_zone) const;
 
