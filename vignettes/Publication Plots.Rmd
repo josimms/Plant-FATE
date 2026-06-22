@@ -48,13 +48,13 @@ fixed_root_no     <- 3e5
 fixed_ecto_allo   <- 0.1
 
 # Parameter ranges (fewer points in testing mode for speed)
-n_pts_main <- if (testing_mode) 5 else 21
-n_pts_ecto <- if (testing_mode) 3 else 11
+n_pts_main <- if (testing_mode) 6 else 21
+n_pts_ecto <- if (testing_mode) 5 else 11
 
-root_length_values <- seq(1, 2, length.out = n_pts_main)
+root_length_values <- seq(0.5, 5, length.out = n_pts_main)
 root_no_values     <- 3*10^seq(3, 6, length.out = n_pts_main)
-nitrogen_values    <- seq(0.01, 2, length.out = n_pts_main)
-ecto_allo_values   <- seq(0.0, 0.5, length.out = n_pts_ecto)
+nitrogen_values    <- seq(0.01, 2.0, length.out = n_pts_main)
+ecto_allo_values   <- seq(0.0, 0.3, length.out = n_pts_ecto)
 
 param_file <- "/home/josimms/Documents/Austria/Plant-FATE/tests/params/p_test_boreal.ini"
 weather_file <- "/home/josimms/Documents/Austria/Plant-FATE/data/ERAS_Monthly.csv"
@@ -69,12 +69,14 @@ run_sim_parallel <- function(rl, rn, n, eb) {
     lho$set_a_metFile(weather_file)
     lho$set_co2File("")
     lho$set_soil_nitrogen(n)
-    lho$init()
     lho$traits0$investment_from_tree <- eb
+    max_eb <- max(ecto_allo_values)
+    lho$uptake0$mycorrhized <- if (max_eb > 0) 0.9 * (eb / max_eb) else 0
+    lho$init()
     lho$root_override(rn, rl)
 
     dt <- 1/12
-    start_year <- if (testing_mode) 2010 else 1960
+    start_year <- 1960
     end_year   <- 2022
     years_seq  <- seq(start_year, end_year, dt)
     
@@ -169,13 +171,13 @@ final_df_no_na <- final_df[!is.na(final_df$root_length), ]
 # --- Convert date column to Date class if needed ---
 final_df_no_na$date <- as.Date(final_df_no_na$date)
 
-# --- Subset for plotting ---
-subset_root_length <- final_df_no_na %>%
-  filter(root_length == 1.5) %>%              
+# --- Subset for plotting: each filtered to its own sweep only ---
+# root_no sweep: fixed root_length=1.5 and ecto_allo=fixed_ecto_allo
+subset_root_length <- all_rn_df %>%
   filter(date == as.Date("2022-01-01"))
 
-subset_root_no <- final_df_no_na %>%
-  filter(root_no == 3e5) %>%                
+# root_length sweep: fixed root_no=3e5 and ecto_allo=fixed_ecto_allo
+subset_root_no <- all_rl_df %>%
   filter(date == as.Date("2022-01-01"))
 
 # --- Determine total_mass range for color scaling ---
@@ -295,52 +297,85 @@ ggsave("vignettes/plots/08_trajector_with_age.png",
        plot = trajector_with_age, width = 16, height = 10)
 ```
 
-```{r}
-max_ecto_vs_soilN <- final_df_no_na %>%
-  group_by(soil_nitrogen) %>%
-  slice_max(total_mass, with_ties = TRUE) %>%
-  ungroup() %>%
-  select(soil_nitrogen, ectomycorrhiza_mass, total_mass)
-
-ggplot(max_ecto_vs_soilN,
-       aes(x = soil_nitrogen,
-           y = ectomycorrhiza_mass,
-           color = total_mass)) +
-  geom_point(size = 3, alpha = 0.7) +
-  scale_color_viridis_c(option = "cividis",
-                        limits = total_mass_range) +
-  scale_y_continuous(limits = c(0, max(max_ecto_vs_soilN$ectomycorrhiza_mass, na.rm = TRUE))) +
-  labs(
-    x = "Soil N (g m⁻³)",
-    y = "Ectomycorrhizal\nBiomass (kg)",
-    color = "Total Biomass (kg)"
-  ) +
-  pub_theme
-```
-
 ## Trade offs: Ectomycorrhizal biomass
+
+```{r}
+# Reference simulations using the same default parameters as test_roots.R
+# (investment_from_tree=0.15, mycorrhized=0.9 from ini) to verify consistency
+ref_list <- lapply(nitrogen_values, function(n) {
+  tryCatch({
+    lho <- new(LifeHistoryOptimizer, param_file)
+    lho$set_i_metFile(weather_file)
+    lho$set_a_metFile(weather_file)
+    lho$set_co2File("")
+    lho$set_soil_nitrogen(n)
+    lho$init()
+
+    dt <- 1/12
+    start_year <- 1960
+    end_year   <- 2022
+    years_seq  <- seq(start_year, end_year, dt)
+
+    results <- lapply(years_seq, function(t) {
+      tryCatch({
+        lho$grow_for_dt(t, dt)
+        state <- lho$get_state(t + dt)
+        df_row <- as.data.frame(t(state))
+        names(df_row) <- lho$get_header()
+        df_row
+      }, error = function(e) {
+        setNames(as.data.frame(as.list(rep(NA, length(lho$get_header())))), lho$get_header())
+      })
+    })
+
+    df <- do.call(rbind, results)
+    df$soil_nitrogen <- n
+    df$date <- seq(as.Date(paste0(start_year, "-01-01")),
+                   as.Date(paste0(end_year, "-01-01")),
+                   by = "month")[1:nrow(df)]
+    df
+  }, error = function(e) NULL)
+})
+ref_df <- do.call(rbind, ref_list[!sapply(ref_list, is.null)])
+if (is.null(ref_df) || nrow(ref_df) == 0) {
+  ref_max <- data.frame(soil_nitrogen = numeric(0), ectomycorrhiza_mass = numeric(0))
+} else {
+  ref_max <- ref_df %>%
+    group_by(soil_nitrogen) %>%
+    summarise(ectomycorrhiza_mass = max(ectomycorrhiza_mass, na.rm = TRUE), .groups = "drop")
+}
+```
 
 ```{r}
 subset_df <- final_df_no_na %>%
   filter(root_length == 1.5, root_no == 3e5)
 
-heatmap_ecm <- subset_df %>%
+# Use max ECM biomass across all timesteps per run (captures seasonal peaks)
+sweep_max_ecm <- subset_df %>%
+  group_by(soil_nitrogen, ecto_allo) %>%
+  summarise(
+    ectomycorrhiza_mass = max(ectomycorrhiza_mass, na.rm = TRUE),
+    total_mass          = max(total_mass, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+heatmap_ecm <- sweep_max_ecm %>%
   mutate(
     bin_soilN = cut(soil_nitrogen, breaks = 50),
     bin_ecm   = cut(log10(ectomycorrhiza_mass), breaks = 50)
   ) %>%
   group_by(bin_soilN, bin_ecm) %>%
   summarise(
-    total_mass = mean(total_mass, na.rm = TRUE),
-    soil_nitrogen = mean(soil_nitrogen),
+    total_mass          = mean(total_mass, na.rm = TRUE),
+    soil_nitrogen       = mean(soil_nitrogen),
     ectomycorrhiza_mass = mean(ectomycorrhiza_mass),
     .groups = "drop"
   )
 
 ecm_total_mass_range <- range(heatmap_ecm$total_mass, na.rm = TRUE)
 
-# Optimal ecto biomass: ecto_mass that maximises total_mass at each soil_nitrogen
-opt_ecm_mass <- subset_df %>%
+# Optimal: ecto_allo that maximises total_mass at each soil_nitrogen
+opt_ecm_mass <- sweep_max_ecm %>%
   group_by(soil_nitrogen) %>%
   slice_max(total_mass, n = 1, with_ties = FALSE) %>%
   ungroup()
@@ -353,12 +388,16 @@ p_ecm_mass <- ggplot(heatmap_ecm,
   geom_point(data = opt_ecm_mass,
              aes(x = soil_nitrogen, y = ectomycorrhiza_mass),
              shape = 21, fill = "white", color = "black", size = 2, inherit.aes = FALSE) +
+  geom_point(data = ref_max,
+             aes(x = soil_nitrogen, y = ectomycorrhiza_mass),
+             shape = 17, color = "red", size = 2.5, inherit.aes = FALSE) +
   scale_y_log10() +
   scale_fill_viridis_c(option = "cividis", limits = ecm_total_mass_range) +
   labs(
     x = "Soil Nitrogen (g N m⁻³)",
     y = "Ectomycorrhizal\nBiomass (kg)",
-    fill = "Total Biomass (kg)"
+    fill = "Total Biomass (kg)",
+    caption = "▲ Reference: default params (investment_from_tree=0.15, mycorrhized=0.9)"
   ) +
   pub_theme
 
