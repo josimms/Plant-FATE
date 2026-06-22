@@ -56,6 +56,7 @@ void PlantTraits::init(io::Initializer& I){
 	nc_myco = I.get<double>("nc_myco");
 	mycorrhizal_biomass_conversion = I.get<double>("mycorrhizal_biomass_conversion");
 	mycorrhizal_turnover           = I.get<double>("mycorrhizal_turnover");
+	k_mob_N                        = I.get<double>("k_mob_N");
 	investment_from_tree           = I.get<double>("investment_from_tree");
 }
 
