@@ -19,6 +19,7 @@ namespace plant {
     k_13        = I.get<double>("k_13");
     k_15        = I.get<double>("k_15");
     u_transfer  = I.get<double>("u_transfer");
+    c_transfer  = I.get<double>("c_transfer");
   }
 
   double Uptake::uptake_age(const PlantArchitecture& G, PlantTraits& T) {

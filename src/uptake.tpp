@@ -37,6 +37,7 @@ void Uptake::nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& p
   // Caps how much mycorrhizal N the root can actually absorb, regardless of
   // how much the fungus takes up. Analogous to u_max for direct root uptake.
   max_N_transfer = u_transfer * mycorrhized * G.root_surface_area(T) * par.years_per_tunit_avg;
+  max_C_transfer = c_transfer * mycorrhized * G.root_surface_area(T) * par.years_per_tunit_avg;
 
   // I_b: cap mycorrhizal contribution at the membrane transfer limit.
   // Both U_myco and max_N_transfer carry years_per_tunit_avg, so units match.

@@ -61,7 +61,7 @@ class PlantTraits{
 	double mycorrhizal_biomass_conversion;  ///< The biomass created per carbon unit from photosynthesis
 	double mycorrhizal_turnover;            ///< The ectomycorrhizal turnover
 	double k_mob_N;                         ///< Mobilisation rate of free N pool [yr-1]: controls how quickly ectomycorrhiza_N_free is available for growth/export
-	double investment_from_tree;            ///< The constant ratio of allocation from assimilation to ectomycorrhiza
+	double investment_from_tree;            ///< Maximum fraction of NPP the tree can invest in ectomycorrhiza
 	
 	// traits set by coordination
 	double a;               ///< Initial height to diameter ratio 

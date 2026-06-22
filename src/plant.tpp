@@ -178,8 +178,9 @@ void Plant::calc_demographic_rates(Env& env, double t){
         res = assimilator.net_production(env, &geometry, par, traits, t);
 
         double res_all = std::max(res.npp, 0.0);
-        npp_exudates = res_all * traits.investment_from_tree;
-        double res_after_myco = res_all * (1 - traits.investment_from_tree);
+        npp_exudates = std::min(res_all * traits.investment_from_tree,
+                                uptake.max_C_transfer);
+        double res_after_myco = res_all - npp_exudates;
 
         bp.dmass_dt_tot = std::max(res_after_myco, 0.0);
         if (std::isnan(bp.dmass_dt_tot)) throw std::runtime_error("biomass production is nan");

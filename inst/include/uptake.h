@@ -35,7 +35,9 @@ public:
   double k_13;   ///< Zone radius factor: R_zone = k_13 * crown_radius
   double k_15;   ///< Biochemical half-saturation constant [kg N m^-3]
   double u_transfer; ///< Max N transfer rate at root-fungus interface [kg N m^-2 yr^-1]
-  double max_N_transfer = 0.0; ///< Computed max mycorrhizal transfer per timestep [kg N]
+  double max_N_transfer = 0.0; ///< Computed max mycorrhizal N transfer per timestep [kg N]
+  double c_transfer; ///< Max C transfer rate at root-fungus interface [kg C m^-2 yr^-1]
+  double max_C_transfer = 0.0; ///< Computed max mycorrhizal C transfer per timestep [kg C]
 
   // Uptake equations
   /// @{brief Uptake Functions
