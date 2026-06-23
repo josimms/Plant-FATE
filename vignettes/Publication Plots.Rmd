@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
-library(lubridate)  # convenient for date operations
+library(lubridate)
 library(ggplot2)
 library(zoo)
 library(data.table)
@@ -19,9 +19,27 @@ library(patchwork)
 library(PlantFATE)
 library(akima)
 library(here)
-library(akima)  # for interpolation if needed
 library(future.apply)
 library(future)
+```
+
+```{r theme, include=FALSE}
+pub_theme <- theme_classic(base_size = 16) +
+  theme(
+    axis.title       = element_text(size = 15, face = "bold"),
+    axis.text        = element_text(size = 13, colour = "black"),
+    axis.line        = element_line(colour = "black", linewidth = 0.6),
+    axis.ticks       = element_line(colour = "black", linewidth = 0.5),
+    legend.title     = element_text(size = 14, face = "bold"),
+    legend.text      = element_text(size = 13),
+    legend.key.size  = unit(0.9, "lines"),
+    panel.grid.major = element_line(colour = "grey90", linewidth = 0.3),
+    panel.grid.minor = element_blank(),
+    plot.background  = element_rect(fill = "white", colour = NA),
+    panel.background = element_rect(fill = "white", colour = NA),
+    plot.margin      = margin(8, 12, 8, 8),
+    strip.text       = element_text(size = 14, face = "bold")
+  )
 ```
 
 ## Data reading
@@ -38,7 +56,7 @@ useful_data <- merge(data[[2]], data[[5]], c('plotID', 'eventID', 'eventYear'), 
 
 ```{r pressure, echo=FALSE}
 # Set to TRUE for fast testing (fewer grid points, shorter run), FALSE for full publication run
-testing_mode <- TRUE
+testing_mode <- FALSE
 
 plan(multicore, workers = parallel::detectCores() - 1)
 
@@ -48,8 +66,8 @@ fixed_root_no     <- 3e5
 fixed_ecto_allo   <- 0.1
 
 # Parameter ranges (fewer points in testing mode for speed)
-n_pts_main <- if (testing_mode) 6 else 21
-n_pts_ecto <- if (testing_mode) 5 else 11
+n_pts_main <- if (testing_mode) 7 else 21
+n_pts_ecto <- if (testing_mode) 6 else 11
 
 root_length_values <- seq(0.5, 5, length.out = n_pts_main)
 root_no_values     <- 3*10^seq(3, 6, length.out = n_pts_main)
@@ -70,8 +88,6 @@ run_sim_parallel <- function(rl, rn, n, eb) {
     lho$set_co2File("")
     lho$set_soil_nitrogen(n)
     lho$traits0$investment_from_tree <- eb
-    max_eb <- max(ecto_allo_values)
-    lho$uptake0$mycorrhized <- if (max_eb > 0) 0.9 * (eb / max_eb) else 0
     lho$init()
     lho$root_override(rn, rl)
 
@@ -199,39 +215,43 @@ max_line_root_no <- subset_root_no %>%
 
 # --- Plot 1: Root Number heatmap ---
 p1 <- ggplot(subset_root_length, aes(x = soil_nitrogen, y = root_no, fill = total_mass)) +
-  geom_tile() +
+  geom_raster() +
   geom_point(data = max_line_root_length,
-             aes(x = soil_nitrogen, y = root_no, shape = "Total Biomass maximum"),
-             fill = "white", color = "black", size = 2.5, stroke = 1.2) +
-  scale_shape_manual(name = NULL, values = c("Total Biomass maximum" = 21)) +
-  scale_y_log10() +
-  scale_fill_viridis_c(option = "cividis", limits = total_mass_range) +
+             aes(x = soil_nitrogen, y = root_no, shape = "Max total biomass"),
+             fill = "white", colour = "black", size = 3.5, stroke = 1.5) +
+  scale_shape_manual(name = NULL, values = c("Max total biomass" = 21)) +
+  scale_y_log10(labels = scales::label_scientific()) +
+  scale_fill_viridis_c(option = "cividis", limits = total_mass_range,
+                       labels = scales::label_number(accuracy = 0.1)) +
   labs(x = "Soil N (g m⁻³)",
-       y = "Root Number per\nUnit Crown Area\n(no per m², log)",
-       fill = "Total Biomass") +
+       y = "Root number per unit\ncrown area (m⁻²)",
+       fill = "Total\nbiomass (kg)") +
   pub_theme
 
 # --- Plot 2: Root Length heatmap ---
 p2 <- ggplot(subset_root_no, aes(x = soil_nitrogen, y = root_length, fill = total_mass)) +
-  geom_tile() +
+  geom_raster() +
   geom_point(data = max_line_root_no,
-             aes(x = soil_nitrogen, y = root_length, shape = "Total Biomass maximum"),
-             fill = "white", color = "black", size = 2.5, stroke = 1.2) +
-  scale_shape_manual(name = NULL, values = c("Total Biomass maximum" = 21)) +
-  scale_fill_viridis_c(option = "cividis", limits = total_mass_range) +
+             aes(x = soil_nitrogen, y = root_length, shape = "Max total biomass"),
+             fill = "white", colour = "black", size = 3.5, stroke = 1.5) +
+  scale_shape_manual(name = NULL, values = c("Max total biomass" = 21)) +
+  scale_fill_viridis_c(option = "cividis", limits = total_mass_range,
+                       labels = scales::label_number(accuracy = 0.1)) +
   labs(x = "Soil N (g m⁻³)",
-       y = "Root Length\n(mm)",
-       fill = "Total Biomass") +
+       y = "Root length (mm)",
+       fill = "Total\nbiomass (kg)") +
   pub_theme
 
-# --- Combine plots vertically with shared legend ---
+# --- Combine plots with panel labels and shared legend ---
 length_no_N_gradient <- (p2 / p1) +
-  plot_layout(guides = "collect") &
-  theme(legend.position = "right")
+  plot_layout(guides = "collect") +
+  plot_annotation(tag_levels = "A") &
+  theme(legend.position = "right",
+        plot.tag = element_text(size = 18, face = "bold"))
 length_no_N_gradient
 
 ggsave("vignettes/plots/07_length_no_N_gradient.png",
-       plot = length_no_N_gradient, width = 16, height = 10)
+       plot = length_no_N_gradient, width = 12, height = 10, dpi = 300)
 ```
 
 ## Trajectory
@@ -256,95 +276,59 @@ trajectory_max_root_length <- final_df_no_na %>%
   ungroup() %>%
   select(date, soil_nitrogen, root_length)
 
+# ---- Format soil N as a labelled factor ----
+soil_n_labels <- setNames(
+  paste(round(soilN_values, 2), "g m⁻³"),
+  as.character(soilN_values)
+)
+
 # ---- Plot Root Number trajectory ----
 p1 <- ggplot(trajectory_max_root_no,
              aes(x = date, y = root_no,
-                 color = factor(soil_nitrogen),
+                 colour = factor(soil_nitrogen),
                  group = soil_nitrogen)) +
-  geom_point(alpha = 0.6, size = 1.5,
+  geom_point(alpha = 0.7, size = 2,
              position = position_jitter(width = 0.1, height = 0)) +
-  scale_y_log10(limits = range(root_no_values)) +
-  scale_color_viridis_d(option = "cividis") +
+  scale_y_log10(limits = range(root_no_values),
+                labels = scales::label_scientific()) +
+  scale_colour_viridis_d(option = "cividis",
+                         labels = soil_n_labels) +
   labs(
-    x = "Date",
-    y = "Maximum:\nRoot Number per\nUnit Crown Area (log)",
-    color = "Soil N (g m⁻³)"
+    x = "Year",
+    y = "Optimal root number\nper unit crown area (m⁻²)",
+    colour = "Soil N"
   ) +
   pub_theme
 
 # ---- Plot Root Length trajectory ----
 p2 <- ggplot(trajectory_max_root_length,
              aes(x = date, y = root_length,
-                 color = factor(soil_nitrogen),
+                 colour = factor(soil_nitrogen),
                  group = soil_nitrogen)) +
-  geom_point(alpha = 0.6, size = 1.5) +
+  geom_point(alpha = 0.7, size = 2) +
   scale_y_continuous(limits = range(root_length_values)) +
-  scale_color_viridis_d(option = "cividis") +
+  scale_colour_viridis_d(option = "cividis",
+                         labels = soil_n_labels) +
   labs(
-    x = "Date",
-    y = "Maximum:\nRoot Length (mm)",
-    color = "Soil N (g m⁻³)"
+    x = "Year",
+    y = "Optimal root length (mm)",
+    colour = "Soil N"
   ) +
   pub_theme
 
-# ---- Combine plots vertically with shared legend ----
-trajector_with_age <- (p2 / p1) +
-  plot_layout(guides = "collect") &
-  theme(legend.position = "right")
-trajector_with_age
+# ---- Combine with panel labels and shared legend ----
+trajectory_with_age <- (p2 / p1) +
+  plot_layout(guides = "collect") +
+  plot_annotation(tag_levels = "A") &
+  theme(legend.position = "right",
+        plot.tag = element_text(size = 18, face = "bold"))
+trajectory_with_age
 
-ggsave("vignettes/plots/08_trajector_with_age.png",
-       plot = trajector_with_age, width = 16, height = 10)
+ggsave("vignettes/plots/08_trajectory_with_age.png",
+       plot = trajectory_with_age, width = 12, height = 10, dpi = 300)
 ```
 
 ## Trade offs: Ectomycorrhizal biomass
-
-```{r}
-# Reference simulations using the same default parameters as test_roots.R
-# (investment_from_tree=0.15, mycorrhized=0.9 from ini) to verify consistency
-ref_list <- lapply(nitrogen_values, function(n) {
-  tryCatch({
-    lho <- new(LifeHistoryOptimizer, param_file)
-    lho$set_i_metFile(weather_file)
-    lho$set_a_metFile(weather_file)
-    lho$set_co2File("")
-    lho$set_soil_nitrogen(n)
-    lho$init()
-
-    dt <- 1/12
-    start_year <- 1960
-    end_year   <- 2022
-    years_seq  <- seq(start_year, end_year, dt)
-
-    results <- lapply(years_seq, function(t) {
-      tryCatch({
-        lho$grow_for_dt(t, dt)
-        state <- lho$get_state(t + dt)
-        df_row <- as.data.frame(t(state))
-        names(df_row) <- lho$get_header()
-        df_row
-      }, error = function(e) {
-        setNames(as.data.frame(as.list(rep(NA, length(lho$get_header())))), lho$get_header())
-      })
-    })
-
-    df <- do.call(rbind, results)
-    df$soil_nitrogen <- n
-    df$date <- seq(as.Date(paste0(start_year, "-01-01")),
-                   as.Date(paste0(end_year, "-01-01")),
-                   by = "month")[1:nrow(df)]
-    df
-  }, error = function(e) NULL)
-})
-ref_df <- do.call(rbind, ref_list[!sapply(ref_list, is.null)])
-if (is.null(ref_df) || nrow(ref_df) == 0) {
-  ref_max <- data.frame(soil_nitrogen = numeric(0), ectomycorrhiza_mass = numeric(0))
-} else {
-  ref_max <- ref_df %>%
-    group_by(soil_nitrogen) %>%
-    summarise(ectomycorrhiza_mass = max(ectomycorrhiza_mass, na.rm = TRUE), .groups = "drop")
-}
-```
 
 ```{r}
 subset_df <- final_df_no_na %>%
@@ -384,20 +368,18 @@ p_ecm_mass <- ggplot(heatmap_ecm,
        aes(x = soil_nitrogen,
            y = ectomycorrhiza_mass,
            fill = total_mass)) +
-  geom_tile() +
+  geom_raster() +
   geom_point(data = opt_ecm_mass,
              aes(x = soil_nitrogen, y = ectomycorrhiza_mass),
-             shape = 21, fill = "white", color = "black", size = 2, inherit.aes = FALSE) +
-  geom_point(data = ref_max,
-             aes(x = soil_nitrogen, y = ectomycorrhiza_mass),
-             shape = 17, color = "red", size = 2.5, inherit.aes = FALSE) +
-  scale_y_log10() +
-  scale_fill_viridis_c(option = "cividis", limits = ecm_total_mass_range) +
+             shape = 21, fill = "white", colour = "black", size = 3.5,
+             stroke = 1.5, inherit.aes = FALSE) +
+  scale_y_log10(labels = scales::label_number(accuracy = 0.001)) +
+  scale_fill_viridis_c(option = "cividis", limits = ecm_total_mass_range,
+                       labels = scales::label_number(accuracy = 0.1)) +
   labs(
-    x = "Soil Nitrogen (g N m⁻³)",
-    y = "Ectomycorrhizal\nBiomass (kg)",
-    fill = "Total Biomass (kg)",
-    caption = "▲ Reference: default params (investment_from_tree=0.15, mycorrhized=0.9)"
+    x = "Soil nitrogen (g N m⁻³)",
+    y = "Ectomycorrhizal\nbiomass (kg)",
+    fill = "Total\nbiomass (kg)"
   ) +
   pub_theme
 
@@ -418,23 +400,28 @@ p_ecto_allo <- ggplot(heatmap_ecto_allo,
        aes(x = soil_nitrogen,
            y = ecto_allo,
            fill = total_mass)) +
-  geom_tile() +
+  geom_raster() +
   geom_point(data = opt_ecto_allo,
              aes(x = soil_nitrogen, y = ecto_allo),
-             shape = 21, fill = "white", color = "black", size = 2, inherit.aes = FALSE) +
-  scale_fill_viridis_c(option = "cividis", limits = ecm_total_mass_range) +
+             shape = 21, fill = "white", colour = "black", size = 3.5,
+             stroke = 1.5, inherit.aes = FALSE) +
+  scale_y_continuous(labels = scales::label_percent()) +
+  scale_fill_viridis_c(option = "cividis", limits = ecm_total_mass_range,
+                       labels = scales::label_number(accuracy = 0.1)) +
   labs(
-    x = "Soil Nitrogen (g N m⁻³)",
-    y = "Ectomycorrhizal\nAllocation",
-    fill = "Total Biomass (kg)"
+    x = "Soil nitrogen (g N m⁻³)",
+    y = "Ectomycorrhizal\nallocation",
+    fill = "Total\nbiomass (kg)"
   ) +
   pub_theme
 
-ectomycorrizal_beha_gradient <- (p_ecm_mass / p_ecto_allo) +
-  plot_layout(guides = "collect") &
-  theme(legend.position = "right")
-ectomycorrizal_beha_gradient
+ectomycorrhizal_beha_gradient <- (p_ecm_mass / p_ecto_allo) +
+  plot_layout(guides = "collect") +
+  plot_annotation(tag_levels = "A") &
+  theme(legend.position = "right",
+        plot.tag = element_text(size = 18, face = "bold"))
+ectomycorrhizal_beha_gradient
 
-ggsave("vignettes/plots/09_ectomycorrizal_beha_gradient.png",
-       plot = ectomycorrizal_beha_gradient, width = 16, height = 10)
+ggsave("vignettes/plots/09_ectomycorrhizal_beha_gradient.png",
+       plot = ectomycorrhizal_beha_gradient, width = 12, height = 10, dpi = 300)
 ```

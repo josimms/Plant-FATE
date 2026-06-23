@@ -1782,8 +1782,10 @@ original_life_histroy <- function() {
   # ----------------------------
   # 1. Gross Assimilation & Tree Growth
   # ----------------------------
+  dir.create("RScripts/plots", showWarnings = FALSE, recursive = TRUE)
+  png("RScripts/plots/lh_01_growth_assimilation.png", width = 1200, height = 900)
   par(mfrow = c(3, 2))
-  
+
   # 1. Gross Assimilation
   plot(df$date, df$assim_gross, type = "l", col = cols[1],
        ylab = "Assimilation gross", xlab = "Date",
@@ -1854,12 +1856,14 @@ original_life_histroy <- function() {
   points(as.Date("2017-06-01"), A_c_high, pch = 8, col = "blue")
   segments(as.Date("2017-06-01"), A_c_low, as.Date("2017-06-01"), A_c_high, col = "blue", lwd = 2)
   title(sub = "Halme 2022 (star)", col.sub = "blue")
-  
+  dev.off()
+
   # ----------------------------
   # 2. Nitrogen Variables
   # ----------------------------
   date_point <- as.Date("2007-06-21")
-  
+
+  png("RScripts/plots/lh_02_nitrogen_variables.png", width = 1200, height = 900)
   par(mfrow = c(3, 2))
   plot(df$date, df$vcmax, type = "l", col = cols[1], main = "Vcmax", ylab = "µmol m⁻² s⁻¹", xlab = "Date",
        ylim = range(df$vcmax, df_2$vcmax, df_3$vcmax, 0, 30, na.rm = TRUE))
@@ -1933,11 +1937,13 @@ original_life_histroy <- function() {
   # Optional: draw a vertical line between them to show the full range
   segments(date_point, low, date_point, high, col = "blue", lwd = 2)
   title(sub = "Korhonen 2012: Standing Biomass / Tree Number", col.sub = "blue")
-  
+  dev.off()
+
   # ----------------------------
   # 2.5. Mycorrhiza and root logic
   # ----------------------------
-  
+
+  png("RScripts/plots/lh_03_mycorrhiza_root_logic.png", width = 1200, height = 900)
   par(mfrow = c(3, 2))
   plot(df$date, df$ectomycorrhiza_mass, type = "l", col = cols[1],
        ylab = "kg C", main = "Ectomycorrhizal Mass", xlab = "Date",
@@ -1982,12 +1988,14 @@ original_life_histroy <- function() {
        ylim = range(df$fineroot_lifespan, df_2$fineroot_lifespan, df_3$fineroot_lifespan, na.rm = TRUE))
   lines(df_2$date, df_2$fineroot_lifespan, col = cols[2])
   lines(df_3$date, df_3$fineroot_lifespan, col = cols[3])
-  
+  dev.off()
+
   # ----------------------------
   # 3. Respiration
   # ----------------------------
+  png("RScripts/plots/lh_04_respiration.png", width = 1200, height = 900)
   par(mfrow = c(2, 2))
-  
+
   plot(df$date, df$rl, type = "l", col = cols[1], main = "Leaf Respiration", ylab = "kg/year", xlab = "Date")
   lines(df_2$date, df_2$rl, col = cols[2])
   lines(df_3$date, df_3$rl, col = cols[3])
@@ -2027,12 +2035,14 @@ original_life_histroy <- function() {
          rep(170 / 1000 / 10000 * 1010, times = 2007-1998), 
          col = "blue", pch = "x")
   title(sub = "Ilvisniemi, Average litter fall (kg C tree-1 year-1)", col.sub = "blue")
-  
+  dev.off()
+
   # ----------------------------
   # 4. Biomass: Leaf, Root, Stem
   # ----------------------------
+  png("RScripts/plots/lh_05_biomass.png", width = 1200, height = 900)
   par(mfrow = c(2, 2))
-  
+
   plot(df$date, df$leaf_mass, type = "l", col = cols[1], main = "Leaf Mass", ylab = "kg", xlab = "Date",
        ylim = range(df$leaf_mass, df_2$leaf_mass, df_3$leaf_mass, loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "pine_foliage_biomass_ICOS"]/1000, na.rm = TRUE))
   lines(df_2$date, df_2$leaf_mass, col = cols[2])
@@ -2060,12 +2070,14 @@ original_life_histroy <- function() {
        ylim = range(df$coarse_root_mass, df_2$coarse_root_mass, df_3$coarse_root_mass, na.rm = TRUE))
   lines(df_2$date, df_2$coarse_root_mass, col = cols[2])
   lines(df_3$date, df_3$coarse_root_mass, col = cols[3])
-  
+  dev.off()
+
   # ----------------------------
   # 5. Additional variables: LAI, Crown, Lifespan, Mortality
   # ----------------------------
+  png("RScripts/plots/lh_06_additional_variables.png", width = 1200, height = 900)
   par(mfrow = c(2, 2))
-  
+
   plot(df$date, df$leaf_lifespan, type = "l", col = cols[1], main = "Leaf Lifespan", ylab = "years", xlab = "Date",)
   lines(df_2$date, df_2$leaf_lifespan, col = cols[2])
   lines(df_3$date, df_3$leaf_lifespan, col = cols[3])
@@ -2088,12 +2100,14 @@ original_life_histroy <- function() {
   lines(df_3$date, df_3$transpiration, col = cols[3])
   points(Eddy_covariance$MonthlyDate, Eddy_covariance$ET/100, col = "black", pch = 16)
   legend("topleft", legend = c(N_labels, "Eddy ET"), col = c(cols, "black"), lty = 1, bty = "n")
-  
+  dev.off()
+
   # ----------------------------
   # 7. Total Production, Fitness, Mortality
   # ----------------------------
+  png("RScripts/plots/lh_07_total_production.png", width = 1200, height = 900)
   par(mfrow = c(2, 2))
-  
+
   plot(df$date, df$total_prod, type = "l", col = cols[1], main = "Total Production", ylab = "?",
        ylim = range(df$total_prod, df_2$total_prod, df_3$total_prod, na.rm = TRUE))
   lines(df_2$date, df_2$total_prod, col = cols[2])
@@ -2113,12 +2127,14 @@ original_life_histroy <- function() {
        ylim = range(df$mortality, df_2$mortality, df_3$mortality, na.rm = TRUE))
   lines(df_2$date, df_2$mortality, col = cols[2])
   lines(df_3$date, df_3$mortality, col = cols[3])
-  
+  dev.off()
+
   # ----------------------------
   # 8. Mortality breakdown (growth, hyd, d, inst)
   # ----------------------------
+  png("RScripts/plots/lh_08_mortality_breakdown.png", width = 1200, height = 900)
   par(mfrow = c(2, 2))
-  
+
   plot(df$date, df$mortrate_growth, type = "l", col = cols[1], main = "Mortality Growth", ylab = "?",
        ylim = range(df$mortrate_growth, df_2$mortrate_growth, df_3$mortrate_growth, na.rm = TRUE))
   lines(df_2$date, df_2$mortrate_growth, col = cols[2])
@@ -2138,7 +2154,8 @@ original_life_histroy <- function() {
        ylim = range(df$mortality_inst, df_2$mortality_inst, df_3$mortality_inst, na.rm = TRUE))
   lines(df_2$date, df_2$mortality_inst, col = cols[2])
   lines(df_3$date, df_3$mortality_inst, col = cols[3])
-  
+  dev.off()
+
   ## ---------------------------------------------------
   ## ---------------------------------------------------
   
@@ -2238,14 +2255,16 @@ original_life_histroy <- function() {
   # Set color scheme
   cols <- c("#0072B2", "#E69F00", "#D55E00")
   N_labels <- c("N = Low", "N = Medium", "N = High")
-  
+
+  dir.create("RScripts/plots", showWarnings = FALSE, recursive = TRUE)
+  png("RScripts/plots/lh_09_publication_main.png", width = 16, height = 12, units = "in", res = 300)
   par(mfrow = c(4, 2), mar = c(4, 6, 3, 1), oma = c(4, 0, 2, 0),
       family = "serif", las = 1, tcl = -0.4, mgp = c(4, 1, 0))
-  
-  cex_axis   <- 1.5
-  cex_lab    <- 1.6
-  cex_main   <- 1.7
-  cex_legend <- 1.3
+
+  cex_axis   <- 2.0
+  cex_lab    <- 2.2
+  cex_main   <- 2.4
+  cex_legend <- 1.8
   lwd_model  <- 3
   lwd_obs    <- 2
   pch_obs    <- 16
@@ -2425,7 +2444,7 @@ original_life_histroy <- function() {
   ylim_nb <- range(df$ectomycorrhiza_mass, df_2$ectomycorrhiza_mass,
                    df_3$ectomycorrhiza_mass, na.rm = TRUE)
   plot(df$date, df$ectomycorrhiza_mass, type = "l", col = cols[1], lwd = lwd_model,
-       ylim = ylim_nb, xlab = "", ylab = "Belowground\ninfrastructure",
+       ylim = ylim_nb, xlab = "", ylab = "Ectomycorrhizal Biomass (kg)",
        cex.axis = cex_axis, cex.lab = cex_lab)
   lines(df_3$date, df_3$ectomycorrhiza_mass, col = cols[3], lwd = lwd_model)
   #lines(df_2$date, df_2$ectomycorrhiza_mass, col = cols[2], lwd = lwd_model)
@@ -2443,7 +2462,9 @@ original_life_histroy <- function() {
          lty = c(1, 1, 1, NA, 1),
          pch = c(NA, NA, NA, pch_obs, NA),
          lwd = c(rep(lwd_model, 3), NA, lwd_obs))
-  
+  dev.off()
+
+  png("RScripts/plots/lh_10_publication_belowground.png", width = 14, height = 12, units = "in", res = 300)
   par(mfrow = c(4, 2), mar = c(4, 6, 3, 1), oma = c(4, 0, 2, 0),
       family = "serif", las = 1, tcl = -0.4, mgp = c(4, 1, 0))
 
@@ -2451,7 +2472,7 @@ original_life_histroy <- function() {
   ylim_bi <- range(df$belowground_infrastructure, df_2$belowground_infrastructure,
                    df_3$belowground_infrastructure, na.rm = TRUE)
   plot(df$date, df$belowground_infrastructure, type = "l", col = cols[1], lwd = lwd_model,
-       ylim = ylim_bi, xlab = "", ylab = "Belowground\ninfrastructure",
+       ylim = ylim_bi, xlab = "", ylab = "Belowground infrastructure",
        cex.axis = cex_axis, cex.lab = cex_lab)
   lines(df_3$date, df_3$belowground_infrastructure, col = cols[3], lwd = lwd_model)
   #lines(df_2$date, df_2$belowground_infrastructure, col = cols[2], lwd = lwd_model)
@@ -2535,7 +2556,7 @@ original_life_histroy <- function() {
   bg_mass_2 <- df_2$root_mass + df_2$ectomycorrhiza_mass
   bg_mass_3 <- df_3$root_mass + df_3$ectomycorrhiza_mass
 
-  par(mfrow = c(2, 2), mar = c(4, 6, 3, 1), oma = c(4, 0, 2, 0),
+  par(mfrow = c(3, 2), mar = c(4, 6, 3, 1), oma = c(4, 0, 2, 0),
       family = "serif", las = 1, tcl = -0.4, mgp = c(4, 1, 0))
 
   # (i) N_bar / N_s — depletion ratio
@@ -2571,7 +2592,7 @@ original_life_histroy <- function() {
        cex.axis = cex_axis, cex.lab = cex_lab)
   lines(df_2$date, eff_2, col = cols[2], lwd = lwd_model)
   lines(df_3$date, eff_3, col = cols[3], lwd = lwd_model)
-  mtext("(iii)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  mtext("(ii)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   title(sub = "Separates SA effect from N_bar effect on total uptake",
         col.sub = "grey40")
   box(bty = "l")
@@ -2592,10 +2613,74 @@ original_life_histroy <- function() {
        cex.axis = cex_axis, cex.lab = cex_lab)
   lines(df_2$date, bgfrac_2, col = cols[2], lwd = lwd_model)
   lines(df_3$date, bgfrac_3, col = cols[3], lwd = lwd_model)
-  mtext("(iv)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  mtext("(iii)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   title(sub = "Should decrease at high N — if not, optimizer over-invests in roots",
         col.sub = "grey40")
   box(bty = "l")
+
+  k_1_par      <- 0.35
+  k_13_par     <- 2.5
+  depth_par    <- 1.1
+  rho_myco_par <- 330
+  myco_d_par   <- 1e-5
+  mycorrhized_par <- 0.9
+  compute_sa_density <- function(d) {
+    root_d_mm <- k_1_par / sqrt(d$root_length)
+    SA_fr     <- pi * (root_d_mm/1000) * (d$root_length/1000) * d$root_no * d$crown_area * d$lai
+    SA_m      <- 4 * d$ectomycorrhiza_mass / (rho_myco_par * myco_d_par)
+    SA_active <- (1 - mycorrhized_par) * SA_fr + SA_m
+    crown_r   <- sqrt(d$crown_area / pi)
+    R         <- k_13_par * crown_r
+    V_zone    <- (2/3) * pi * R^2 * depth_par
+    list(SA_active = SA_active, V_zone = V_zone,
+         density = SA_active / V_zone, SA_fr = SA_fr, SA_m = SA_m)
+  }
+  sa1 <- compute_sa_density(df)
+  sa2 <- compute_sa_density(df_2)
+  sa3 <- compute_sa_density(df_3)
+
+  # (v) SA_active / V_zone — root + ECM density in soil zone
+  ylim_sad <- range(sa1$density, sa2$density, sa3$density, na.rm = TRUE)
+  plot(df$date, sa1$density, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_sad, xlab = "",
+       ylab = expression("SA"["active"]*" / V"["zone"]~"(m"^2~"m"^{-3}*")"),
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  lines(df_2$date, sa2$density, col = cols[2], lwd = lwd_model)
+  lines(df_3$date, sa3$density, col = cols[3], lwd = lwd_model)
+  rect(par("usr")[1], 10, par("usr")[2], 80,
+       col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
+  legend("topright", legend = N_labels, col = cols, lty = 1, lwd = lwd_model,
+         bty = "n", cex = cex_legend)
+  mtext("(iv)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  title(sub = "Shading: ~10–80 m² m⁻³ typical boreal fine root + ECM density",
+        col.sub = "grey40")
+  box(bty = "l")
+
+  # (vi) Root SA vs ECM SA breakdown
+  ylim_sasp <- range(sa1$SA_fr, sa2$SA_fr, sa3$SA_fr,
+                     sa1$SA_m,  sa2$SA_m,  sa3$SA_m, na.rm = TRUE)
+  plot(df$date, sa1$SA_fr, type = "l", col = cols[1], lwd = lwd_model, lty = 1,
+       ylim = ylim_sasp, xlab = "",
+       ylab = expression("Surface area (m"^2*")"),
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  lines(df_2$date, sa2$SA_fr, col = cols[2], lwd = lwd_model, lty = 1)
+  lines(df_3$date, sa3$SA_fr, col = cols[3], lwd = lwd_model, lty = 1)
+  lines(df$date,   sa1$SA_m,  col = cols[1], lwd = lwd_model, lty = 2)
+  lines(df_2$date, sa2$SA_m,  col = cols[2], lwd = lwd_model, lty = 2)
+  lines(df_3$date, sa3$SA_m,  col = cols[3], lwd = lwd_model, lty = 2)
+  legend("topleft", legend = c("Root SA (solid)", "ECM SA (dashed)"),
+         lty = c(1, 2), col = "black", lwd = lwd_model, bty = "n", cex = cex_legend)
+  mtext("(v)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  title(sub = "ECM dominates SA_active when mycorrhized = 0.9",
+        col.sub = "grey40")
+  box(bty = "l")
+
+  # Shared legend
+  par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
+  plot(0, 0, type = "n", bty = "n", xaxt = "n", yaxt = "n")
+  legend("bottom", horiz = TRUE, bty = "n", cex = cex_legend,
+         legend = N_labels, col = cols, lty = 1, lwd = rep(lwd_model, 3))
+  dev.off()
 
   # ----------------------------
   # Diagnostic: is root density per soil volume realistic?
@@ -2625,6 +2710,7 @@ original_life_histroy <- function() {
   sa2 <- compute_sa_density(df_2)
   sa3 <- compute_sa_density(df_3)
 
+  png("RScripts/plots/root_density_diagnostic.png", width = 1200, height = 900)
   par(mfrow = c(2, 2), mar = c(4, 6, 3, 1), oma = c(4, 0, 2, 0),
       family = "serif", las = 1, tcl = -0.4, mgp = c(4, 1, 0))
 
@@ -2641,7 +2727,7 @@ original_life_histroy <- function() {
        col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
   legend("topright", legend = N_labels, col = cols, lty = 1, lwd = lwd_model,
          bty = "n", cex = cex_legend)
-  mtext("(v)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  mtext("(iv)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   title(sub = "Shading: ~10–80 m2/m3 typical boreal fine root + ECM density",
         col.sub = "grey40")
   box(bty = "l")
@@ -2660,7 +2746,7 @@ original_life_histroy <- function() {
   lines(df_3$date, sa3$SA_m,  col = cols[3], lwd = lwd_model, lty = 2)
   legend("topleft", legend = c("Root SA (solid)", "ECM SA (dashed)"),
          lty = c(1, 2), col = "black", lwd = lwd_model, bty = "n", cex = cex_legend)
-  mtext("(vi)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  mtext("(v)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   title(sub = "ECM dominates SA_active when mycorrhized = 0.9",
         col.sub = "grey40")
   box(bty = "l")
@@ -2670,5 +2756,6 @@ original_life_histroy <- function() {
   plot(0, 0, type = "n", bty = "n", xaxt = "n", yaxt = "n")
   legend("bottom", horiz = TRUE, bty = "n", cex = cex_legend,
          legend = N_labels, col = cols, lty = 1, lwd = rep(lwd_model, 3))
+  dev.off()
 }
 
