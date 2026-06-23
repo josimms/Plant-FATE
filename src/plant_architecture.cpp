@@ -145,7 +145,7 @@ double PlantArchitecture::dmass_dt_lai(double& dL_dt, double dmass_dt_max, Plant
 
 double PlantArchitecture::root_diameter(const PlantTraits& traits) const {
   // mm length gives mm of diameter
-  return traits.k_1 / pow(root_length, 0.5);
+  return traits.k_1 / pow(root_length, traits.k_0);
 }
 
 double PlantArchitecture::root_density(const PlantTraits& traits) const {

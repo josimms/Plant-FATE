@@ -41,6 +41,7 @@ void PlantTraits::init(io::Initializer& I){
 	a = I.get<double>("a");
 	c = I.get<double>("c");
 	// p50_leaf = // set by coordination
+	k_0 = I.get<double>("k_0");
 	k_1 = I.get<double>("k_1");
 	k_2 = I.get<double>("k_2");
 	k_3 = I.get<double>("k_3");

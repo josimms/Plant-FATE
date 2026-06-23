@@ -40,6 +40,7 @@ class PlantTraits{
 	double root_no;         ///< root number [Number, average per root tip]
 	double root_length;     ///< root length [mm, average root tip length]
 	
+	double k_0;             ///< Exponent in root diameter–length allometry d(l) = k_1 / l^k_0 (Ding)
 	double k_1;             ///< Fitting parameter for root length (Ding)
 	double k_2;             ///< Fitted parameter for woody plants (Kong, 2019)
 	double k_3;             ///< Fitted parameter for woody plants (Kong, 2019)
