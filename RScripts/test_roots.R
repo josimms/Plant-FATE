@@ -2254,7 +2254,7 @@ original_life_histroy <- function() {
   
   # Set color scheme
   cols <- c("#0072B2", "#E69F00", "#D55E00")
-  N_labels <- c("N = Low", "N = Medium", "N = High")
+  N_labels <- c("N = Low", "N = High")
 
   dir.create("RScripts/plots", showWarnings = FALSE, recursive = TRUE)
   png("RScripts/plots/lh_09_publication_main.png", width = 16, height = 12, units = "in", res = 300)
@@ -2287,7 +2287,7 @@ original_life_histroy <- function() {
   # (b) NPP
   ylim_npp <- range(df$assim_net/df$crown_area/2.04, df_2$assim_net/df_2$crown_area/2.04, df_3$assim_net/df_3$crown_area/2.04,
                     -Eddy_covariance$NEE_mean_kg, na.rm = TRUE)
-  plot(df_2$date, df_2$assim_net/df_2$crown_area/2.04, col = cols[3], type = "l", lwd = lwd_model,
+  plot(df$date, df$assim_net/df$crown_area/2.04, type = "n",
        ylim = ylim_npp, xlab = "", ylab = expression("NPP (kg C m"^{-2}*" year"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
   lines(df_3$date, df_3$assim_net/df_3$crown_area/2.04, col = cols[3], lwd = lwd_model)
@@ -2391,8 +2391,13 @@ original_life_histroy <- function() {
   box(bty = "l")
   
   # (f) Optimal leaf nitrogen
+  # Korhonen 2012, Hyytiälä: pine needle N-conc 1.21% (CarboEurope 2006 inventory);
+  # upper bound from fresh-needle N in N-budget balance = 1.51%
+  korhonen_needle_n_lo <- 0.0121
+  korhonen_needle_n_hi <- 0.0151
   ylim_oln <- range(0, df$optimal_leaf_nitrogen * 1.1, df_2$optimal_leaf_nitrogen * 1.1,
                     df_3$optimal_leaf_nitrogen * 1.1,
+                    korhonen_needle_n_hi,
                     #df_3$leaf_nitrogen_concentration,
                     #df_2$leaf_nitrogen_concentration,
                     #df$leaf_nitrogen_concentration,
@@ -2401,8 +2406,8 @@ original_life_histroy <- function() {
        ylim = ylim_oln, xlab = "",
        ylab = expression("Optimal leaf N (g g"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
-  #rect(par("usr")[1], 11 / 1000, par("usr")[2], 13 / 1000,
-  #     col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
+  rect(par("usr")[1], korhonen_needle_n_lo, par("usr")[2], korhonen_needle_n_hi,
+       col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
   for (i in c(3, 1)) {
     d_i <- list(df, df_2, df_3)[[i]]
     idx <- !is.na(d_i$leaf_nitrogen_concentration)
@@ -2458,10 +2463,10 @@ original_life_histroy <- function() {
   legend("bottom", horiz = FALSE, bty = "n", cex = cex_legend, ncol = 3,
          legend = c(N_labels, "Eddy covariance",
                     "Range of realistic boreal observations"),
-         col = c(cols, col_obs, col_range),
-         lty = c(1, 1, 1, NA, 1),
-         pch = c(NA, NA, NA, pch_obs, NA),
-         lwd = c(rep(lwd_model, 3), NA, lwd_obs))
+         col = c(cols[c(1, 3)], col_obs, col_range),
+         lty = c(1, 1, NA, 1),
+         pch = c(NA, NA, pch_obs, NA),
+         lwd = c(rep(lwd_model, 2), NA, lwd_obs))
   dev.off()
 
   png("RScripts/plots/lh_10_publication_belowground.png", width = 14, height = 12, units = "in", res = 300)
@@ -2537,11 +2542,11 @@ original_life_histroy <- function() {
   # Shared legend
   par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
   plot(0, 0, type = "n", bty = "n", xaxt = "n", yaxt = "n")
-  legend("bottom", horiz = FALSE, bty = "n", cex = cex_legend, ncol = 3,
+  legend("bottom", horiz = FALSE, bty = "n", cex = cex_legend, ncol = 2,
          legend = N_labels,
-         col = cols,
-         lty = c(1, 1, 1),
-         lwd = rep(lwd_model, 3))
+         col = cols[c(1, 3)],
+         lty = c(1, 1),
+         lwd = rep(lwd_model, 2))
 
   # ----------------------------
   # Diagnostic: why does uptake increase so much at high N?
@@ -2569,10 +2574,10 @@ original_life_histroy <- function() {
        ylim = ylim_dep, xlab = "",
        ylab = expression(bar(N) / N[s]~"(depletion ratio)"),
        cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df_2$date, dep_2, col = cols[2], lwd = lwd_model)
+  #lines(df_2$date, dep_2, col = cols[2], lwd = lwd_model)
   lines(df_3$date, dep_3, col = cols[3], lwd = lwd_model)
   abline(h = 1, lty = 2, col = "grey50")
-  legend("topright", legend = N_labels, col = cols, lty = 1, lwd = lwd_model,
+  legend("topright", legend = N_labels, col = cols[c(1, 3)], lty = 1, lwd = lwd_model,
          bty = "n", cex = cex_legend)
   mtext("(i)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   title(sub = "= 1: no depletion (biochem.-limited);  < 1: diffusion-limited",
@@ -2590,7 +2595,7 @@ original_life_histroy <- function() {
        ylim = ylim_eff, xlab = "",
        ylab = expression("N uptake / BG mass (kg N kg C"^{-1}*" yr"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df_2$date, eff_2, col = cols[2], lwd = lwd_model)
+  #lines(df_2$date, eff_2, col = cols[2], lwd = lwd_model)
   lines(df_3$date, eff_3, col = cols[3], lwd = lwd_model)
   mtext("(ii)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   title(sub = "Separates SA effect from N_bar effect on total uptake",
@@ -2611,7 +2616,7 @@ original_life_histroy <- function() {
        ylim = ylim_bgf, xlab = "",
        ylab = "BG fraction (root+ECM / total mass)",
        cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df_2$date, bgfrac_2, col = cols[2], lwd = lwd_model)
+  #lines(df_2$date, bgfrac_2, col = cols[2], lwd = lwd_model)
   lines(df_3$date, bgfrac_3, col = cols[3], lwd = lwd_model)
   mtext("(iii)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   title(sub = "Should decrease at high N — if not, optimizer over-invests in roots",
@@ -2645,11 +2650,11 @@ original_life_histroy <- function() {
        ylim = ylim_sad, xlab = "",
        ylab = expression("SA"["active"]*" / V"["zone"]~"(m"^2~"m"^{-3}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df_2$date, sa2$density, col = cols[2], lwd = lwd_model)
+  #lines(df_2$date, sa2$density, col = cols[2], lwd = lwd_model)
   lines(df_3$date, sa3$density, col = cols[3], lwd = lwd_model)
   rect(par("usr")[1], 10, par("usr")[2], 80,
        col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
-  legend("topright", legend = N_labels, col = cols, lty = 1, lwd = lwd_model,
+  legend("topright", legend = N_labels, col = cols[c(1, 3)], lty = 1, lwd = lwd_model,
          bty = "n", cex = cex_legend)
   mtext("(iv)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   title(sub = "Shading: ~10–80 m² m⁻³ typical boreal fine root + ECM density",
@@ -2663,10 +2668,10 @@ original_life_histroy <- function() {
        ylim = ylim_sasp, xlab = "",
        ylab = expression("Surface area (m"^2*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df_2$date, sa2$SA_fr, col = cols[2], lwd = lwd_model, lty = 1)
+  #lines(df_2$date, sa2$SA_fr, col = cols[2], lwd = lwd_model, lty = 1)
   lines(df_3$date, sa3$SA_fr, col = cols[3], lwd = lwd_model, lty = 1)
   lines(df$date,   sa1$SA_m,  col = cols[1], lwd = lwd_model, lty = 2)
-  lines(df_2$date, sa2$SA_m,  col = cols[2], lwd = lwd_model, lty = 2)
+  #lines(df_2$date, sa2$SA_m,  col = cols[2], lwd = lwd_model, lty = 2)
   lines(df_3$date, sa3$SA_m,  col = cols[3], lwd = lwd_model, lty = 2)
   legend("topleft", legend = c("Root SA (solid)", "ECM SA (dashed)"),
          lty = c(1, 2), col = "black", lwd = lwd_model, bty = "n", cex = cex_legend)
@@ -2679,7 +2684,7 @@ original_life_histroy <- function() {
   par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
   plot(0, 0, type = "n", bty = "n", xaxt = "n", yaxt = "n")
   legend("bottom", horiz = TRUE, bty = "n", cex = cex_legend,
-         legend = N_labels, col = cols, lty = 1, lwd = rep(lwd_model, 3))
+         legend = N_labels, col = cols[c(1, 3)], lty = 1, lwd = rep(lwd_model, 2))
   dev.off()
 
   # ----------------------------
@@ -2721,11 +2726,11 @@ original_life_histroy <- function() {
        ylim = ylim_sad, xlab = "",
        ylab = expression("SA"["active"]*" / V"["zone"]~"(m"^2~"m"^{-3}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df_2$date, sa2$density, col = cols[2], lwd = lwd_model)
+  #lines(df_2$date, sa2$density, col = cols[2], lwd = lwd_model)
   lines(df_3$date, sa3$density, col = cols[3], lwd = lwd_model)
   rect(par("usr")[1], 10, par("usr")[2], 80,
        col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
-  legend("topright", legend = N_labels, col = cols, lty = 1, lwd = lwd_model,
+  legend("topright", legend = N_labels, col = cols[c(1, 3)], lty = 1, lwd = lwd_model,
          bty = "n", cex = cex_legend)
   mtext("(iv)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   title(sub = "Shading: ~10–80 m2/m3 typical boreal fine root + ECM density",
@@ -2739,10 +2744,10 @@ original_life_histroy <- function() {
        ylim = ylim_sasp, xlab = "",
        ylab = expression("Surface area (m"^2*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df_2$date, sa2$SA_fr, col = cols[2], lwd = lwd_model, lty = 1)
+  #lines(df_2$date, sa2$SA_fr, col = cols[2], lwd = lwd_model, lty = 1)
   lines(df_3$date, sa3$SA_fr, col = cols[3], lwd = lwd_model, lty = 1)
   lines(df$date,   sa1$SA_m,  col = cols[1], lwd = lwd_model, lty = 2)
-  lines(df_2$date, sa2$SA_m,  col = cols[2], lwd = lwd_model, lty = 2)
+  #lines(df_2$date, sa2$SA_m,  col = cols[2], lwd = lwd_model, lty = 2)
   lines(df_3$date, sa3$SA_m,  col = cols[3], lwd = lwd_model, lty = 2)
   legend("topleft", legend = c("Root SA (solid)", "ECM SA (dashed)"),
          lty = c(1, 2), col = "black", lwd = lwd_model, bty = "n", cex = cex_legend)
@@ -2755,7 +2760,7 @@ original_life_histroy <- function() {
   par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
   plot(0, 0, type = "n", bty = "n", xaxt = "n", yaxt = "n")
   legend("bottom", horiz = TRUE, bty = "n", cex = cex_legend,
-         legend = N_labels, col = cols, lty = 1, lwd = rep(lwd_model, 3))
+         legend = N_labels, col = cols[c(1, 3)], lty = 1, lwd = rep(lwd_model, 2))
   dev.off()
 }
 
