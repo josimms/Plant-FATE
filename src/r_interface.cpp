@@ -39,37 +39,59 @@ RCPP_EXPOSED_CLASS_NODECL(pfate::Misc);
 
 RCPP_MODULE(plantfate_module){
 	class_ <plant::Uptake>("Uptake")
-		.field("mycorrhized", &plant::Uptake::mycorrhized)
+		.field("mycorrhized",  &plant::Uptake::mycorrhized)
+		// Tier 1: supply control
+		.field("u_max",        &plant::Uptake::u_max)
+		.field("D",            &plant::Uptake::D)
+		.field("k_15",         &plant::Uptake::k_15)
+		// Tier 2: trade-off structure
+		.field("k_13",         &plant::Uptake::k_13)
+		// Tier 3: root architecture
+		.field("k_8",          &plant::Uptake::k_8)
+		// diagnostic read-backs
+		.field("u_transfer",   &plant::Uptake::u_transfer)
+		.field("N_s",          &plant::Uptake::N_s)
 		;
 
 	class_ <plant::PlantTraits>("PlantTraits")
-		.field("lma", &plant::PlantTraits::lma)
-		.field("zeta", &plant::PlantTraits::zeta)
-    .field("investment_from_tree", &plant::PlantTraits::investment_from_tree)
-		.field("fcr", &plant::PlantTraits::fcr)
-		.field("hmat", &plant::PlantTraits::hmat)
-		.field("fhmat", &plant::PlantTraits::fhmat)
-		.field("seed_mass", &plant::PlantTraits::seed_mass)
+		.field("lma",          &plant::PlantTraits::lma)
+		.field("zeta",         &plant::PlantTraits::zeta)
+		// Tier 2: trade-off structure
+		.field("investment_from_tree", &plant::PlantTraits::investment_from_tree)
+		// Tier 3: root architecture
+		.field("k_0",          &plant::PlantTraits::k_0)
+		.field("k_1",          &plant::PlantTraits::k_1)
+		.field("nc_myco",      &plant::PlantTraits::nc_myco)
+		// Tier 4: temporal dynamics
+		.field("mycorrhizal_turnover", &plant::PlantTraits::mycorrhizal_turnover)
+		.field("k_mob_N",      &plant::PlantTraits::k_mob_N)
+		// other traits
+		.field("fcr",          &plant::PlantTraits::fcr)
+		.field("hmat",         &plant::PlantTraits::hmat)
+		.field("fhmat",        &plant::PlantTraits::fhmat)
+		.field("seed_mass",    &plant::PlantTraits::seed_mass)
 		.field("wood_density", &plant::PlantTraits::wood_density)
-		.field("p50_xylem", &plant::PlantTraits::p50_xylem)
-		.field("K_leaf", &plant::PlantTraits::K_leaf)
-		.field("K_xylem", &plant::PlantTraits::K_xylem)
-		.field("b_leaf", &plant::PlantTraits::b_leaf)
-		.field("b_xylem", &plant::PlantTraits::b_xylem)
-		.field("sm_xylem", &plant::PlantTraits::sm_xylem)
-		.field("m", &plant::PlantTraits::m)
-		.field("n", &plant::PlantTraits::n)
-		.field("a", &plant::PlantTraits::a)
-		.field("c", &plant::PlantTraits::c)
-	
+		.field("p50_xylem",    &plant::PlantTraits::p50_xylem)
+		.field("K_leaf",       &plant::PlantTraits::K_leaf)
+		.field("K_xylem",      &plant::PlantTraits::K_xylem)
+		.field("b_leaf",       &plant::PlantTraits::b_leaf)
+		.field("b_xylem",      &plant::PlantTraits::b_xylem)
+		.field("sm_xylem",     &plant::PlantTraits::sm_xylem)
+		.field("m",            &plant::PlantTraits::m)
+		.field("n",            &plant::PlantTraits::n)
+		.field("a",            &plant::PlantTraits::a)
+		.field("c",            &plant::PlantTraits::c)
+
 		.constructor()
 		.method("print", &plant::PlantTraits::print)
 		;
 
 	class_ <plant::PlantParameters>("PlantParameters")
-		.field("rs", &plant::PlantParameters::rs)
-    .field("rr", &plant::PlantParameters::rr)
-		.field("cD0", &plant::PlantParameters::cD0)
+		.field("rs",       &plant::PlantParameters::rs)
+		.field("rr",       &plant::PlantParameters::rr)
+		// Tier 2: infrastructure cost in phydro objective
+		.field("alpha_ib", &plant::PlantParameters::alpha_ib)
+		.field("cD0",      &plant::PlantParameters::cD0)
 		.field("eD0", &plant::PlantParameters::eD0)
 		.field("cD1", &plant::PlantParameters::cD1)
 		.field("m_alpha", &plant::PlantParameters::m_alpha)
