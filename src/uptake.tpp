@@ -39,11 +39,12 @@ void Uptake::nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& p
   max_N_transfer = u_transfer * mycorrhized * G.root_surface_area(T) * par.years_per_tunit_avg;
   max_C_transfer = c_transfer * mycorrhized * G.root_surface_area(T) * par.years_per_tunit_avg;
 
-  // I_b: cap mycorrhizal contribution at the membrane transfer limit.
-  // Both U_myco and max_N_transfer carry years_per_tunit_avg, so units match.
+  // I_b: use the N actually delivered by the fungal network on the previous
+  // timestep (G.N_export) rather than the current-step soil uptake estimate.
+  // G.N_export already carries age_factor * m * f_temp via mycorrhizal_root_reduction,
+  // so only the direct-root term needs age_factor applied here.
   {
-    double myco_capped = std::min(U_myco, max_N_transfer);
-    double N_eff = age_factor * ((1.0 - mycorrhized) * U_root + myco_capped);
+    double N_eff = age_factor * (1.0 - mycorrhized) * U_root + G.N_export;
     I_b = std::max(N_eff / G.crown_area, 1e-10);
   }
 
