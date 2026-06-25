@@ -56,7 +56,7 @@ class PlantArchitecture{
 	
 	// mass rates
 	double nitrogen_uptake_roots;        ///< Nitrogen uptake [kgN per time unit]
-	double N_export;                     ///< Nitrogen transferred from mycorrhiza to tree [kg N per time unit]
+	double N_export = 0.0;               ///< Nitrogen transferred from mycorrhiza to tree [kg N per time unit]
 	double I_b = 1.0;                    ///< Belowground infrastructure index [m] (Eq. belowground_infra)
 	bool using_Ib = false;               ///< Mirror of Uptake::using_Ib; set each timestep before assimilation
 	double dmass_myco_dt;                ///< Mycorrhizal mass difference [kg C per time unit]
