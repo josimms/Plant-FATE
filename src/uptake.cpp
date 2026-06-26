@@ -50,10 +50,10 @@ namespace plant {
     double A_zone;
     if (R > depth) {
       double e = std::sqrt(R * R - depth * depth);
-      A_zone = 2.0 * M_PI * R * R + M_PI * (depth * depth / e) * std::log((R + e) / depth);
+      A_zone = M_PI * R * R + M_PI * (depth * depth / e) * std::log((R + e) / depth);
     } else {
       // fallback: sphere (R == depth) or approximate
-      A_zone = 2.0 * M_PI * R * R + M_PI * R * depth;
+      A_zone = M_PI * R * R + M_PI * R * depth;
     }
     r_zone_val    = R;
 
