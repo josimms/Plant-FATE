@@ -24,21 +24,21 @@ library(future)
 ```
 
 ```{r theme, include=FALSE}
-pub_theme <- theme_classic(base_size = 10) +
+pub_theme <- theme_classic(base_size = 13) +
   theme(
-    axis.title       = element_text(size = 9, face = "bold"),
-    axis.text        = element_text(size = 8, colour = "black"),
+    axis.title       = element_text(size = 12, face = "bold"),
+    axis.text        = element_text(size = 11, colour = "black"),
     axis.line        = element_line(colour = "black", linewidth = 0.6),
     axis.ticks       = element_line(colour = "black", linewidth = 0.5),
-    legend.title     = element_text(size = 9, face = "bold"),
-    legend.text      = element_text(size = 8),
+    legend.title     = element_text(size = 12, face = "bold"),
+    legend.text      = element_text(size = 11),
     legend.key.size  = unit(0.9, "lines"),
     panel.grid.major = element_line(colour = "grey90", linewidth = 0.3),
     panel.grid.minor = element_blank(),
     plot.background  = element_rect(fill = "white", colour = NA),
     panel.background = element_rect(fill = "white", colour = NA),
     plot.margin      = margin(8, 12, 8, 8),
-    strip.text       = element_text(size = 9, face = "bold")
+    strip.text       = element_text(size = 12, face = "bold")
   )
 ```
 
@@ -197,50 +197,50 @@ subset_root_length <- all_rn_df %>%
 subset_root_no <- all_rl_df %>%
   filter(date == as.Date("2022-01-01"))
 
-# --- Determine total_mass range for color scaling ---
-total_mass_range <- range(
-  c(subset_root_length$total_mass, subset_root_no$total_mass),
+# --- Determine height range for color scaling ---
+height_range <- range(
+  c(subset_root_length$height, subset_root_no$height),
   na.rm = TRUE
 )
 
-# --- Compute max total_mass points ---
+# --- Compute max height points ---
 max_line_root_length <- subset_root_length %>%
   group_by(soil_nitrogen) %>%
-  slice_max(total_mass, n = 1, with_ties = FALSE, na_rm = TRUE) %>%
+  slice_max(height, n = 1, with_ties = FALSE, na_rm = TRUE) %>%
   ungroup()
 
 max_line_root_no <- subset_root_no %>%
   group_by(soil_nitrogen) %>%
-  slice_max(total_mass, n = 1, with_ties = FALSE, na_rm = TRUE) %>%
+  slice_max(height, n = 1, with_ties = FALSE, na_rm = TRUE) %>%
   ungroup()
 
 # --- Plot 1: Root Number heatmap ---
-p1 <- ggplot(subset_root_length, aes(x = soil_nitrogen, y = root_no, fill = total_mass)) +
+p1 <- ggplot(subset_root_length, aes(x = soil_nitrogen, y = root_no, fill = height)) +
   geom_tile() +
   geom_point(data = max_line_root_length,
              aes(x = soil_nitrogen, y = root_no, shape = "Max total biomass"),
              fill = "white", colour = "black", size = 3.5, stroke = 1.5) +
   scale_shape_manual(name = NULL, values = c("Max total biomass" = 21)) +
   scale_y_log10(labels = scales::label_scientific()) +
-  scale_fill_viridis_c(option = "cividis", limits = total_mass_range,
+  scale_fill_viridis_c(option = "cividis", limits = height_range,
                        labels = scales::label_number(accuracy = 0.1)) +
   labs(x = "Soil N (g m⁻³)",
        y = "Root number per unit\ncrown area (m⁻²)",
-       fill = "Total\nbiomass (kg)") +
+       fill = "Height (m)") +
   pub_theme
 
 # --- Plot 2: Root Length heatmap ---
-p2 <- ggplot(subset_root_no, aes(x = soil_nitrogen, y = root_length, fill = total_mass)) +
+p2 <- ggplot(subset_root_no, aes(x = soil_nitrogen, y = root_length, fill = height)) +
   geom_tile() +
   geom_point(data = max_line_root_no,
              aes(x = soil_nitrogen, y = root_length, shape = "Max total biomass"),
              fill = "white", colour = "black", size = 3.5, stroke = 1.5) +
   scale_shape_manual(name = NULL, values = c("Max total biomass" = 21)) +
-  scale_fill_viridis_c(option = "cividis", limits = total_mass_range,
+  scale_fill_viridis_c(option = "cividis", limits = height_range,
                        labels = scales::label_number(accuracy = 0.1)) +
   labs(x = "Soil N (g m⁻³)",
        y = "Root length (mm)",
-       fill = "Total\nbiomass (kg)") +
+       fill = "Height (m)") +
   pub_theme
 
 # --- Combine plots with panel labels and shared legend ---
@@ -248,7 +248,7 @@ length_no_N_gradient <- (p2 / p1) +
   plot_layout(guides = "collect") +
   plot_annotation(tag_levels = "A") &
   theme(legend.position = "right",
-        plot.tag = element_text(size = 10, face = "bold"))
+        plot.tag = element_text(size = 13, face = "bold"))
 length_no_N_gradient
 
 ggsave("vignettes/plots/07_length_no_N_gradient.png",
@@ -265,7 +265,7 @@ soilN_values <- nitrogen_values[seq(1, length(nitrogen_values), length.out = 5)]
 trajectory_max_root_no <- final_df_no_na %>%
   filter(soil_nitrogen %in% soilN_values) %>%
   group_by(date, soil_nitrogen) %>%
-  slice_max(total_mass, with_ties = TRUE, na_rm = TRUE) %>%
+  slice_max(height, with_ties = TRUE, na_rm = TRUE) %>%
   ungroup() %>%
   select(date, soil_nitrogen, root_no)
 
@@ -273,7 +273,7 @@ trajectory_max_root_no <- final_df_no_na %>%
 trajectory_max_root_length <- final_df_no_na %>%
   filter(soil_nitrogen %in% soilN_values) %>%
   group_by(date, soil_nitrogen) %>%
-  slice_max(total_mass, with_ties = TRUE, na_rm = TRUE) %>%
+  slice_max(height, with_ties = TRUE, na_rm = TRUE) %>%
   ungroup() %>%
   select(date, soil_nitrogen, root_length)
 
@@ -322,7 +322,7 @@ trajectory_with_age <- (p2 / p1) +
   plot_layout(guides = "collect") +
   plot_annotation(tag_levels = "A") &
   theme(legend.position = "right",
-        plot.tag = element_text(size = 10, face = "bold"))
+        plot.tag = element_text(size = 13, face = "bold"))
 trajectory_with_age
 
 ggsave("vignettes/plots/08_trajectory_with_age.png",
@@ -340,7 +340,7 @@ sweep_max_ecm <- subset_df %>%
   group_by(soil_nitrogen, ecto_allo) %>%
   summarise(
     ectomycorrhiza_mass = max(ectomycorrhiza_mass, na.rm = TRUE),
-    total_mass          = max(total_mass, na.rm = TRUE),
+    height          = max(height, na.rm = TRUE),
     .groups = "drop"
   )
 
@@ -351,68 +351,68 @@ heatmap_ecm <- sweep_max_ecm %>%
   ) %>%
   group_by(bin_soilN, bin_ecm) %>%
   summarise(
-    total_mass          = mean(total_mass, na.rm = TRUE),
+    height          = mean(height, na.rm = TRUE),
     soil_nitrogen       = mean(soil_nitrogen),
     ectomycorrhiza_mass = mean(ectomycorrhiza_mass),
     .groups = "drop"
   )
 
-ecm_total_mass_range <- range(heatmap_ecm$total_mass, na.rm = TRUE)
+ecm_height_range <- range(heatmap_ecm$height, na.rm = TRUE)
 
-# Optimal: ecto_allo that maximises total_mass at each soil_nitrogen
+# Optimal: ecto_allo that maximises height at each soil_nitrogen
 opt_ecm_mass <- sweep_max_ecm %>%
   group_by(soil_nitrogen) %>%
-  slice_max(total_mass, n = 1, with_ties = FALSE) %>%
+  slice_max(height, n = 1, with_ties = FALSE) %>%
   ungroup()
 
 p_ecm_mass <- ggplot(heatmap_ecm,
        aes(x = soil_nitrogen,
            y = ectomycorrhiza_mass,
-           fill = total_mass)) +
+           fill = height)) +
   geom_tile() +
   geom_point(data = opt_ecm_mass,
              aes(x = soil_nitrogen, y = ectomycorrhiza_mass),
              shape = 21, fill = "white", colour = "black", size = 3.5,
              stroke = 1.5, inherit.aes = FALSE) +
   scale_y_log10(labels = scales::label_number(accuracy = 0.001)) +
-  scale_fill_viridis_c(option = "cividis", limits = ecm_total_mass_range,
+  scale_fill_viridis_c(option = "cividis", limits = ecm_height_range,
                        labels = scales::label_number(accuracy = 0.1)) +
   labs(
     x = "Soil nitrogen (g N m⁻³)",
     y = "Ectomycorrhizal\nbiomass (kg)",
-    fill = "Total\nbiomass (kg)"
+    fill = "Height (m)"
   ) +
   pub_theme
 
 heatmap_ecto_allo <- subset_df %>%
   group_by(soil_nitrogen, ecto_allo) %>%
   summarise(
-    total_mass = mean(total_mass, na.rm = TRUE),
+    height = mean(height, na.rm = TRUE),
     .groups = "drop"
   )
 
-# Optimal ecto allocation: ecto_allo that maximises total_mass at each soil_nitrogen
+# Optimal ecto allocation: ecto_allo that maximises height at each soil_nitrogen
 opt_ecto_allo <- heatmap_ecto_allo %>%
   group_by(soil_nitrogen) %>%
-  slice_max(total_mass, n = 1, with_ties = FALSE) %>%
+  slice_max(height, n = 1, with_ties = FALSE) %>%
   ungroup()
 
 p_ecto_allo <- ggplot(heatmap_ecto_allo,
        aes(x = soil_nitrogen,
            y = ecto_allo,
-           fill = total_mass)) +
+           fill = height)) +
   geom_tile() +
   geom_point(data = opt_ecto_allo,
              aes(x = soil_nitrogen, y = ecto_allo),
              shape = 21, fill = "white", colour = "black", size = 3.5,
              stroke = 1.5, inherit.aes = FALSE) +
   scale_y_continuous(labels = scales::label_percent()) +
-  scale_fill_viridis_c(option = "cividis", limits = ecm_total_mass_range,
+  scale_fill_viridis_c(option = "cividis", limits = ecm_height_range,
                        labels = scales::label_number(accuracy = 0.1)) +
   labs(
     x = "Soil nitrogen (g N m⁻³)",
     y = "Ectomycorrhizal\nallocation",
-    fill = "Total\nbiomass (kg)"
+    fill = "Height (m)"
   ) +
   pub_theme
 
@@ -420,7 +420,7 @@ ectomycorrhizal_beha_gradient <- (p_ecm_mass / p_ecto_allo) +
   plot_layout(guides = "collect") +
   plot_annotation(tag_levels = "A") &
   theme(legend.position = "right",
-        plot.tag = element_text(size = 10, face = "bold"))
+        plot.tag = element_text(size = 13, face = "bold"))
 ectomycorrhizal_beha_gradient
 
 ggsave("vignettes/plots/09_ectomycorrhizal_beha_gradient.png",
