@@ -202,6 +202,7 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
     , "r_zone"
     , "alpha"
     , "SA_active"
+    , "C_export_to_myco"
 	};
 }
 
@@ -266,6 +267,7 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
     , P.uptake.r_zone_val
     , P.uptake.alpha_val
     , P.uptake.SA_active_val
+    , P.geometry.C_export_to_myco
 	};
 }
 

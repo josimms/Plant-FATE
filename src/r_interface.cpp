@@ -104,6 +104,7 @@ RCPP_MODULE(plantfate_module){
 		.field("m_hydraulic", &plant::PlantParameters::m_hydraulic)
     .field("fg", &plant::PlantParameters::fg)
     .field("lai0", &plant::PlantParameters::lai0)
+    .field("nitrogen_start0", &plant::PlantParameters::nitrogen_start0)
     .field("kphio", &plant::PlantParameters::kphio)
     .field("alpha", &plant::PlantParameters::alpha)
     .field("gamma", &plant::PlantParameters::gamma)
