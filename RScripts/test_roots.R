@@ -2040,36 +2040,73 @@ original_life_histroy <- function() {
   # ----------------------------
   # 4. Biomass: Leaf, Root, Stem
   # ----------------------------
-  png("RScripts/plots/lh_05_biomass.png", width = 1200, height = 900)
-  par(mfrow = c(2, 2))
+  png("RScripts/plots/lh_05_biomass.png", width = 14, height = 12, units = "in", res = 300)
+  par(mfrow = c(2, 2), mar = c(4, 6, 3, 1), oma = c(4, 0, 2, 0),
+      family = "serif", las = 1, tcl = -0.4, mgp = c(4, 1, 0))
 
-  plot(df$date, df$leaf_mass, type = "l", col = cols[1], main = "Leaf Mass", ylab = "kg", xlab = "Date",
-       ylim = range(df$leaf_mass, df_2$leaf_mass, df_3$leaf_mass, loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "pine_foliage_biomass_ICOS"]/1000, na.rm = TRUE))
-  lines(df_2$date, df_2$leaf_mass, col = cols[2])
-  lines(df_3$date, df_3$leaf_mass, col = cols[3])
-  points(as.Date(paste0(loaded_data$smearII_data$date[loaded_data$smearII_data$variable == "pine_foliage_biomass_ICOS"], "-01-01")), 
-         loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "pine_foliage_biomass_ICOS"]/1000, col = "blue", pch = "x")
-  title(sub = "SMEAR Foliage Bioamss Data", col.sub = "blue")
-  
-  plot(df$date, df$lai, type = "l", col = cols[1], main = "Leaf Area Index", ylab = "?", xlab = "Date",
-       ylim = range(df$lai, df_2$lai, df_3$lai, loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "LAI_pine_ICOS"], na.rm = TRUE))
-  lines(df_2$date, df_2$lai, col = cols[2])
-  lines(df_3$date, df_3$lai, col = cols[3])
-  points(as.Date(paste0(loaded_data$smearII_data$date[loaded_data$smearII_data$variable == "LAI_pine_ICOS"], "-01-01")), 
-         loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "LAI_pine_ICOS"], col = "blue", pch = "x")
-  
-  plot(df$date, df$stem_mass, type = "l", col = cols[1], main = "Stem Mass", ylab = "kg", xlab = "Date",
-       ylim = range(df$stem_mass, df_2$stem_mass, df_3$stem_mass, na.rm = TRUE))
-  lines(df_2$date, df_2$stem_mass, col = cols[2])
-  lines(df_3$date, df_3$stem_mass, col = cols[3])
-  points(as.Date(paste0(loaded_data$smearII_data$date[loaded_data$smearII_data$variable == "pine_stem_bark_biomass"], "-01-01")), 
-         loaded_data$smearII_data$amount[loaded_data$smearII_data$variable == "pine_stem_bark_biomass"]/1000, col = "blue", pch = "x")
-  title(sub = "SMEAR Stem and Bark Data", col.sub = "blue")
-  
-  plot(df$date, df$coarse_root_mass, type = "l", col = cols[1], main = "Coarse Root Mass", ylab = "kg", xlab = "Date",
-       ylim = range(df$coarse_root_mass, df_2$coarse_root_mass, df_3$coarse_root_mass, na.rm = TRUE))
-  lines(df_2$date, df_2$coarse_root_mass, col = cols[2])
-  lines(df_3$date, df_3$coarse_root_mass, col = cols[3])
+  smear_foliage_idx  <- loaded_data$smearII_data$variable == "pine_foliage_biomass_ICOS"
+  smear_lai_idx      <- loaded_data$smearII_data$variable == "LAI_pine_ICOS"
+  smear_stem_idx     <- loaded_data$smearII_data$variable == "pine_stem_bark_biomass"
+
+  smear_foliage_date <- as.Date(paste0(loaded_data$smearII_data$date[smear_foliage_idx], "-01-01"))
+  smear_foliage_val  <- loaded_data$smearII_data$amount[smear_foliage_idx] / 1000
+  smear_lai_date     <- as.Date(paste0(loaded_data$smearII_data$date[smear_lai_idx], "-01-01"))
+  smear_lai_val      <- loaded_data$smearII_data$amount[smear_lai_idx]
+  smear_stem_date    <- as.Date(paste0(loaded_data$smearII_data$date[smear_stem_idx], "-01-01"))
+  smear_stem_val     <- loaded_data$smearII_data$amount[smear_stem_idx] / 1000
+
+  # (a) Leaf mass
+  ylim_lm <- range(df$leaf_mass, df_3$leaf_mass, smear_foliage_val, na.rm = TRUE)
+  plot(df$date, df$leaf_mass, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_lm, xlab = "", ylab = "Leaf mass (kg)",
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  lines(df_3$date, df_3$leaf_mass, col = cols[3], lwd = lwd_model)
+  lines(df$date,   df$leaf_mass,   col = cols[1], lwd = lwd_model)
+  points(smear_foliage_date, smear_foliage_val, col = col_obs, pch = pch_obs, cex = 0.8)
+  mtext("(a)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  box(bty = "l")
+
+  # (b) LAI
+  ylim_lai <- range(df$lai, df_3$lai, smear_lai_val, na.rm = TRUE)
+  plot(df$date, df$lai, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_lai, xlab = "", ylab = expression("LAI (m"^2*" m"^{-2}*")"),
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  lines(df_3$date, df_3$lai, col = cols[3], lwd = lwd_model)
+  lines(df$date,   df$lai,   col = cols[1], lwd = lwd_model)
+  points(smear_lai_date, smear_lai_val, col = col_obs, pch = pch_obs, cex = 0.8)
+  mtext("(b)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  box(bty = "l")
+
+  # (c) Stem mass
+  ylim_sm <- range(df$stem_mass, df_3$stem_mass, smear_stem_val, na.rm = TRUE)
+  plot(df$date, df$stem_mass, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_sm, xlab = "", ylab = "Stem mass (kg)",
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  lines(df_3$date, df_3$stem_mass, col = cols[3], lwd = lwd_model)
+  lines(df$date,   df$stem_mass,   col = cols[1], lwd = lwd_model)
+  points(smear_stem_date, smear_stem_val, col = col_obs, pch = pch_obs, cex = 0.8)
+  mtext("(c)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  box(bty = "l")
+
+  # (d) Coarse root mass (no observation data available)
+  ylim_cr <- range(df$coarse_root_mass, df_3$coarse_root_mass, na.rm = TRUE)
+  plot(df$date, df$coarse_root_mass, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_cr, xlab = "", ylab = "Coarse root mass (kg)",
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  lines(df_3$date, df_3$coarse_root_mass, col = cols[3], lwd = lwd_model)
+  lines(df$date,   df$coarse_root_mass,   col = cols[1], lwd = lwd_model)
+  mtext("(d)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  box(bty = "l")
+
+  # Shared legend
+  par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
+  plot(0, 0, type = "n", bty = "n", xaxt = "n", yaxt = "n")
+  legend("bottom", horiz = FALSE, bty = "n", cex = cex_legend, ncol = 3,
+         legend = c(N_labels, "SMEAR II"),
+         col    = c(cols[c(1, 3)], col_obs),
+         lty    = c(1, 1, NA),
+         pch    = c(NA, NA, pch_obs),
+         lwd    = c(rep(lwd_model, 2), NA))
   dev.off()
 
   # ----------------------------
@@ -2445,16 +2482,17 @@ original_life_histroy <- function() {
   mtext("(g)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
   
-  # (h) Ectomycorrhizal biomass
-  ylim_nb <- range(df$ectomycorrhiza_mass, df_2$ectomycorrhiza_mass,
-                   df_3$ectomycorrhiza_mass, na.rm = TRUE)
-  plot(df$date, df$ectomycorrhiza_mass, type = "l", col = cols[1], lwd = lwd_model,
-       ylim = ylim_nb, xlab = "", ylab = "Ectomycorrhizal Biomass (kg)",
+  # (h) Ectomycorrhizal biomass / fine root biomass
+  ratio_1 <- df$ectomycorrhiza_mass    / df$root_mass
+  ratio_3 <- df_3$ectomycorrhiza_mass  / df_3$root_mass
+  ylim_nb <- range(ratio_1, ratio_3, na.rm = TRUE)
+  plot(df$date, ratio_1, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_nb, xlab = "",
+       ylab = "ECM / fine root biomass (kg kg⁻¹)",
        cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df_3$date, df_3$ectomycorrhiza_mass, col = cols[3], lwd = lwd_model)
-  #lines(df_2$date, df_2$ectomycorrhiza_mass, col = cols[2], lwd = lwd_model)
-  lines(df$date, df$ectomycorrhiza_mass, col = cols[1], lwd = lwd_model)
-  mtext("(a)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  lines(df_3$date, ratio_3, col = cols[3], lwd = lwd_model)
+  lines(df$date,   ratio_1, col = cols[1], lwd = lwd_model)
+  mtext("(h)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
   
   # Shared legend
@@ -2469,165 +2507,27 @@ original_life_histroy <- function() {
          lwd = c(rep(lwd_model, 2), NA, lwd_obs))
   dev.off()
 
-  png("RScripts/plots/lh_10_publication_belowground.png", width = 14, height = 12, units = "in", res = 300)
-  par(mfrow = c(4, 2), mar = c(4, 6, 3, 1), oma = c(4, 0, 2, 0),
-      family = "serif", las = 1, tcl = -0.4, mgp = c(4, 1, 0))
-
-  # (a) Belowground infrastructure
-  ylim_bi <- range(df$belowground_infrastructure, df_2$belowground_infrastructure,
-                   df_3$belowground_infrastructure, na.rm = TRUE)
-  plot(df$date, df$belowground_infrastructure, type = "l", col = cols[1], lwd = lwd_model,
-       ylim = ylim_bi, xlab = "", ylab = "Belowground infrastructure",
-       cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df_3$date, df_3$belowground_infrastructure, col = cols[3], lwd = lwd_model)
-  #lines(df_2$date, df_2$belowground_infrastructure, col = cols[2], lwd = lwd_model)
-  lines(df$date, df$belowground_infrastructure, col = cols[1], lwd = lwd_model)
-  mtext("(a)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
-  box(bty = "l")
-
-  # (b) N_bar
-  nbar_lower    <- 0.0012              # Korhonen: A horizon mineral N
-  nbar_upper    <- 0.003               # A horizon mineral N + amino acids
-  ylim_nb2 <- range(df$N_bar, df_2$N_bar, df_3$N_bar,
-                    nbar_lower, nbar_upper, na.rm = TRUE)
-  plot(df$date, df$N_bar, type = "n", lwd = lwd_model,
-       ylim = ylim_nb2, xlab = "",
-       ylab = expression(bar(N)~"(kg N m"^{-3}*")"),
-       cex.axis = cex_axis, cex.lab = cex_lab)
-  rect(par("usr")[1], nbar_lower, par("usr")[2], nbar_upper,
-       col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
-  lines(df_3$date, df_3$N_bar, col = cols[3], lwd = lwd_model)
-  #lines(df_2$date, df_2$N_bar, col = cols[2], lwd = lwd_model)
-  lines(df$date, df$N_bar, col = cols[1], lwd = lwd_model)
-  mtext("(b)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
-  box(bty = "l")
-
-  # (c) Mycorrhizal uptake
-  ylim_mu2 <- range(df$myco_uptake, df_2$myco_uptake, df_3$myco_uptake, na.rm = TRUE)
-  plot(df$date, df$myco_uptake, type = "l", col = cols[1], lwd = lwd_model,
-       ylim = ylim_mu2, xlab = "",
-       ylab = expression("Myco. uptake (kg N tree"^{-1}*" year"^{-1}*")"),
-       cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df_3$date, df_3$myco_uptake, col = cols[3], lwd = lwd_model)
-  lines(df$date, df$myco_uptake, col = cols[1], lwd = lwd_model)
-  #lines(df_2$date, df_2$myco_uptake, col = cols[2], lwd = lwd_model)
-  
-  mtext("(c)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
-  box(bty = "l")
-
-  # (d) Root uptake
-  ylim_ru2 <- range(df$root_uptake, df_2$root_uptake, df_3$root_uptake, na.rm = TRUE)
-  plot(df$date, df$root_uptake, type = "l", col = cols[1], lwd = lwd_model,
-       ylim = ylim_ru2, xlab = "",
-       ylab = expression("Root uptake (kg N tree"^{-1}*" year"^{-1}*")"),
-       cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df_3$date, df_3$root_uptake, col = cols[3], lwd = lwd_model)
-  #lines(df_2$date, df_2$root_uptake, col = cols[2], lwd = lwd_model)
-  lines(df$date, df$root_uptake, col = cols[1], lwd = lwd_model)
-  mtext("(d)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
-  box(bty = "l")
-  
-  # (e) tree N store
-  ylim_ru2 <- range(df$tree_nitrogen, df_2$tree_nitrogen, df_3$tree_nitrogen, na.rm = TRUE)
-  plot(df$date, df$tree_nitrogen, type = "l", col = cols[1], lwd = lwd_model,
-       ylim = ylim_ru2, xlab = "",
-       ylab = expression("Tree N store (kg N tree"^{-1}*" year"^{-1}*")"),
-       cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df_3$date, df_3$tree_nitrogen, col = cols[3], lwd = lwd_model)
-  #lines(df_2$date, df_2$tree_nitrogen, col = cols[2], lwd = lwd_model)
-  lines(df$date, df$tree_nitrogen, col = cols[1], lwd = lwd_model)
-  mtext("(d)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
-  box(bty = "l")
-
-  # Shared legend
-  par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
-  plot(0, 0, type = "n", bty = "n", xaxt = "n", yaxt = "n")
-  legend("bottom", horiz = FALSE, bty = "n", cex = cex_legend, ncol = 2,
-         legend = N_labels,
-         col = cols[c(1, 3)],
-         lty = c(1, 1),
-         lwd = rep(lwd_model, 2))
-
   # ----------------------------
-  # Diagnostic: why does uptake increase so much at high N?
-  # N_s values must match lho / lho_2 / lho_3 setup above
+  # lh_10: N cycling & root density summary (6 panels)
   # ----------------------------
-  N_s_vals <- c(0.2, 0.4, 1.0)   # Low, Medium, High
+  nbar_lower    <- 0.0012   # Korhonen: A horizon mineral N (kg N m-3)
+  nbar_upper    <- 0.003    # A horizon mineral N + amino acids
 
-  uptake_1 <- df$mycorrhizal_export_to_tree  + df$root_uptake
+  uptake_1 <- df$mycorrhizal_export_to_tree   + df$root_uptake
   uptake_2 <- df_2$mycorrhizal_export_to_tree + df_2$root_uptake
   uptake_3 <- df_3$mycorrhizal_export_to_tree + df_3$root_uptake
-  bg_mass_1 <- df$root_mass  + df$ectomycorrhiza_mass
+  bg_mass_1 <- df$root_mass   + df$ectomycorrhiza_mass
   bg_mass_2 <- df_2$root_mass + df_2$ectomycorrhiza_mass
   bg_mass_3 <- df_3$root_mass + df_3$ectomycorrhiza_mass
-
-  par(mfrow = c(3, 2), mar = c(4, 6, 3, 1), oma = c(4, 0, 2, 0),
-      family = "serif", las = 1, tcl = -0.4, mgp = c(4, 1, 0))
-
-  # (i) N_bar / N_s — depletion ratio
-  # = 1 means no depletion (biochemically limited); << 1 means strongly depleted (diffusion limited)
-  dep_1 <- df$N_bar   / N_s_vals[1]
-  dep_2 <- df_2$N_bar / N_s_vals[2]
-  dep_3 <- df_3$N_bar / N_s_vals[3]
-  ylim_dep <- range(dep_1, dep_2, dep_3, 0, 1, na.rm = TRUE)
-  plot(df$date, dep_1, type = "l", col = cols[1], lwd = lwd_model,
-       ylim = ylim_dep, xlab = "",
-       ylab = expression(bar(N) / N[s]~"(depletion ratio)"),
-       cex.axis = cex_axis, cex.lab = cex_lab)
-  #lines(df_2$date, dep_2, col = cols[2], lwd = lwd_model)
-  lines(df_3$date, dep_3, col = cols[3], lwd = lwd_model)
-  abline(h = 1, lty = 2, col = "grey50")
-  legend("topright", legend = N_labels, col = cols[c(1, 3)], lty = 1, lwd = lwd_model,
-         bty = "n", cex = cex_legend)
-  mtext("(i)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
-  title(sub = "= 1: no depletion (biochem.-limited);  < 1: diffusion-limited",
-        col.sub = "grey40")
-  box(bty = "l")
-
-  # (iii) Uptake per unit belowground mass — per-root efficiency
-  # If lines collapse onto each other, the per-root rate is the same and the total
-  # uptake difference is driven purely by how much belowground biomass was built.
   eff_1 <- uptake_1 / bg_mass_1
   eff_2 <- uptake_2 / bg_mass_2
   eff_3 <- uptake_3 / bg_mass_3
-  ylim_eff <- range(eff_1, eff_2, eff_3, na.rm = TRUE)
-  plot(df$date, eff_1, type = "l", col = cols[1], lwd = lwd_model,
-       ylim = ylim_eff, xlab = "",
-       ylab = expression("N uptake / BG mass (kg N kg C"^{-1}*" yr"^{-1}*")"),
-       cex.axis = cex_axis, cex.lab = cex_lab)
-  #lines(df_2$date, eff_2, col = cols[2], lwd = lwd_model)
-  lines(df_3$date, eff_3, col = cols[3], lwd = lwd_model)
-  mtext("(ii)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
-  title(sub = "Separates SA effect from N_bar effect on total uptake",
-        col.sub = "grey40")
-  box(bty = "l")
 
-  # (iv) BG fraction — root+ECM as share of total biomass
-  # In nature this should DECREASE at high N (plants invest less in roots when N is plentiful).
-  # If the lines converge or reverse, the optimizer is correctly allocating less to roots per C fixed.
-  total_mass_1 <- df$stem_mass   + df$leaf_mass   + bg_mass_1
-  total_mass_2 <- df_2$stem_mass + df_2$leaf_mass + bg_mass_2
-  total_mass_3 <- df_3$stem_mass + df_3$leaf_mass + bg_mass_3
-  bgfrac_1 <- bg_mass_1 / total_mass_1
-  bgfrac_2 <- bg_mass_2 / total_mass_2
-  bgfrac_3 <- bg_mass_3 / total_mass_3
-  ylim_bgf <- range(bgfrac_1, bgfrac_2, bgfrac_3, na.rm = TRUE)
-  plot(df$date, bgfrac_1, type = "l", col = cols[1], lwd = lwd_model,
-       ylim = ylim_bgf, xlab = "",
-       ylab = "BG fraction (root+ECM / total mass)",
-       cex.axis = cex_axis, cex.lab = cex_lab)
-  #lines(df_2$date, bgfrac_2, col = cols[2], lwd = lwd_model)
-  lines(df_3$date, bgfrac_3, col = cols[3], lwd = lwd_model)
-  mtext("(iii)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
-  title(sub = "Should decrease at high N — if not, optimizer over-invests in roots",
-        col.sub = "grey40")
-  box(bty = "l")
-
-  k_1_par      <- 0.35
-  k_13_par     <- 2.5
-  depth_par    <- 1.1
-  rho_myco_par <- 330
-  myco_d_par   <- 1e-5
+  k_1_par         <- 0.35
+  k_13_par        <- 2.5
+  depth_par       <- 1.1
+  rho_myco_par    <- 330
+  myco_d_par      <- 1e-5
   mycorrhized_par <- 0.9
   compute_sa_density <- function(d) {
     root_d_mm <- k_1_par / sqrt(d$root_length)
@@ -2644,116 +2544,79 @@ original_life_histroy <- function() {
   sa2 <- compute_sa_density(df_2)
   sa3 <- compute_sa_density(df_3)
 
-  # (v) SA_active / V_zone — root + ECM density in soil zone
-  ylim_sad <- range(sa1$density, sa2$density, sa3$density, na.rm = TRUE)
+  png("RScripts/plots/lh_10_publication_belowground.png", width = 14, height = 12, units = "in", res = 300)
+  par(mfrow = c(3, 2), mar = c(4, 6, 3, 1), oma = c(4, 0, 2, 0),
+      family = "serif", las = 1, tcl = -0.4, mgp = c(4, 1, 0))
+
+  # (a) N_bar + Korhonen reference band
+  ylim_nb <- range(df$N_bar, df_3$N_bar, nbar_lower, nbar_upper, na.rm = TRUE)
+  plot(df$date, df$N_bar, type = "n",
+       ylim = ylim_nb, xlab = "",
+       ylab = expression(bar(N)~"(kg N m"^{-3}*")"),
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  rect(par("usr")[1], nbar_lower, par("usr")[2], nbar_upper,
+       col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
+  lines(df$date,   df$N_bar,   col = cols[1], lwd = lwd_model)
+  lines(df_3$date, df_3$N_bar, col = cols[3], lwd = lwd_model)
+  mtext("(a)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  title(sub = "Shading: Korhonen A-horizon mineral N range", col.sub = "grey40")
+  box(bty = "l")
+
+  # (b) N internal tree free (free N store, not in biomass)
+  ylim_tn <- range(df$tree_nitrogen, df_3$tree_nitrogen, na.rm = TRUE)
+  plot(df$date, df$tree_nitrogen, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_tn, xlab = "",
+       ylab = expression("Internal tree N (kg N tree"^{-1}*")"),
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  lines(df_3$date, df_3$tree_nitrogen, col = cols[3], lwd = lwd_model)
+  mtext("(b)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  box(bty = "l")
+
+  # (c) N uptake per belowground biomass
+  ylim_eff <- range(eff_1, eff_3, na.rm = TRUE)
+  plot(df$date, eff_1, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_eff, xlab = "",
+       ylab = expression("N uptake / BG mass (kg N kg C"^{-1}*" yr"^{-1}*")"),
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  lines(df_3$date, eff_3, col = cols[3], lwd = lwd_model)
+  mtext("(c)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  box(bty = "l")
+
+  # (d) N transferred (mycorrhizal export to tree)
+  ylim_tr <- range(df$mycorrhizal_export_to_tree, df_3$mycorrhizal_export_to_tree, na.rm = TRUE)
+  plot(df$date, df$mycorrhizal_export_to_tree, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_tr, xlab = "",
+       ylab = expression("N transferred (kg N tree"^{-1}*" yr"^{-1}*")"),
+       cex.axis = cex_axis, cex.lab = cex_lab)
+  lines(df_3$date, df_3$mycorrhizal_export_to_tree, col = cols[3], lwd = lwd_model)
+  mtext("(d)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  box(bty = "l")
+
+  # (e) SA_active / V_zone — root + ECM density in soil zone
+  ylim_sad <- range(sa1$density, sa3$density, na.rm = TRUE)
   plot(df$date, sa1$density, type = "l", col = cols[1], lwd = lwd_model,
        ylim = ylim_sad, xlab = "",
        ylab = expression("SA"["active"]*" / V"["zone"]~"(m"^2~"m"^{-3}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
-  #lines(df_2$date, sa2$density, col = cols[2], lwd = lwd_model)
   lines(df_3$date, sa3$density, col = cols[3], lwd = lwd_model)
   rect(par("usr")[1], 10, par("usr")[2], 80,
        col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
-  legend("topright", legend = N_labels, col = cols[c(1, 3)], lty = 1, lwd = lwd_model,
-         bty = "n", cex = cex_legend)
-  mtext("(iv)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  mtext("(e)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   title(sub = "Shading: ~10–80 m² m⁻³ typical boreal fine root + ECM density",
         col.sub = "grey40")
   box(bty = "l")
 
-  # (vi) Root SA vs ECM SA breakdown
-  ylim_sasp <- range(sa1$SA_fr, sa2$SA_fr, sa3$SA_fr,
-                     sa1$SA_m,  sa2$SA_m,  sa3$SA_m, na.rm = TRUE)
-  plot(df$date, sa1$SA_fr, type = "l", col = cols[1], lwd = lwd_model, lty = 1,
-       ylim = ylim_sasp, xlab = "",
-       ylab = expression("Surface area (m"^2*")"),
+  # (f) Myco uptake / root uptake ratio
+  ratio_1 <- df$myco_uptake   / df$root_uptake
+  ratio_3 <- df_3$myco_uptake / df_3$root_uptake
+  ylim_rat <- range(ratio_1, ratio_3, na.rm = TRUE)
+  plot(df$date, ratio_1, type = "l", col = cols[1], lwd = lwd_model,
+       ylim = ylim_rat, xlab = "",
+       ylab = "Myco uptake / root uptake (–)",
        cex.axis = cex_axis, cex.lab = cex_lab)
-  #lines(df_2$date, sa2$SA_fr, col = cols[2], lwd = lwd_model, lty = 1)
-  lines(df_3$date, sa3$SA_fr, col = cols[3], lwd = lwd_model, lty = 1)
-  lines(df$date,   sa1$SA_m,  col = cols[1], lwd = lwd_model, lty = 2)
-  #lines(df_2$date, sa2$SA_m,  col = cols[2], lwd = lwd_model, lty = 2)
-  lines(df_3$date, sa3$SA_m,  col = cols[3], lwd = lwd_model, lty = 2)
-  legend("topleft", legend = c("Root SA (solid)", "ECM SA (dashed)"),
-         lty = c(1, 2), col = "black", lwd = lwd_model, bty = "n", cex = cex_legend)
-  mtext("(v)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
-  title(sub = "ECM dominates SA_active when mycorrhized = 0.9",
-        col.sub = "grey40")
-  box(bty = "l")
-
-  # Shared legend
-  par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
-  plot(0, 0, type = "n", bty = "n", xaxt = "n", yaxt = "n")
-  legend("bottom", horiz = TRUE, bty = "n", cex = cex_legend,
-         legend = N_labels, col = cols[c(1, 3)], lty = 1, lwd = rep(lwd_model, 2))
-  dev.off()
-
-  # ----------------------------
-  # Diagnostic: is root density per soil volume realistic?
-  # Compute SA_active from morphology parameters (must match p_test_boreal.ini)
-  # ----------------------------
-  k_1_par      <- 0.35    # mm^(3/2)  root diameter-length allometry
-  k_13_par     <- 2.5     # zone radius factor
-  depth_par    <- 1.1     # m  soil depth
-  rho_myco_par <- 330     # kg m-3
-  myco_d_par   <- 1e-5    # m
-  mycorrhized_par <- 0.9
-
-  compute_sa_density <- function(d) {
-    root_d_mm   <- k_1_par / sqrt(d$root_length)            # mm
-    SA_fr       <- pi * (root_d_mm/1000) * (d$root_length/1000) * d$root_no * d$crown_area * d$lai
-    SA_m        <- 4 * d$ectomycorrhiza_mass / (rho_myco_par * myco_d_par)
-    SA_active   <- (1 - mycorrhized_par) * SA_fr + SA_m
-    crown_r     <- sqrt(d$crown_area / pi)
-    R           <- k_13_par * crown_r
-    V_zone      <- (2/3) * pi * R^2 * depth_par             # semi-ellipsoid volume m3
-    list(SA_active = SA_active, V_zone = V_zone,
-         density = SA_active / V_zone,
-         SA_fr = SA_fr, SA_m = SA_m)
-  }
-
-  sa1 <- compute_sa_density(df)
-  sa2 <- compute_sa_density(df_2)
-  sa3 <- compute_sa_density(df_3)
-
-  png("RScripts/plots/root_density_diagnostic.png", width = 1200, height = 900)
-  par(mfrow = c(2, 2), mar = c(4, 6, 3, 1), oma = c(4, 0, 2, 0),
-      family = "serif", las = 1, tcl = -0.4, mgp = c(4, 1, 0))
-
-  # (v) SA_active / V_zone — root + ECM density in soil zone
-  # Realistic boreal range: ~10–80 m2 root SA per m3 soil
-  ylim_sad <- range(sa1$density, sa2$density, sa3$density, na.rm = TRUE)
-  plot(df$date, sa1$density, type = "l", col = cols[1], lwd = lwd_model,
-       ylim = ylim_sad, xlab = "",
-       ylab = expression("SA"["active"]*" / V"["zone"]~"(m"^2~"m"^{-3}*")"),
-       cex.axis = cex_axis, cex.lab = cex_lab)
-  #lines(df_2$date, sa2$density, col = cols[2], lwd = lwd_model)
-  lines(df_3$date, sa3$density, col = cols[3], lwd = lwd_model)
-  rect(par("usr")[1], 10, par("usr")[2], 80,
-       col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
-  legend("topright", legend = N_labels, col = cols[c(1, 3)], lty = 1, lwd = lwd_model,
-         bty = "n", cex = cex_legend)
-  mtext("(iv)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
-  title(sub = "Shading: ~10–80 m2/m3 typical boreal fine root + ECM density",
-        col.sub = "grey40")
-  box(bty = "l")
-
-  # (vi) Root SA vs ECM SA breakdown — which term dominates?
-  ylim_sasp <- range(sa1$SA_fr, sa2$SA_fr, sa3$SA_fr,
-                     sa1$SA_m,  sa2$SA_m,  sa3$SA_m, na.rm = TRUE)
-  plot(df$date, sa1$SA_fr, type = "l", col = cols[1], lwd = lwd_model, lty = 1,
-       ylim = ylim_sasp, xlab = "",
-       ylab = expression("Surface area (m"^2*")"),
-       cex.axis = cex_axis, cex.lab = cex_lab)
-  #lines(df_2$date, sa2$SA_fr, col = cols[2], lwd = lwd_model, lty = 1)
-  lines(df_3$date, sa3$SA_fr, col = cols[3], lwd = lwd_model, lty = 1)
-  lines(df$date,   sa1$SA_m,  col = cols[1], lwd = lwd_model, lty = 2)
-  #lines(df_2$date, sa2$SA_m,  col = cols[2], lwd = lwd_model, lty = 2)
-  lines(df_3$date, sa3$SA_m,  col = cols[3], lwd = lwd_model, lty = 2)
-  legend("topleft", legend = c("Root SA (solid)", "ECM SA (dashed)"),
-         lty = c(1, 2), col = "black", lwd = lwd_model, bty = "n", cex = cex_legend)
-  mtext("(v)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
-  title(sub = "ECM dominates SA_active when mycorrhized = 0.9",
-        col.sub = "grey40")
+  lines(df_3$date, ratio_3, col = cols[3], lwd = lwd_model)
+  abline(h = 1, lty = 2, col = "grey50")
+  mtext("(f)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
 
   # Shared legend
