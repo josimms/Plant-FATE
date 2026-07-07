@@ -24,21 +24,21 @@ library(future)
 ```
 
 ```{r theme, include=FALSE}
-pub_theme <- theme_classic(base_size = 13) +
+pub_theme <- theme_classic(base_size = 22) +
   theme(
-    axis.title       = element_text(size = 12, face = "bold"),
-    axis.text        = element_text(size = 11, colour = "black"),
+    axis.title       = element_text(size = 22, face = "bold"),
+    axis.text        = element_text(size = 20, colour = "black"),
     axis.line        = element_line(colour = "black", linewidth = 0.6),
     axis.ticks       = element_line(colour = "black", linewidth = 0.5),
-    legend.title     = element_text(size = 12, face = "bold"),
-    legend.text      = element_text(size = 11),
+    legend.title     = element_text(size = 22, face = "bold"),
+    legend.text      = element_text(size = 20),
     legend.key.size  = unit(0.9, "lines"),
     panel.grid.major = element_line(colour = "grey90", linewidth = 0.3),
     panel.grid.minor = element_blank(),
     plot.background  = element_rect(fill = "white", colour = NA),
     panel.background = element_rect(fill = "white", colour = NA),
     plot.margin      = margin(8, 12, 8, 8),
-    strip.text       = element_text(size = 12, face = "bold")
+    strip.text       = element_text(size = 22, face = "bold")
   )
 ```
 
@@ -56,7 +56,7 @@ useful_data <- merge(data[[2]], data[[5]], c('plotID', 'eventID', 'eventYear'), 
 
 ```{r pressure, echo=FALSE}
 # Set to TRUE for fast testing (fewer grid points, shorter run), FALSE for full publication run
-testing_mode <- FALSE
+testing_mode <- TRUE
 
 plan(multicore, workers = parallel::detectCores() - 1)
 
@@ -66,13 +66,19 @@ fixed_root_no     <- 3e5
 fixed_ecto_allo   <- 0.1
 
 # Parameter ranges (fewer points in testing mode for speed)
-n_pts_main <- if (testing_mode) 7 else 21
-n_pts_ecto <- if (testing_mode) 6 else 11
+n_pts_main  <- if (testing_mode) 10 else 21
+n_pts_ecto  <- if (testing_mode) 10 else 11
+n_pts_joint <- if (testing_mode) 5  else 8   # per-axis for 3D co-optimisation sweep
 
-root_length_values <- seq(0.5, 5, length.out = n_pts_main)
+root_length_values <- seq(0.05, 6, length.out = n_pts_main)
 root_no_values     <- 3*10^seq(3, 6, length.out = n_pts_main)
 nitrogen_values    <- seq(0.01, 2.0, length.out = n_pts_main)
 ecto_allo_values   <- seq(0.0, 0.3, length.out = n_pts_ecto)
+
+# Joint co-optimisation grid (coarser to keep run count tractable)
+joint_ecto_allo_values   <- seq(0.0, 0.3, length.out = n_pts_joint)
+joint_root_no_values     <- 3*10^seq(3, 6, length.out = n_pts_joint)
+joint_root_length_values <- seq(0.05, 6, length.out = n_pts_joint)
 
 param_file <- "/home/josimms/Documents/Austria/Plant-FATE/tests/params/p_test_boreal.ini"
 weather_file <- "/home/josimms/Documents/Austria/Plant-FATE/data/ERAS_Monthly.csv"
@@ -88,7 +94,7 @@ run_sim_parallel <- function(rl, rn, n, eb) {
     lho$set_co2File("")
     lho$set_soil_nitrogen(n)
     lho$traits0$investment_from_tree <- eb
-    lho$uptake0$mycorrhized <- 0.7 + 0.2*(eb)/0.3
+    #lho$uptake0$mycorrhized <- 0.7 + 0.2*(eb)/0.3
     lho$init()
     lho$root_override(rn, rl)
 
@@ -176,6 +182,25 @@ all_eb_list <- future_lapply(ecto_allo_values, function(eb) {
 all_eb_df <- do.call(rbind, all_eb_list[!sapply(all_eb_list, is.null)])
 
 # -------------------------------
+# Joint co-optimisation: ecto_allo × root_no × root_length × nitrogen
+# n_pts_joint^3 × n_pts_main runs total
+# Parallelised over ecto_allo (outer axis)
+# -------------------------------
+all_joint_list <- future_lapply(joint_ecto_allo_values, function(eb) {
+  inner_rn <- lapply(joint_root_no_values, function(rn) {
+    inner_rl <- lapply(joint_root_length_values, function(rl) {
+      inner_n <- lapply(nitrogen_values, function(n) {
+        run_sim_safe(rl, rn, n, eb)
+      })
+      do.call(rbind, inner_n[!sapply(inner_n, is.null)])
+    })
+    do.call(rbind, inner_rl[!sapply(inner_rl, is.null)])
+  })
+  do.call(rbind, inner_rn[!sapply(inner_rn, is.null)])
+})
+all_joint_df <- do.call(rbind, all_joint_list[!sapply(all_joint_list, is.null)])
+
+# -------------------------------
 # Combine all sweeps into one dataframe
 # -------------------------------
 final_df <- rbind(all_rn_df, all_rl_df, all_eb_df)
@@ -217,10 +242,12 @@ max_line_root_no <- subset_root_no %>%
 # --- Plot 1: Root Number heatmap ---
 p1 <- ggplot(subset_root_length, aes(x = soil_nitrogen, y = root_no, fill = height)) +
   geom_tile() +
+  scale_shape_manual(name = NULL, values = c("Max height" = 21)) +
+  annotate("segment", x = 0, y = 3e6, xend = 2, yend = 1e5,
+           colour = "white", linewidth = 1.2) +
   geom_point(data = max_line_root_length,
-             aes(x = soil_nitrogen, y = root_no, shape = "Max total biomass"),
+             aes(x = soil_nitrogen, y = root_no, shape = "Max height"),
              fill = "white", colour = "black", size = 3.5, stroke = 1.5) +
-  scale_shape_manual(name = NULL, values = c("Max total biomass" = 21)) +
   scale_y_log10(labels = scales::label_scientific()) +
   scale_fill_viridis_c(option = "cividis", limits = height_range,
                        labels = scales::label_number(accuracy = 0.1)) +
@@ -232,10 +259,12 @@ p1 <- ggplot(subset_root_length, aes(x = soil_nitrogen, y = root_no, fill = heig
 # --- Plot 2: Root Length heatmap ---
 p2 <- ggplot(subset_root_no, aes(x = soil_nitrogen, y = root_length, fill = height)) +
   geom_tile() +
+  annotate("segment", x = 0, y = 5, xend = 2, yend = 1.2,
+           colour = "white", linewidth = 1.2) +
   geom_point(data = max_line_root_no,
-             aes(x = soil_nitrogen, y = root_length, shape = "Max total biomass"),
+             aes(x = soil_nitrogen, y = root_length, shape = "Max height"),
              fill = "white", colour = "black", size = 3.5, stroke = 1.5) +
-  scale_shape_manual(name = NULL, values = c("Max total biomass" = 21)) +
+  scale_shape_manual(name = NULL, values = c("Max height" = 21)) +
   scale_fill_viridis_c(option = "cividis", limits = height_range,
                        labels = scales::label_number(accuracy = 0.1)) +
   labs(x = "Soil N (g m⁻³)",
@@ -248,11 +277,290 @@ length_no_N_gradient <- (p2 / p1) +
   plot_layout(guides = "collect") +
   plot_annotation(tag_levels = "A") &
   theme(legend.position = "right",
-        plot.tag = element_text(size = 13, face = "bold"))
+        plot.tag = element_text(size = 22, face = "bold"))
 length_no_N_gradient
 
-ggsave("vignettes/plots/07_length_no_N_gradient.png",
+ggsave("plots/07_length_no_N_gradient.png",
        plot = length_no_N_gradient, width = 12, height = 10, dpi = 300)
+```
+
+## Trade offs: Root traits – Uptake and Assimilation
+
+```{r final_uptake_assimilation}
+# Rate variables (uptake, GPP) are 0 in January due to frozen soil (f_temp = 0).
+# Use June-August growing-season mean instead of the single January snapshot.
+gs_rn <- all_rn_df %>%
+  filter(as.integer(format(as.Date(date), "%m")) %in% 6:8) %>%
+  group_by(soil_nitrogen, root_no) %>%
+  summarise(
+    root_uptake = mean(root_uptake, na.rm = TRUE),
+    myco_uptake = mean(myco_uptake, na.rm = TRUE),
+    assim_gross = mean(assim_gross, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+gs_rl <- all_rl_df %>%
+  filter(as.integer(format(as.Date(date), "%m")) %in% 6:8) %>%
+  group_by(soil_nitrogen, root_length) %>%
+  summarise(
+    root_uptake = mean(root_uptake, na.rm = TRUE),
+    myco_uptake = mean(myco_uptake, na.rm = TRUE),
+    assim_gross = mean(assim_gross, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+root_uptake_range <- range(c(gs_rn$root_uptake, gs_rl$root_uptake), na.rm = TRUE)
+myco_uptake_range <- range(c(gs_rn$myco_uptake, gs_rl$myco_uptake), na.rm = TRUE)
+assim_range       <- range(c(gs_rn$assim_gross,  gs_rl$assim_gross),  na.rm = TRUE)
+
+# Max-value markers for each variable independently
+max_rn_root_uptake <- gs_rn %>% group_by(soil_nitrogen) %>%
+  slice_max(root_uptake, n = 1, with_ties = FALSE) %>% ungroup()
+max_rl_root_uptake <- gs_rl %>% group_by(soil_nitrogen) %>%
+  slice_max(root_uptake, n = 1, with_ties = FALSE) %>% ungroup()
+
+max_rn_myco_uptake <- gs_rn %>% group_by(soil_nitrogen) %>%
+  slice_max(myco_uptake, n = 1, with_ties = FALSE) %>% ungroup()
+max_rl_myco_uptake <- gs_rl %>% group_by(soil_nitrogen) %>%
+  slice_max(myco_uptake, n = 1, with_ties = FALSE) %>% ungroup()
+
+max_rn_assim <- gs_rn %>% group_by(soil_nitrogen) %>%
+  slice_max(assim_gross, n = 1, with_ties = FALSE) %>% ungroup()
+max_rl_assim <- gs_rl %>% group_by(soil_nitrogen) %>%
+  slice_max(assim_gross, n = 1, with_ties = FALSE) %>% ungroup()
+
+p1_root_uptake <- ggplot(gs_rn, aes(x = soil_nitrogen, y = root_no, fill = root_uptake)) +
+  geom_tile() +
+  annotate("segment", x = 0, y = 3e6, xend = 2, yend = 1e5,
+           colour = "white", linewidth = 1.2) +
+  geom_point(data = max_rn_root_uptake,
+             aes(x = soil_nitrogen, y = root_no, shape = "Max root uptake"),
+             fill = "white", colour = "black", size = 3.5, stroke = 1.5) +
+  scale_shape_manual(name = NULL, values = c("Max root uptake" = 21)) +
+  scale_y_log10(labels = scales::label_scientific()) +
+  scale_fill_viridis_c(option = "magma", limits = root_uptake_range,
+                       labels = scales::label_number(accuracy = 0.001)) +
+  labs(x = "Soil N (g m⁻³)",
+       y = "Root number per unit\ncrown area (m⁻²)",
+       fill = "Root Uptake\n(kg N yr⁻¹)") +
+  pub_theme
+
+p2_root_uptake <- ggplot(gs_rl, aes(x = soil_nitrogen, y = root_length, fill = root_uptake)) +
+  geom_tile() +
+  annotate("segment", x = 0, y = 5, xend = 2, yend = 1.2,
+           colour = "white", linewidth = 1.2) +
+  geom_point(data = max_rl_root_uptake,
+             aes(x = soil_nitrogen, y = root_length, shape = "Max root uptake"),
+             fill = "white", colour = "black", size = 3.5, stroke = 1.5) +
+  scale_shape_manual(name = NULL, values = c("Max root uptake" = 21)) +
+  scale_fill_viridis_c(option = "magma", limits = root_uptake_range,
+                       labels = scales::label_number(accuracy = 0.001)) +
+  labs(x = "Soil N (g m⁻³)",
+       y = "Root length (mm)",
+       fill = "Root Uptake\n(kg N yr⁻¹)") +
+  pub_theme
+
+p1_myco_uptake <- ggplot(gs_rn, aes(x = soil_nitrogen, y = root_no, fill = myco_uptake)) +
+  geom_tile() +
+  annotate("segment", x = 0, y = 3e6, xend = 2, yend = 1e5,
+           colour = "white", linewidth = 1.2) +
+  geom_point(data = max_rn_myco_uptake,
+             aes(x = soil_nitrogen, y = root_no, shape = "Max myco uptake"),
+             fill = "white", colour = "black", size = 3.5, stroke = 1.5) +
+  scale_shape_manual(name = NULL, values = c("Max myco uptake" = 21)) +
+  scale_y_log10(labels = scales::label_scientific()) +
+  scale_fill_viridis_c(option = "magma", limits = myco_uptake_range,
+                       labels = scales::label_number(accuracy = 0.001)) +
+  labs(x = "Soil N (g m⁻³)",
+       y = "Root number per unit\ncrown area (m⁻²)",
+       fill = "Myco Uptake\n(kg N yr⁻¹)") +
+  pub_theme
+
+p2_myco_uptake <- ggplot(gs_rl, aes(x = soil_nitrogen, y = root_length, fill = myco_uptake)) +
+  geom_tile() +
+  annotate("segment", x = 0, y = 5, xend = 2, yend = 1.2,
+           colour = "white", linewidth = 1.2) +
+  geom_point(data = max_rl_myco_uptake,
+             aes(x = soil_nitrogen, y = root_length, shape = "Max myco uptake"),
+             fill = "white", colour = "black", size = 3.5, stroke = 1.5) +
+  scale_shape_manual(name = NULL, values = c("Max myco uptake" = 21)) +
+  scale_fill_viridis_c(option = "magma", limits = myco_uptake_range,
+                       labels = scales::label_number(accuracy = 0.001)) +
+  labs(x = "Soil N (g m⁻³)",
+       y = "Root length (mm)",
+       fill = "Myco Uptake\n(kg N yr⁻¹)") +
+  pub_theme
+
+p1_assim <- ggplot(gs_rn, aes(x = soil_nitrogen, y = root_no, fill = assim_gross)) +
+  geom_tile() +
+  annotate("segment", x = 0, y = 3e6, xend = 2, yend = 1e5,
+           colour = "white", linewidth = 1.2) +
+  geom_point(data = max_rn_assim,
+             aes(x = soil_nitrogen, y = root_no, shape = "Max GPP"),
+             fill = "white", colour = "black", size = 3.5, stroke = 1.5) +
+  scale_shape_manual(name = NULL, values = c("Max GPP" = 21)) +
+  scale_y_log10(labels = scales::label_scientific()) +
+  scale_fill_viridis_c(option = "plasma", limits = assim_range,
+                       labels = scales::label_number(accuracy = 0.1)) +
+  labs(x = "Soil N (g m⁻³)",
+       y = "Root number per unit\ncrown area (m⁻²)",
+       fill = "GPP\n(kg C yr⁻¹)") +
+  pub_theme
+
+p2_assim <- ggplot(gs_rl, aes(x = soil_nitrogen, y = root_length, fill = assim_gross)) +
+  geom_tile() +
+  annotate("segment", x = 0, y = 5, xend = 2, yend = 1.2,
+           colour = "white", linewidth = 1.2) +
+  geom_point(data = max_rl_assim,
+             aes(x = soil_nitrogen, y = root_length, shape = "Max GPP"),
+             fill = "white", colour = "black", size = 3.5, stroke = 1.5) +
+  scale_shape_manual(name = NULL, values = c("Max GPP" = 21)) +
+  scale_fill_viridis_c(option = "plasma", limits = assim_range,
+                       labels = scales::label_number(accuracy = 0.1)) +
+  labs(x = "Soil N (g m⁻³)",
+       y = "Root length (mm)",
+       fill = "GPP\n(kg C yr⁻¹)") +
+  pub_theme
+
+length_no_N_uptake <- ((p2_root_uptake + p2_myco_uptake) / (p1_root_uptake + p1_myco_uptake)) +
+  plot_layout(guides = "collect") +
+  plot_annotation(tag_levels = "A") &
+  theme(legend.position = "right",
+        plot.tag = element_text(size = 22, face = "bold"))
+length_no_N_uptake
+
+ggsave("plots/07b_length_no_N_uptake.png",
+       plot = length_no_N_uptake, width = 12, height = 10, dpi = 300)
+
+length_no_N_assim <- (p2_assim / p1_assim) +
+  plot_layout(guides = "collect") +
+  plot_annotation(tag_levels = "A") &
+  theme(legend.position = "right",
+        plot.tag = element_text(size = 22, face = "bold"))
+length_no_N_assim
+
+ggsave("plots/07c_length_no_N_assimilation.png",
+       plot = length_no_N_assim, width = 12, height = 10, dpi = 300)
+```
+
+## Trade offs: Root traits – N Uptake and GPP (publication format)
+
+```{r root_trait_combined}
+# Growing-season (Jun–Aug) means, matching ecto_allo section format
+heatmap_rn_full <- all_rn_df %>%
+  filter(as.integer(format(as.Date(date), "%m")) %in% 6:8) %>%
+  group_by(soil_nitrogen, root_no) %>%
+  summarise(
+    height          = mean(height, na.rm = TRUE),
+    nitrogen_uptake = mean(root_uptake + mycorrhizal_export_to_tree, na.rm = TRUE),
+    assim_gross     = mean(assim_gross, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+heatmap_rl_full <- all_rl_df %>%
+  filter(as.integer(format(as.Date(date), "%m")) %in% 6:8) %>%
+  group_by(soil_nitrogen, root_length) %>%
+  summarise(
+    height          = mean(height, na.rm = TRUE),
+    nitrogen_uptake = mean(root_uptake + mycorrhizal_export_to_tree, na.rm = TRUE),
+    assim_gross     = mean(assim_gross, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+rn_uptake_range <- range(heatmap_rn_full$nitrogen_uptake, na.rm = TRUE)
+rn_assim_range  <- range(heatmap_rn_full$assim_gross,     na.rm = TRUE)
+rl_uptake_range <- range(heatmap_rl_full$nitrogen_uptake, na.rm = TRUE)
+rl_assim_range  <- range(heatmap_rl_full$assim_gross,     na.rm = TRUE)
+
+opt_rn_uptake <- heatmap_rn_full %>% group_by(soil_nitrogen) %>%
+  slice_max(nitrogen_uptake, n = 1, with_ties = FALSE) %>% ungroup()
+opt_rn_assim  <- heatmap_rn_full %>% group_by(soil_nitrogen) %>%
+  slice_max(assim_gross, n = 1, with_ties = FALSE) %>% ungroup()
+
+opt_rl_uptake <- heatmap_rl_full %>% group_by(soil_nitrogen) %>%
+  slice_max(nitrogen_uptake, n = 1, with_ties = FALSE) %>% ungroup()
+opt_rl_assim  <- heatmap_rl_full %>% group_by(soil_nitrogen) %>%
+  slice_max(assim_gross, n = 1, with_ties = FALSE) %>% ungroup()
+
+# --- Root number: N uptake and GPP ---
+p_rn_uptake <- ggplot(heatmap_rn_full,
+       aes(x = soil_nitrogen, y = root_no, fill = nitrogen_uptake)) +
+  geom_tile() +
+  geom_point(data = opt_rn_uptake,
+             aes(x = soil_nitrogen, y = root_no),
+             shape = 21, fill = "white", colour = "black", size = 3.5, stroke = 1.5,
+             inherit.aes = FALSE) +
+  scale_y_log10(labels = scales::label_scientific()) +
+  scale_fill_viridis_c(option = "magma",
+                       labels = scales::label_number(accuracy = 0.001)) +
+  labs(x = "Soil nitrogen (g N m⁻³)",
+       y = "Root number per unit\ncrown area (m⁻²)",
+       fill = "N uptake\n(kg N yr⁻¹)") +
+  pub_theme
+
+p_rn_assim <- ggplot(heatmap_rn_full,
+       aes(x = soil_nitrogen, y = root_no, fill = assim_gross)) +
+  geom_tile() +
+  geom_point(data = opt_rn_assim,
+             aes(x = soil_nitrogen, y = root_no),
+             shape = 21, fill = "white", colour = "black", size = 3.5, stroke = 1.5,
+             inherit.aes = FALSE) +
+  scale_y_log10(labels = scales::label_scientific()) +
+  scale_fill_viridis_c(option = "plasma",
+                       labels = scales::label_number(accuracy = 0.1)) +
+  labs(x = "Soil nitrogen (g N m⁻³)",
+       y = "Root number per unit\ncrown area (m⁻²)",
+       fill = "GPP\n(kg C yr⁻¹)") +
+  pub_theme
+
+root_no_gradient <- (p_rn_uptake / p_rn_assim) +
+  plot_layout(guides = "collect") +
+  plot_annotation(tag_levels = "A") &
+  theme(legend.position = "right",
+        plot.tag = element_text(size = 22, face = "bold"))
+root_no_gradient
+
+ggsave("plots/10_root_no_gradient.png",
+       plot = root_no_gradient, width = 12, height = 10, dpi = 300)
+
+# --- Root length: N uptake and GPP ---
+p_rl_uptake <- ggplot(heatmap_rl_full,
+       aes(x = soil_nitrogen, y = root_length, fill = nitrogen_uptake)) +
+  geom_tile() +
+  geom_point(data = opt_rl_uptake,
+             aes(x = soil_nitrogen, y = root_length),
+             shape = 21, fill = "white", colour = "black", size = 3.5, stroke = 1.5,
+             inherit.aes = FALSE) +
+  scale_fill_viridis_c(option = "magma",
+                       labels = scales::label_number(accuracy = 0.001)) +
+  labs(x = "Soil nitrogen (g N m⁻³)",
+       y = "Root length (mm)",
+       fill = "N uptake\n(kg N yr⁻¹)") +
+  pub_theme
+
+p_rl_assim <- ggplot(heatmap_rl_full,
+       aes(x = soil_nitrogen, y = root_length, fill = assim_gross)) +
+  geom_tile() +
+  geom_point(data = opt_rl_assim,
+             aes(x = soil_nitrogen, y = root_length),
+             shape = 21, fill = "white", colour = "black", size = 3.5, stroke = 1.5,
+             inherit.aes = FALSE) +
+  scale_fill_viridis_c(option = "plasma",
+                       labels = scales::label_number(accuracy = 0.1)) +
+  labs(x = "Soil nitrogen (g N m⁻³)",
+       y = "Root length (mm)",
+       fill = "GPP\n(kg C yr⁻¹)") +
+  pub_theme
+
+root_length_gradient <- (p_rl_uptake / p_rl_assim) +
+  plot_layout(guides = "collect") +
+  plot_annotation(tag_levels = "A") &
+  theme(legend.position = "right",
+        plot.tag = element_text(size = 22, face = "bold"))
+root_length_gradient
+
+ggsave("plots/10b_root_length_gradient.png",
+       plot = root_length_gradient, width = 12, height = 10, dpi = 300)
 ```
 
 ## Trajectory
@@ -262,7 +570,7 @@ ggsave("vignettes/plots/07_length_no_N_gradient.png",
 soilN_values <- nitrogen_values[seq(1, length(nitrogen_values), length.out = 5)]
 
 # ---- Maximum-Fitness Root Number Trajectory (all ties) ----
-trajectory_max_root_no <- final_df_no_na %>%
+trajectory_max_root_no <- all_rn_df %>%
   filter(soil_nitrogen %in% soilN_values) %>%
   group_by(date, soil_nitrogen) %>%
   slice_max(height, with_ties = TRUE, na_rm = TRUE) %>%
@@ -270,7 +578,7 @@ trajectory_max_root_no <- final_df_no_na %>%
   select(date, soil_nitrogen, root_no)
 
 # ---- Maximum-Fitness Root Length Trajectory (all ties) ----
-trajectory_max_root_length <- final_df_no_na %>%
+trajectory_max_root_length <- all_rl_df %>%
   filter(soil_nitrogen %in% soilN_values) %>%
   group_by(date, soil_nitrogen) %>%
   slice_max(height, with_ties = TRUE, na_rm = TRUE) %>%
@@ -322,10 +630,10 @@ trajectory_with_age <- (p2 / p1) +
   plot_layout(guides = "collect") +
   plot_annotation(tag_levels = "A") &
   theme(legend.position = "right",
-        plot.tag = element_text(size = 13, face = "bold"))
+        plot.tag = element_text(size = 22, face = "bold"))
 trajectory_with_age
 
-ggsave("vignettes/plots/08_trajectory_with_age.png",
+ggsave("plots/08_trajectory_with_age.png",
        plot = trajectory_with_age, width = 12, height = 10, dpi = 300)
 ```
 
@@ -339,7 +647,7 @@ subset_df <- final_df_no_na %>%
 sweep_max_ecm <- subset_df %>%
   group_by(soil_nitrogen, ecto_allo) %>%
   summarise(
-    ectomycorrhiza_mass = max(ectomycorrhiza_mass, na.rm = TRUE),
+    ectomycorrhiza_mass = max(ectomycorrhiza_mass / crown_area, na.rm = TRUE),
     height          = max(height, na.rm = TRUE),
     .groups = "drop"
   )
@@ -369,18 +677,29 @@ p_ecm_mass <- ggplot(heatmap_ecm,
        aes(x = soil_nitrogen,
            y = ectomycorrhiza_mass,
            fill = height)) +
-  geom_tile() +
+  geom_point(shape = 21, size = 3.5, colour = NA) +
   geom_point(data = opt_ecm_mass,
              aes(x = soil_nitrogen, y = ectomycorrhiza_mass),
              shape = 21, fill = "white", colour = "black", size = 3.5,
              stroke = 1.5, inherit.aes = FALSE) +
-  scale_y_log10(labels = scales::label_number(accuracy = 0.001)) +
   scale_fill_viridis_c(option = "cividis", limits = ecm_height_range,
                        labels = scales::label_number(accuracy = 0.1)) +
+  scale_y_log10(labels = scales::label_number(accuracy = 0.001)) +
   labs(
     x = "Soil nitrogen (g N m⁻³)",
-    y = "Ectomycorrhizal\nbiomass (kg)",
+    y = "Ectomycorrhizal biomass\nper crown area (kg m⁻²)",
     fill = "Height (m)"
+  ) +
+  pub_theme
+
+p_ecm_vs_soilN <- ggplot(opt_ecm_mass,
+       aes(x = soil_nitrogen, y = ectomycorrhiza_mass)) +
+  #geom_line(linewidth = 1.2, colour = "#404080") +
+  geom_point(shape = 21, fill = "white", colour = "black", size = 3.5, stroke = 1.5) +
+  scale_y_log10(labels = scales::label_number(accuracy = 0.001)) +
+  labs(
+    x = "Soil nitrogen (g N m⁻³)",
+    y = "Ectomycorrhizal biomass\nper crown area (kg m⁻²)"
   ) +
   pub_theme
 
@@ -406,6 +725,8 @@ p_ecto_allo <- ggplot(heatmap_ecto_allo,
              aes(x = soil_nitrogen, y = ecto_allo),
              shape = 21, fill = "white", colour = "black", size = 3.5,
              stroke = 1.5, inherit.aes = FALSE) +
+  annotate("segment", x = 0, y = 0.30, xend = 2, yend = 0.10,
+           colour = "white", linewidth = 1.2) +
   scale_y_continuous(labels = scales::label_percent()) +
   scale_fill_viridis_c(option = "cividis", limits = ecm_height_range,
                        labels = scales::label_number(accuracy = 0.1)) +
@@ -416,13 +737,865 @@ p_ecto_allo <- ggplot(heatmap_ecto_allo,
   ) +
   pub_theme
 
-ectomycorrhizal_beha_gradient <- (p_ecm_mass / p_ecto_allo) +
+ectomycorrhizal_beha_gradient <- (p_ecm_mass + p_ecm_vs_soilN) / (p_ecto_allo + guide_area()) +
   plot_layout(guides = "collect") +
   plot_annotation(tag_levels = "A") &
   theme(legend.position = "right",
-        plot.tag = element_text(size = 13, face = "bold"))
+        plot.tag = element_text(size = 22, face = "bold"))
 ectomycorrhizal_beha_gradient
 
-ggsave("vignettes/plots/09_ectomycorrhizal_beha_gradient.png",
-       plot = ectomycorrhizal_beha_gradient, width = 12, height = 10, dpi = 300)
+ggsave("plots/09_ectomycorrhizal_beha_gradient.png",
+       plot = ectomycorrhizal_beha_gradient, width = 16, height = 12, dpi = 300)
 ```
+
+## Co-optimised trait optima
+
+```{r joint_optimum}
+# June–August 2021 growing-season mean per parameter combination.
+# Rate variables (N uptake, GPP) are zero in winter (f_temp = 0), so January
+# snapshots understate uptake; seasonal means give a fair comparison.
+joint_gs <- all_joint_df %>%
+  filter(as.integer(format(as.Date(date), "%m")) %in% 6:8,
+         as.integer(format(as.Date(date), "%Y")) == 2021) %>%
+  group_by(soil_nitrogen, ecto_allo, root_no, root_length) %>%
+  summarise(
+    height                     = mean(height,                     na.rm = TRUE),
+    ectomycorrhiza_mass        = mean(ectomycorrhiza_mass,        na.rm = TRUE),
+    ectomycorrhiza_N_biomass   = mean(ectomycorrhiza_N_biomass,   na.rm = TRUE),
+    crown_area                 = mean(crown_area,                 na.rm = TRUE),
+    N_bar                      = mean(N_bar,                      na.rm = TRUE),
+    C_export_to_myco           = mean(C_export_to_myco,           na.rm = TRUE),
+    mycorrhizal_export_to_tree = mean(mycorrhizal_export_to_tree, na.rm = TRUE),
+    root_uptake                = mean(root_uptake,                na.rm = TRUE),
+    assim_gross                = mean(assim_gross,                na.rm = TRUE),
+    .groups = "drop"
+  )
+
+opt_joint <- joint_gs %>%
+  group_by(soil_nitrogen) %>%
+  slice_max(height, n = 1, with_ties = FALSE) %>%
+  ungroup()
+
+# --- Stability bands: all combos within 1% of maximum height per soil N ---
+# This shows how flat the fitness landscape is around each optimum
+stab_joint <- joint_gs %>%
+  group_by(soil_nitrogen) %>%
+  mutate(max_h = max(height, na.rm = TRUE),
+         near_opt = height >= 0.99 * max_h) %>%
+  filter(near_opt) %>%
+  summarise(
+    ecto_lo = min(ecto_allo,   na.rm = TRUE), ecto_hi = max(ecto_allo,   na.rm = TRUE),
+    rn_lo   = min(root_no,     na.rm = TRUE), rn_hi   = max(root_no,     na.rm = TRUE),
+    rl_lo   = min(root_length, na.rm = TRUE), rl_hi   = max(root_length, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+joint_height_range <- range(opt_joint$height, na.rm = TRUE)
+
+shape_vals <- c("Parameters"   = 3, "Model output" = 1)
+ltype_vals <- c("Trend line"   = "dashed")
+
+# Produces a 2-row data frame for a straight trend-line segment
+tl <- function(x1, y1, x2, y2) data.frame(x = c(x1, x2), y = c(y1, y2))
+
+colour_vals <- c("Stability (≥99% of max height)" = "grey70")
+
+shared_scales <- list(
+  scale_shape_manual(values = shape_vals, name = NULL),
+  scale_linetype_manual(values = ltype_vals, name = NULL),
+  scale_colour_manual(values = colour_vals, name = NULL)
+)
+
+# --- Top row: crosses + stability bars, with dashed trend line ---
+p_joint_ecto <- ggplot(opt_joint, aes(x = soil_nitrogen, y = ecto_allo)) +
+  geom_line(data = tl(0, 0.30, 2, 0.05), aes(x = x, y = y, linetype = "Trend line"),
+            colour = "grey40", linewidth = 1.0, inherit.aes = FALSE) +
+  geom_linerange(data = stab_joint, aes(x = soil_nitrogen, ymin = ecto_lo, ymax = ecto_hi,
+                 colour = "Stability (≥99% of max height)"), linewidth = 2, inherit.aes = FALSE) +
+  geom_point(aes(shape = "Parameters"), colour = "black", size = 4, stroke = 1.5) +
+  shared_scales +
+  scale_y_continuous(labels = scales::label_percent()) +
+  labs(x = "Soil nitrogen (g N m⁻³)", y = "Optimal ectomycorrhizal\nallocation (%)") +
+  pub_theme
+
+p_joint_rn <- ggplot(opt_joint, aes(x = soil_nitrogen, y = root_no)) +
+  geom_line(data = tl(0, 3e6, 2, 1e5), aes(x = x, y = y, linetype = "Trend line"),
+            colour = "grey40", linewidth = 1.0, inherit.aes = FALSE) +
+  geom_linerange(data = stab_joint, aes(x = soil_nitrogen, ymin = rn_lo, ymax = rn_hi,
+                 colour = "Stability (≥99% of max height)"), linewidth = 2, inherit.aes = FALSE) +
+  geom_point(aes(shape = "Parameters"), colour = "black", size = 4, stroke = 1.5) +
+  shared_scales +
+  scale_y_log10(labels = scales::label_scientific()) +
+  labs(x = "Soil nitrogen (g N m⁻³)", y = "Optimal root number\nper crown area (no m⁻²)") +
+  pub_theme
+
+p_joint_rl <- ggplot(opt_joint, aes(x = soil_nitrogen, y = root_length)) +
+  geom_line(data = tl(0, 5, 2, 1.2), aes(x = x, y = y, linetype = "Trend line"),
+            colour = "grey40", linewidth = 1.0, inherit.aes = FALSE) +
+  geom_linerange(data = stab_joint, aes(x = soil_nitrogen, ymin = rl_lo, ymax = rl_hi,
+                 colour = "Stability (≥99% of max height)"), linewidth = 2, inherit.aes = FALSE) +
+  geom_point(aes(shape = "Parameters"), colour = "black", size = 4, stroke = 1.5) +
+  shared_scales +
+  labs(x = "Soil nitrogen (g N m⁻³)", y = "Optimal root length (m)") +
+  pub_theme
+
+# --- Middle row: emergent biomass and height ---
+p_joint_ecm <- ggplot(opt_joint, aes(x = soil_nitrogen, y = ectomycorrhiza_mass)) +
+  geom_point(aes(shape = "Model output"), colour = "black", size = 4, stroke = 1.5) +
+  shared_scales +
+  scale_y_log10(labels = scales::label_number(accuracy = 0.001)) +
+  labs(x = "Soil nitrogen (g N m⁻³)", y = "Ectomycorrhizal\nbiomass (kg)") +
+  pub_theme
+
+p_joint_ecm_area <- ggplot(opt_joint, aes(x = soil_nitrogen, y = ectomycorrhiza_mass / crown_area)) +
+  geom_point(aes(shape = "Model output"), colour = "black", size = 4, stroke = 1.5) +
+  shared_scales +
+  scale_y_log10(labels = scales::label_number(accuracy = 0.001)) +
+  labs(x = "Soil nitrogen (g N m⁻³)", y = "Ectomycorrhizal biomass\nper crown area (kg m⁻²)") +
+  pub_theme
+
+p_joint_height <- ggplot(opt_joint, aes(x = soil_nitrogen, y = height)) +
+  geom_point(aes(shape = "Model output"), colour = "black", size = 4, stroke = 1.5) +
+  shared_scales +
+  labs(x = "Soil nitrogen (g N m⁻³)", y = "Height (m)") +
+  pub_theme
+
+# --- Bottom row: N depletion and mycorrhizal economics ---
+p_joint_nbar <- ggplot(opt_joint, aes(x = soil_nitrogen, y = N_bar)) +
+  geom_point(aes(shape = "Model output"), colour = "black", size = 4, stroke = 1.5) +
+  shared_scales +
+  labs(x = "Soil nitrogen (g N m⁻³)",
+       y = expression(bar(N)~"(kg N m"^{-3}*")")) +
+  pub_theme
+
+# Mycorrhizal C:N ratio — same formula as the myco_cn_ratio chunk:
+# C = ectomycorrhiza_mass * 0.44 (carbon fraction of biomass)
+# N = ectomycorrhiza_N_biomass * 0.44 (as computed in gs_eb)
+opt_joint_cn <- opt_joint %>%
+  mutate(CN = ectomycorrhiza_mass * 0.44 /
+              pmax(ectomycorrhiza_N_biomass * 0.44, 1e-12))
+
+p_joint_myco_cn <- ggplot(opt_joint_cn, aes(x = soil_nitrogen, y = CN)) +
+  geom_point(aes(shape = "Model output"), colour = "black", size = 4, stroke = 1.5) +
+  shared_scales +
+  labs(x = "Soil nitrogen (g N m⁻³)",
+       y = "Mycorrhizal C:N ratio\n(kg C kg⁻¹ N)") +
+  pub_theme
+
+p_joint_gpp <- ggplot(opt_joint, aes(x = soil_nitrogen, y = assim_gross / crown_area)) +
+  geom_point(aes(shape = "Model output"), colour = "black", size = 4, stroke = 1.5) +
+  shared_scales +
+  labs(x = "Soil nitrogen (g N m⁻³)",
+       y = "GPP per crown area\n(kg C m⁻² yr⁻¹)") +
+  pub_theme
+
+make_row_title <- function(label) {
+  wrap_elements(
+    grid::textGrob(label,
+                   gp = grid::gpar(fontsize = 20, fontface = "bold"),
+                   hjust = 0.5, x = 0.5)
+  )
+}
+
+# 3×3 layout: A-C parameters, D-F emergent biomass/height, G-I N depletion + economics
+# Stability bands (grey bars) on A-C show the range of params achieving ≥99% of max height
+joint_tags <- list(c("", "A", "B", "C", "", "D", "E", "F", "", "G", "H", "I"))
+
+joint_optima <-
+  make_row_title("Parameters to be Optimised") /
+  (p_joint_ecto | p_joint_rn | p_joint_rl) /
+  make_row_title("Emergent behaviour") /
+  (p_joint_ecm | p_joint_ecm_area | p_joint_height) /
+  make_row_title("N depletion & mycorrhizal economics") /
+  (p_joint_nbar | p_joint_myco_cn | p_joint_gpp) +
+  plot_layout(heights = c(0.07, 1, 0.07, 1, 0.07, 1), guides = "collect") +
+  plot_annotation(tag_levels = joint_tags) &
+  theme(plot.tag       = element_text(size = 22, face = "bold"),
+        legend.text    = element_text(size = 18),
+        legend.key.size = unit(1.2, "lines"),
+        legend.position = "right")
+joint_optima
+
+ggsave("plots/11_joint_optima.png", plot = joint_optima, width = 20, height = 18, dpi = 300)
+```
+
+## Joint optima: trajectories over time
+
+```{r joint_optima_trajectories}
+# Pull the full time series for the optimal parameter combo at each soil N level.
+# opt_joint has one row per soil_nitrogen; inner_join recovers all timesteps for those combos.
+opt_traj <- all_joint_df %>%
+  inner_join(opt_joint %>% select(soil_nitrogen, ecto_allo, root_no, root_length),
+             by = c("soil_nitrogen", "ecto_allo", "root_no", "root_length")) %>%
+  mutate(date       = as.Date(date),
+         CN         = ectomycorrhiza_mass * 0.44 /
+                        pmax(ectomycorrhiza_N_biomass * 0.44, 1e-12),
+         gpp_per_ca = assim_gross / crown_area)
+
+traj_colour <- scale_colour_viridis_c(option = "plasma",
+                                      name   = "Soil N\n(g m⁻³)")
+
+# --- Top row: optimal parameter values (constant per run, coloured by soil N) ---
+p_traj_ecto <- ggplot(opt_traj,
+    aes(x = date, y = ecto_allo, colour = soil_nitrogen, group = factor(soil_nitrogen))) +
+  geom_line(linewidth = 0.8) +
+  traj_colour +
+  scale_y_continuous(labels = scales::label_percent()) +
+  labs(x = NULL, y = "Ectomycorrhizal\nallocation (%)") +
+  pub_theme
+
+p_traj_rn <- ggplot(opt_traj,
+    aes(x = date, y = root_no, colour = soil_nitrogen, group = factor(soil_nitrogen))) +
+  geom_line(linewidth = 0.8) +
+  traj_colour +
+  scale_y_log10(labels = scales::label_scientific()) +
+  labs(x = NULL, y = "Root number\nper crown area (no m⁻²)") +
+  pub_theme
+
+p_traj_rl <- ggplot(opt_traj,
+    aes(x = date, y = root_length, colour = soil_nitrogen, group = factor(soil_nitrogen))) +
+  geom_line(linewidth = 0.8) +
+  traj_colour +
+  labs(x = NULL, y = "Root length (m)") +
+  pub_theme
+
+# --- Middle row: emergent biomass and height ---
+p_traj_ecm <- ggplot(opt_traj,
+    aes(x = date, y = ectomycorrhiza_mass, colour = soil_nitrogen, group = factor(soil_nitrogen))) +
+  geom_line(linewidth = 0.8) +
+  traj_colour +
+  labs(x = NULL, y = "Ectomycorrhizal\nbiomass (kg)") +
+  pub_theme
+
+p_traj_ecm_area <- ggplot(opt_traj,
+    aes(x = date, y = ectomycorrhiza_mass / crown_area,
+        colour = soil_nitrogen, group = factor(soil_nitrogen))) +
+  geom_line(linewidth = 0.8) +
+  traj_colour +
+  labs(x = NULL, y = "Ectomycorrhizal biomass\nper crown area (kg m⁻²)") +
+  pub_theme
+
+p_traj_height <- ggplot(opt_traj,
+    aes(x = date, y = height, colour = soil_nitrogen, group = factor(soil_nitrogen))) +
+  geom_line(linewidth = 0.8) +
+  traj_colour +
+  labs(x = NULL, y = "Height (m)") +
+  pub_theme
+
+# --- Bottom row: N depletion and mycorrhizal economics ---
+p_traj_nbar <- ggplot(opt_traj,
+    aes(x = date, y = N_bar, colour = soil_nitrogen, group = factor(soil_nitrogen))) +
+  geom_line(linewidth = 0.8) +
+  traj_colour +
+  labs(x = NULL, y = expression(bar(N)~"(kg N m"^{-3}*")")) +
+  pub_theme
+
+p_traj_cn <- ggplot(opt_traj,
+    aes(x = date, y = CN, colour = soil_nitrogen, group = factor(soil_nitrogen))) +
+  geom_line(linewidth = 0.8) +
+  traj_colour +
+  labs(x = NULL, y = "Mycorrhizal C:N ratio\n(kg C kg⁻¹ N)") +
+  pub_theme
+
+p_traj_gpp <- ggplot(opt_traj,
+    aes(x = date, y = gpp_per_ca, colour = soil_nitrogen, group = factor(soil_nitrogen))) +
+  geom_line(linewidth = 0.8) +
+  traj_colour +
+  labs(x = NULL, y = "GPP per crown area\n(kg C m⁻² yr⁻¹)") +
+  pub_theme
+
+traj_tags <- list(c("", "A", "B", "C", "", "D", "E", "F", "", "G", "H", "I"))
+
+joint_optima_traj <-
+  make_row_title("Parameters to be Optimised") /
+  (p_traj_ecto | p_traj_rn | p_traj_rl) /
+  make_row_title("Emergent behaviour") /
+  (p_traj_ecm | p_traj_ecm_area | p_traj_height) /
+  make_row_title("N depletion & mycorrhizal economics") /
+  (p_traj_nbar | p_traj_cn | p_traj_gpp) +
+  plot_layout(heights = c(0.07, 1, 0.07, 1, 0.07, 1), guides = "collect") +
+  plot_annotation(tag_levels = traj_tags) &
+  theme(plot.tag        = element_text(size = 22, face = "bold"),
+        legend.text     = element_text(size = 18),
+        legend.key.size = unit(1.2, "lines"),
+        legend.position = "right")
+joint_optima_traj
+
+ggsave("plots/11b_joint_optima_trajectories.png",
+       plot = joint_optima_traj, width = 20, height = 18, dpi = 300)
+```
+
+## Trade offs: Ectomycorrhizal – Uptake and Assimilation
+
+```{r ecto_uptake_assimilation}
+heatmap_ecto_full <- subset_df %>%
+  group_by(soil_nitrogen, ecto_allo) %>%
+  summarise(
+    height          = mean(height, na.rm = TRUE),
+    nitrogen_uptake = mean(root_uptake + mycorrhizal_export_to_tree, na.rm = TRUE),
+    assim_gross     = mean(assim_gross, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+opt_ecto_uptake <- heatmap_ecto_full %>%
+  group_by(soil_nitrogen) %>%
+  slice_max(nitrogen_uptake, n = 1, with_ties = FALSE) %>%
+  ungroup()
+
+opt_ecto_assim <- heatmap_ecto_full %>%
+  group_by(soil_nitrogen) %>%
+  slice_max(assim_gross, n = 1, with_ties = FALSE) %>%
+  ungroup()
+
+p_ecto_allo_uptake <- ggplot(heatmap_ecto_full,
+       aes(x = soil_nitrogen, y = ecto_allo, fill = nitrogen_uptake)) +
+  geom_tile() +
+  geom_point(data = opt_ecto_uptake,
+             aes(x = soil_nitrogen, y = ecto_allo),
+             shape = 21, fill = "white", colour = "black", size = 3.5,
+             stroke = 1.5, inherit.aes = FALSE) +
+  annotate("segment", x = 0, y = 0.30, xend = 2, yend = 0.10,
+           colour = "white", linewidth = 1.2) +
+  scale_y_continuous(labels = scales::label_percent()) +
+  scale_fill_viridis_c(option = "magma",
+                       labels = scales::label_number(accuracy = 0.001)) +
+  labs(
+    x    = "Soil nitrogen (g N m⁻³)",
+    y    = "Ectomycorrhizal\nallocation",
+    fill = "N uptake\n(kg N yr⁻¹)"
+  ) +
+  pub_theme
+
+p_ecto_allo_assim <- ggplot(heatmap_ecto_full,
+       aes(x = soil_nitrogen, y = ecto_allo, fill = assim_gross)) +
+  geom_tile() +
+  geom_point(data = opt_ecto_assim,
+             aes(x = soil_nitrogen, y = ecto_allo),
+             shape = 21, fill = "white", colour = "black", size = 3.5,
+             stroke = 1.5, inherit.aes = FALSE) +
+  annotate("segment", x = 0, y = 0.30, xend = 2, yend = 0.10,
+           colour = "white", linewidth = 1.2) +
+  scale_y_continuous(labels = scales::label_percent()) +
+  scale_fill_viridis_c(option = "plasma",
+                       labels = scales::label_number(accuracy = 0.1)) +
+  labs(
+    x    = "Soil nitrogen (g N m⁻³)",
+    y    = "Ectomycorrhizal\nallocation",
+    fill = "GPP\n(kg C yr⁻¹)"
+  ) +
+  pub_theme
+
+ectomycorrhizal_uptake_assim_gradient <- (p_ecto_allo_uptake / p_ecto_allo_assim) +
+  plot_layout(guides = "collect") +
+  plot_annotation(tag_levels = "A") &
+  theme(legend.position = "right",
+        plot.tag = element_text(size = 22, face = "bold"))
+ectomycorrhizal_uptake_assim_gradient
+
+ggsave("plots/09b_ectomycorrhizal_uptake_assim_gradient.png",
+       plot = ectomycorrhizal_uptake_assim_gradient, width = 12, height = 10, dpi = 300)
+```
+
+## C:N concentration in mycorrhizal exchange
+
+```{r myco_cn_ratio}
+gs_eb <- all_eb_df %>%
+  filter(as.integer(format(as.Date(date), "%m")) %in% 6:8) %>%
+  group_by(soil_nitrogen, ecto_allo) %>%
+  summarise(
+    CN    = mean(ectomycorrhiza_mass * 0.44 / pmax(ectomycorrhiza_N_biomass * 0.44, 1e-12), na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p_cn_scatter <- ggplot(gs_eb,
+       aes(x = soil_nitrogen, y = CN, colour = ecto_allo,
+           group = factor(ecto_allo))) +
+  geom_line(linewidth = 0.8, alpha = 0.8) +
+  geom_point(size = 2.5, alpha = 0.8) +
+  scale_colour_viridis_c(option = "magma",
+                         name   = "Ecto\nallocation",
+                         labels = scales::label_percent()) +
+  labs(
+    x = "Soil nitrogen (g N m⁻³)",
+    y = "Mycorrhizal C:N ratio\n(kg C kg⁻¹ N)"
+  ) +
+  pub_theme
+
+p_cn_scatter
+
+ggsave("plots/10_myco_cn_ratio.png",
+       plot = p_cn_scatter, width = 10, height = 7, dpi = 300)
+```
+
+## Diagnostic: is max_N_transfer the bottleneck?
+
+```{r diag_N_transfer}
+# Use the ecto_allo sweep at a mid-range soil N as representative
+diag_N <- nitrogen_values[ceiling(length(nitrogen_values) / 2)]
+
+diag_df <- all_eb_df %>%
+  filter(abs(soil_nitrogen - diag_N) < 1e-6) %>%
+  mutate(
+    root_diameter_mm  = 0.35 / root_length^0.2,
+    root_SA           = pi * (root_diameter_mm / 1000) * (root_length / 1000) *
+                        root_no * crown_area * lai,
+    max_N_transfer    = 0.5 * 0.9 * root_SA / 12,   # u_transfer * mycorrhized / 12
+    SA_m              = 4 * ectomycorrhiza_mass / (330 * 1e-5)
+  )
+
+# Growing-season (June–August) snapshot: avoids f_temp = 0 in winter
+diag_snap <- diag_df %>%
+  filter(as.integer(format(as.Date(date), "%m")) %in% 6:8,
+         as.integer(format(as.Date(date), "%Y")) == 2021) %>%
+  group_by(ecto_allo) %>%
+  summarise(across(c(myco_uptake, mycorrhizal_export_to_tree, max_N_transfer,
+                     ectomycorrhiza_mass, C_export_to_myco, N_bar, SA_m),
+                   \(x) mean(x, na.rm = TRUE)),
+            .groups = "drop")
+
+# Panel A: N fluxes vs ecto_allo (growing season)
+p_diag1 <- ggplot(diag_snap, aes(x = ecto_allo)) +
+  geom_line(aes(y = myco_uptake,               colour = "U_myco (fungal capture)")) +
+  geom_line(aes(y = mycorrhizal_export_to_tree, colour = "N_export (to tree)")) +
+  geom_line(aes(y = max_N_transfer,             colour = "max_N_transfer (cap)"), linetype = "dashed") +
+  scale_colour_manual(values = c(
+    "U_myco (fungal capture)"  = "#0072B2",
+    "N_export (to tree)"       = "#D55E00",
+    "max_N_transfer (cap)"     = "black"
+  )) +
+  scale_x_continuous(labels = scales::label_percent()) +
+  labs(x = "Ectomycorrhizal allocation", y = "kg N month⁻¹",
+       colour = NULL,
+       title  = paste0("N fluxes (Jun–Aug 2021),\nsoil N = ", round(diag_N, 2), " kg m⁻³")) +
+  pub_theme + theme(legend.position = "bottom", plot.title = element_text(size = 16, face = "bold")) +
+  guides(colour = guide_legend(ncol = 1))
+
+# Panel B: fungal mass and C investment vs ecto_allo
+p_diag2 <- ggplot(diag_snap, aes(x = ecto_allo)) +
+  geom_line(aes(y = ectomycorrhiza_mass, colour = "ECM mass (kg)")) +
+  geom_line(aes(y = C_export_to_myco,   colour = "C export to myco (kg C month⁻¹)")) +
+  scale_colour_manual(values = c(
+    "ECM mass (kg)"                    = "#009E73",
+    "C export to myco (kg C month⁻¹)" = "#CC79A7"
+  )) +
+  scale_x_continuous(labels = scales::label_percent()) +
+  labs(x = "Ectomycorrhizal allocation", y = "kg",
+       colour = NULL,
+       title  = "Fungal mass and C investment\n(Jun–Aug 2021)") +
+  pub_theme + theme(legend.position = "bottom", plot.title = element_text(size = 16, face = "bold")) +
+  guides(colour = guide_legend(ncol = 1))
+
+# Panel C: N_bar (soil N at absorbing surface) — tests diffusion depletion hypothesis
+p_diag3 <- ggplot(diag_snap, aes(x = ecto_allo)) +
+  geom_line(aes(y = N_bar, colour = "N_bar (kg N m⁻³)")) +
+  geom_hline(yintercept = diag_N, linetype = "dashed", colour = "grey50") +
+  annotate("text", x = max(diag_snap$ecto_allo) * 0.05,
+           y = diag_N * 1.05, label = "Soil N_s", hjust = 0, size = 5) +
+  scale_colour_manual(values = c("N_bar (kg N m⁻³)" = "#E69F00")) +
+  scale_x_continuous(labels = scales::label_percent()) +
+  labs(x = "Ectomycorrhizal allocation", y = "kg N m⁻³",
+       colour = NULL,
+       title  = "N at absorbing surface\n— if << N_s, diffusion is limiting") +
+  pub_theme + theme(legend.position = "bottom", plot.title = element_text(size = 16, face = "bold")) +
+  guides(colour = guide_legend(ncol = 1))
+
+# Panel D: time series at mid ecto_allo
+diag_mid_allo <- ecto_allo_values[ceiling(length(ecto_allo_values) / 2)]
+diag_ts <- diag_df %>% filter(abs(ecto_allo - diag_mid_allo) < 1e-6)
+
+p_diag4 <- ggplot(diag_ts, aes(x = as.Date(date))) +
+  geom_line(aes(y = ectomycorrhiza_mass, colour = "ECM mass (kg)")) +
+  geom_line(aes(y = C_export_to_myco,   colour = "C export to myco (kg C month⁻¹)")) +
+  scale_colour_manual(values = c(
+    "ECM mass (kg)"                    = "#009E73",
+    "C export to myco (kg C month⁻¹)" = "#CC79A7"
+  )) +
+  labs(x = "Date", y = "kg",
+       colour = NULL,
+       title  = paste0("ECM mass vs C investment over time\n(ecto_allo = ",
+                       round(diag_mid_allo, 2), ")")) +
+  pub_theme + theme(legend.position = "bottom", plot.title = element_text(size = 16, face = "bold")) +
+  guides(colour = guide_legend(ncol = 1))
+
+diag_combined <- (p_diag1 + p_diag2) / (p_diag3 + p_diag4) +
+  plot_annotation(
+    title   = "Diagnostic: what limits mycorrhizal N return?",
+    caption = paste0("Cap binding: N_export ≈ max_N_transfer & U_myco >> both  |  ",
+                     "Mass-limited: ECM mass tiny despite C investment  |  ",
+                     "Diffusion-limited: N_bar << N_s")
+  )
+diag_combined
+
+ggsave("plots/diag_N_transfer_cap.png",
+       plot = diag_combined, width = 13, height = 10, dpi = 300)
+```
+
+## Diagnostic: root number per crown area
+
+```{r diag_root_no}
+diag_rn_df <- all_rn_df %>%
+  filter(abs(soil_nitrogen - diag_N) < 1e-6) %>%
+  mutate(
+    root_diameter_mm = 0.35 / fixed_root_length^0.2,
+    root_SA          = pi * (root_diameter_mm / 1000) * (fixed_root_length / 1000) *
+                       root_no * crown_area * lai,
+    max_N_transfer   = 0.5 * 0.9 * root_SA / 12
+  )
+
+diag_rn_snap <- diag_rn_df %>%
+  filter(as.integer(format(as.Date(date), "%m")) %in% 6:8,
+         as.integer(format(as.Date(date), "%Y")) == 2021) %>%
+  group_by(root_no) %>%
+  summarise(across(c(root_uptake, mycorrhizal_export_to_tree, max_N_transfer,
+                     root_mass, rr, N_bar, assim_gross),
+                   \(x) mean(x, na.rm = TRUE)),
+            .groups = "drop")
+
+diag_mid_rn    <- root_no_values[ceiling(length(root_no_values) / 2)]
+diag_rn_ts     <- diag_rn_df %>% filter(abs(root_no - diag_mid_rn) < diag_mid_rn * 0.01)
+
+# Panel A: N fluxes vs root_no
+p_rn_diag1 <- ggplot(diag_rn_snap, aes(x = root_no)) +
+  geom_line(aes(y = root_uptake,               colour = "Root uptake")) +
+  geom_line(aes(y = mycorrhizal_export_to_tree, colour = "N_export (to tree)")) +
+  scale_colour_manual(values = c(
+    "Root uptake"        = "#0072B2",
+    "N_export (to tree)" = "#D55E00"
+  )) +
+  scale_x_log10(labels = scales::label_scientific()) +
+  labs(x = "Root number per crown area (m⁻²)", y = "kg N month⁻¹",
+       colour = NULL,
+       title  = paste0("N fluxes (Jun–Aug 2021),\nsoil N = ", round(diag_N, 2), " kg m⁻³")) +
+  pub_theme + theme(legend.position = "bottom", plot.title = element_text(size = 16, face = "bold")) +
+  guides(colour = guide_legend(ncol = 1))
+
+# Panel B: root mass and root respiration vs root_no
+p_rn_diag2 <- ggplot(diag_rn_snap, aes(x = root_no)) +
+  geom_line(aes(y = root_mass, colour = "Root mass (kg C)")) +
+  geom_line(aes(y = rr,        colour = "Root respiration (kg C month⁻¹)")) +
+  scale_colour_manual(values = c(
+    "Root mass (kg C)"                   = "#009E73",
+    "Root respiration (kg C month⁻¹)"   = "#CC79A7"
+  )) +
+  scale_x_log10(labels = scales::label_scientific()) +
+  labs(x = "Root number per crown area (m⁻²)", y = "kg C",
+       colour = NULL,
+       title  = "Root mass and respiration cost\n(Jun–Aug 2021)") +
+  pub_theme + theme(legend.position = "bottom", plot.title = element_text(size = 16, face = "bold")) +
+  guides(colour = guide_legend(ncol = 1))
+
+# Panel C: N_bar vs root_no
+p_rn_diag3 <- ggplot(diag_rn_snap, aes(x = root_no)) +
+  geom_line(aes(y = N_bar, colour = "N_bar (kg N m⁻³)")) +
+  geom_hline(yintercept = diag_N, linetype = "dashed", colour = "grey50") +
+  annotate("text", x = min(diag_rn_snap$root_no) * 1.2,
+           y = diag_N * 1.05, label = "Soil N_s", hjust = 0, size = 5) +
+  scale_colour_manual(values = c("N_bar (kg N m⁻³)" = "#E69F00")) +
+  scale_x_log10(labels = scales::label_scientific()) +
+  labs(x = "Root number per crown area (m⁻²)", y = "kg N m⁻³",
+       colour = NULL,
+       title  = "N at absorbing surface\n— if << N_s, diffusion is limiting") +
+  pub_theme + theme(legend.position = "bottom", plot.title = element_text(size = 16, face = "bold")) +
+  guides(colour = guide_legend(ncol = 1))
+
+# Panel D: time series at mid root_no
+p_rn_diag4 <- ggplot(diag_rn_ts, aes(x = as.Date(date))) +
+  geom_line(aes(y = root_mass, colour = "Root mass (kg C)")) +
+  geom_line(aes(y = rr,        colour = "Root respiration (kg C month⁻¹)")) +
+  scale_colour_manual(values = c(
+    "Root mass (kg C)"                   = "#009E73",
+    "Root respiration (kg C month⁻¹)"   = "#CC79A7"
+  )) +
+  labs(x = "Date", y = "kg C",
+       colour = NULL,
+       title  = paste0("Root mass vs respiration over time\n(root_no = ",
+                       format(round(diag_mid_rn), big.mark = ","), " m⁻²)")) +
+  pub_theme + theme(legend.position = "bottom", plot.title = element_text(size = 16, face = "bold")) +
+  guides(colour = guide_legend(ncol = 1))
+
+diag_rn_combined <- (p_rn_diag1 + p_rn_diag2) / (p_rn_diag3 + p_rn_diag4) +
+  plot_annotation(
+    title   = "Diagnostic: what limits N uptake vs root number?",
+    caption = paste0("Cap binding: N_export ≈ max_N_transfer  |  ",
+                     "Cost-limited: respiration >> benefit  |  ",
+                     "Diffusion-limited: N_bar << N_s")
+  )
+diag_rn_combined
+
+ggsave("plots/diag_root_no.png",
+       plot = diag_rn_combined, width = 13, height = 10, dpi = 300)
+```
+
+## Diagnostic: root length
+
+```{r diag_root_length}
+diag_rl_df <- all_rl_df %>%
+  filter(abs(soil_nitrogen - diag_N) < 1e-6) %>%
+  mutate(
+    root_diameter_mm = 0.35 / root_length^0.2,
+    root_SA          = pi * (root_diameter_mm / 1000) * (root_length / 1000) *
+                       fixed_root_no * crown_area * lai,
+    max_N_transfer   = 0.5 * 0.9 * root_SA / 12
+  )
+
+diag_rl_snap <- diag_rl_df %>%
+  filter(as.integer(format(as.Date(date), "%m")) %in% 6:8,
+         as.integer(format(as.Date(date), "%Y")) == 2021) %>%
+  group_by(root_length) %>%
+  summarise(across(c(root_uptake, mycorrhizal_export_to_tree, max_N_transfer,
+                     root_mass, rr, N_bar, assim_gross),
+                   \(x) mean(x, na.rm = TRUE)),
+            .groups = "drop")
+
+diag_mid_rl <- root_length_values[ceiling(length(root_length_values) / 2)]
+diag_rl_ts  <- diag_rl_df %>% filter(abs(root_length - diag_mid_rl) < 0.01)
+
+# Panel A: N fluxes vs root_length
+p_rl_diag1 <- ggplot(diag_rl_snap, aes(x = root_length)) +
+  geom_line(aes(y = root_uptake,               colour = "Root uptake")) +
+  geom_line(aes(y = mycorrhizal_export_to_tree, colour = "N_export (to tree)")) +
+  scale_colour_manual(values = c(
+    "Root uptake"        = "#0072B2",
+    "N_export (to tree)" = "#D55E00"
+  )) +
+  labs(x = "Root length (mm)", y = "kg N month⁻¹",
+       colour = NULL,
+       title  = paste0("N fluxes (Jun–Aug 2021),\nsoil N = ", round(diag_N, 2), " kg m⁻³")) +
+  pub_theme + theme(legend.position = "bottom", plot.title = element_text(size = 16, face = "bold")) +
+  guides(colour = guide_legend(ncol = 1))
+
+# Panel B: root mass and root respiration vs root_length
+p_rl_diag2 <- ggplot(diag_rl_snap, aes(x = root_length)) +
+  geom_line(aes(y = root_mass, colour = "Root mass (kg C)")) +
+  geom_line(aes(y = rr,        colour = "Root respiration (kg C month⁻¹)")) +
+  scale_colour_manual(values = c(
+    "Root mass (kg C)"                   = "#009E73",
+    "Root respiration (kg C month⁻¹)"   = "#CC79A7"
+  )) +
+  labs(x = "Root length (mm)", y = "kg C",
+       colour = NULL,
+       title  = "Root mass and respiration cost\n(Jun–Aug 2021)") +
+  pub_theme + theme(legend.position = "bottom", plot.title = element_text(size = 16, face = "bold")) +
+  guides(colour = guide_legend(ncol = 1))
+
+# Panel C: N_bar vs root_length
+p_rl_diag3 <- ggplot(diag_rl_snap, aes(x = root_length)) +
+  geom_line(aes(y = N_bar, colour = "N_bar (kg N m⁻³)")) +
+  geom_hline(yintercept = diag_N, linetype = "dashed", colour = "grey50") +
+  annotate("text", x = min(diag_rl_snap$root_length) * 1.05,
+           y = diag_N * 1.05, label = "Soil N_s", hjust = 0, size = 5) +
+  scale_colour_manual(values = c("N_bar (kg N m⁻³)" = "#E69F00")) +
+  labs(x = "Root length (mm)", y = "kg N m⁻³",
+       colour = NULL,
+       title  = "N at absorbing surface\n— if << N_s, diffusion is limiting") +
+  pub_theme + theme(legend.position = "bottom", plot.title = element_text(size = 16, face = "bold")) +
+  guides(colour = guide_legend(ncol = 1))
+
+# Panel D: time series at mid root_length
+p_rl_diag4 <- ggplot(diag_rl_ts, aes(x = as.Date(date))) +
+  geom_line(aes(y = root_mass, colour = "Root mass (kg C)")) +
+  geom_line(aes(y = rr,        colour = "Root respiration (kg C month⁻¹)")) +
+  scale_colour_manual(values = c(
+    "Root mass (kg C)"                   = "#009E73",
+    "Root respiration (kg C month⁻¹)"   = "#CC79A7"
+  )) +
+  labs(x = "Date", y = "kg C",
+       colour = NULL,
+       title  = paste0("Root mass vs respiration over time\n(root_length = ",
+                       round(diag_mid_rl, 2), " mm)")) +
+  pub_theme + theme(legend.position = "bottom", plot.title = element_text(size = 16, face = "bold")) +
+  guides(colour = guide_legend(ncol = 1))
+
+diag_rl_combined <- (p_rl_diag1 + p_rl_diag2) / (p_rl_diag3 + p_rl_diag4) +
+  plot_annotation(
+    title   = "Diagnostic: what limits N uptake vs root length?",
+    caption = paste0("Cap binding: N_export ≈ max_N_transfer  |  ",
+                     "Cost-limited: respiration >> benefit  |  ",
+                     "Diffusion-limited: N_bar << N_s")
+  )
+diag_rl_combined
+
+ggsave("plots/diag_root_length.png",
+       plot = diag_rl_combined, width = 13, height = 10, dpi = 300)
+```
+
+## Data comparison
+
+```{r data_load}
+ecm_data_all <- read.csv(here("RScripts/ecm_root_data_compiled.csv"), stringsAsFactors = FALSE)
+
+# Strip leading ~, <, > from all columns so approximate values become plain numbers
+ecm_data_all <- as.data.frame(lapply(ecm_data_all, function(col) {
+  if (is.character(col)) {
+    cleaned <- gsub("^[~<>]+", "", trimws(col))
+    num <- suppressWarnings(as.numeric(cleaned))
+    if (sum(!is.na(num)) > sum(!is.na(suppressWarnings(as.numeric(col))))) num else col
+  } else col
+}))
+
+# Model is calibrated for Scots pine / boreal evergreen conifer — keep only conifers
+evergreen_conifers <- c("Pinus sylvestris", "Picea abies", "Picea abies (control)",
+                        "Picea glauca", "Picea spp.", "Mixed (Pinus/Picea)")
+ecm_data <- ecm_data_all[ecm_data_all$species %in% evergreen_conifers, ]
+ecm_data <- ecm_data[is.na(ecm_data$soil_CN_ratio) | ecm_data$soil_CN_ratio < 100, ]
+ecm_data$species <- factor(ecm_data$species, levels = evergreen_conifers)
+
+species_colours <- c(
+  "Pinus sylvestris"     = "#E69F00",
+  "Picea abies"          = "#56B4E9",
+  "Picea abies (control)"= "#009E73",
+  "Picea glauca"         = "#F0E442",
+  "Picea spp."           = "#0072B2",
+  "Mixed (Pinus/Picea)"  = "#D55E00"
+)
+species_scale <- scale_colour_manual(name = "Species", values = species_colours,
+                                     drop = FALSE,
+                                     guide = guide_legend(ncol = 3, byrow = TRUE))
+
+# Tip density: convert million m⁻² → m⁻² to match model root_no units
+ecm_data$tip_density_per_m2 <- ecm_data$ecm_tip_density_million_per_m2_soil * 1e6
+```
+
+### Plot 07 A — Root length vs soil N
+*Matches heatmap p2 (y-axis: root length, mm)*
+
+```{r data_07a}
+d_rl <- ecm_data[!is.na(ecm_data$ecm_root_tip_length_mm) &
+                 !is.na(ecm_data$soil_CN_ratio), ]
+
+p_data_rl <- ggplot(d_rl, aes(x = soil_CN_ratio, y = ecm_root_tip_length_mm,
+                               colour = species)) +
+  geom_point(size = 4.5, alpha = 0.8) +
+
+  labs(
+    x = "Soil C:N ratio",
+    y = "ECM root tip\nlength (mm)",
+    colour = "Species"
+  ) +
+  species_scale +
+  pub_theme
+```
+
+### Plot 07 B — Root / tip density vs soil N
+*Matches heatmap p1 (y-axis: root number per crown area, m⁻²)*
+
+```{r data_07b}
+d_td <- ecm_data[!is.na(ecm_data$ecm_tip_density_million_per_m2_BA) &
+                 !is.na(ecm_data$soil_CN_ratio), ]
+
+p_data_td <- ggplot(d_td, aes(x = soil_CN_ratio, y = ecm_tip_density_million_per_m2_BA,
+                               colour = species)) +
+  geom_point(size = 4.5, alpha = 0.8) +
+
+  scale_y_log10(labels = scales::label_scientific()) +
+  labs(
+    x = "Soil C:N ratio",
+    y = "ECM tip density\n(million m⁻² basal area)",
+    colour = "Species"
+  ) +
+  species_scale +
+  pub_theme
+```
+
+### Plot 09 A — ECM mycelium biomass vs soil N
+*Matches heatmap p_ecm_mass (y-axis: ectomycorrhiza_mass)*
+
+```{r data_09a}
+d_ecm <- ecm_data[!is.na(ecm_data$ecm_mycelium_biomass_kg_ha) &
+                  !is.na(ecm_data$soil_CN_ratio), ]
+
+p_data_ecm <- ggplot(d_ecm, aes(x = soil_CN_ratio, y = ecm_mycelium_biomass_kg_ha,
+                                 colour = species)) +
+  geom_point(size = 4.5, alpha = 0.8) +
+
+  scale_y_log10(labels = scales::label_number(accuracy = 1)) +
+  labs(
+    x = "Soil C:N ratio",
+    y = "ECM mycelium\nbiomass (kg ha⁻¹)",
+    colour = "Species"
+  ) +
+  species_scale +
+  pub_theme
+```
+
+### Plot 09 B — ECM root biomass vs soil N
+*Proxy for ectomycorrhizal allocation (p_ecto_allo)*
+
+```{r data_09b}
+d_ecmr <- ecm_data[!is.na(ecm_data$ecm_root_biomass_kg_per_m2_basal_area) &
+                   !is.na(ecm_data$soil_CN_ratio), ]
+
+p_data_ecmr <- ggplot(d_ecmr, aes(x = soil_CN_ratio,
+                                    y = ecm_root_biomass_kg_per_m2_basal_area,
+                                    colour = species)) +
+  geom_point(size = 4.5, alpha = 0.8) +
+
+  labs(
+    x = "Soil C:N ratio",
+    y = "ECM root biomass\n(kg m⁻² basal area)",
+    colour = "Species"
+  ) +
+  species_scale +
+  pub_theme
+```
+
+### ECM colonisation percentage vs soil N
+
+```{r data_colonisation}
+d_col_plot <- ecm_data[!is.na(ecm_data$ecm_colonisation_pct) &
+                        !is.na(ecm_data$soil_CN_ratio), ]
+
+p_data_col <- ggplot(d_col_plot, aes(x = soil_CN_ratio, y = ecm_colonisation_pct,
+                                      colour = species)) +
+  geom_point(size = 4.5, alpha = 0.8) +
+
+  coord_cartesian(ylim = c(NA, 100)) +
+  labs(
+    x      = "Soil C:N ratio",
+    y      = "ECM colonisation (%)",
+    colour = "Species"
+  ) +
+  theme(legend.text = element_text(size = 12),
+        legend.title = element_text(size = 13)) +
+  pub_theme
+```
+
+```{r data_combined}
+# Standalone legend using all species so the hash is consistent
+legend_plot <- ggplot(
+    data.frame(species = factor(evergreen_conifers, levels = evergreen_conifers)),
+    aes(x = 1, y = 1, colour = species)) +
+  geom_point(alpha = 0) +
+  species_scale +
+  theme_void() +
+  theme(legend.position   = c(0.5, 0.5),
+        legend.text       = element_text(size = 22),
+        legend.title      = element_text(size = 24, face = "bold"),
+        legend.key.size   = unit(1.5, "lines"),
+        axis.text.x       = element_blank(),
+        axis.text.y       = element_blank(),
+        axis.title.x      = element_blank(),
+        axis.title.y      = element_blank(),
+        axis.ticks        = element_blank(),
+        panel.background  = element_blank()) +
+  guides(colour = guide_legend(ncol = 1,
+                               override.aes = list(alpha = 1, size = 5)))
+
+data_combined <- wrap_plots(
+  p_data_rl   + theme(legend.position = "none"),
+  p_data_td   + theme(legend.position = "none"),
+  p_data_ecm  + theme(legend.position = "none"),
+  p_data_ecmr + theme(legend.position = "none"),
+  p_data_col  + theme(legend.position = "none"),
+  legend_plot,
+  ncol = 3
+) + plot_annotation(tag_levels = list(c("A","B","C","D","E",""))) &
+  theme(plot.tag   = element_text(size = 28, face = "bold"),
+        axis.text  = element_text(size = 24),
+        axis.title = element_text(size = 26, face = "bold"))
+data_combined
+
+ggsave("plots/data_combined.png",
+       plot = data_combined, width = 24, height = 14, dpi = 300)
+```
+
