@@ -37,9 +37,7 @@ double Assimilator::leaf_respiration_rate(PlantArchitecture* G, PlantParameters&
 
 // rate adjusted for time unit
 double Assimilator::root_respiration_rate(PlantArchitecture* G, PlantParameters& par, PlantTraits& traits){
-  // (par.rr * par.years_per_tunit_avg) * G->root_mass(traits)
-  double gpp_annual = plant_assim.gpp / par.years_per_tunit_avg;
-	return (par.rr * par.years_per_tunit_avg) * G->root_mass(traits) * (gpp_annual / G->crown_area);
+	return (par.rr * par.years_per_tunit_avg) * G->root_mass(traits);
 }
 
 // cost for the root arhcitexture optimisation
