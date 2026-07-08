@@ -188,29 +188,23 @@ void PlantArchitecture::dmyco_dt(
     double max_N_transfer,
     const PlantParameters& par
 ) {
-  // --- Carbon-driven potential growth ---
+  // Growth is purely C-driven (exudates from tree determine biomass accumulation)
   double growth_C_potential = exudates * traits.mycorrhizal_biomass_conversion * 0.44;
-  
-  // --- Nitrogen demand ---
-  double N_needed = growth_C_potential * traits.nc_myco;
-  
-  // --- Nitrogen availability ---
-  // Free pool mobilised at k_mob_N (yr-1), independent of structural turnover,
-  // so accumulated un-exported N is fully accessible each timestep.
+
+  // N availability: current uptake + mobilisation from labile free pool
   double N_pool_rate = std::max(0.0, ectomycorrhiza_N_free) * traits.k_mob_N * par.years_per_tunit_avg;
-  double N_available = N_pool_rate + U_myco;  // both kg N / time_unit
+  double N_available  = N_pool_rate + U_myco;
 
-  // 1. Growth has priority: fungi build biomass first
-  double fN = (N_needed > 0.0) ? std::min(1.0, N_available / N_needed) : 1.0;
-  double N_used_for_growth = growth_C_potential * fN * traits.nc_myco;
+  // Flexible stoichiometry: incorporate as much N as available, up to stoichiometric demand.
+  // When N-poor, fungi build C-rich tissue (high C:N); when N-rich, C:N approaches 1/nc_myco.
+  double N_incorporated = std::min(N_available, growth_C_potential * traits.nc_myco);
 
-  // 2. Export gets what remains, capped at membrane transfer limit
-  double N_remaining = std::max(0.0, N_available - N_used_for_growth);
+  // Surplus N after growth is exported to the tree
+  double N_remaining = std::max(0.0, N_available - N_incorporated);
   N_export = std::min(N_remaining * mycorrhizal_root_reduction, max_N_transfer);
-  
-  dmass_myco_dt = growth_C_potential * fN - ectomycorrhiza_mass * traits.mycorrhizal_turnover * par.years_per_tunit_avg;
-  // kg biomass
-  dN_myco_dt_free = U_myco - growth_C_potential * fN * traits.nc_myco - N_export + ectomycorrhiza_mass * traits.nc_myco * traits.mycorrhizal_turnover * traits.k_14 * par.years_per_tunit_avg;
+
+  dmass_myco_dt    = growth_C_potential - ectomycorrhiza_mass * traits.mycorrhizal_turnover * par.years_per_tunit_avg;
+  dN_myco_dt_free  = U_myco - N_incorporated - N_export + ectomycorrhiza_mass * traits.nc_myco * traits.mycorrhizal_turnover * traits.k_14 * par.years_per_tunit_avg;
 }
 
 double PlantArchitecture::coarse_root_mass(const PlantTraits& traits) const{
