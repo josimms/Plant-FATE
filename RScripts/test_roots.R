@@ -2623,7 +2623,130 @@ original_life_histroy <- function() {
   par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
   plot(0, 0, type = "n", bty = "n", xaxt = "n", yaxt = "n")
   legend("bottom", horiz = TRUE, bty = "n", cex = cex_legend,
-         legend = N_labels, col = cols[c(1, 3)], lty = 1, lwd = rep(lwd_model, 2))
+         legend = c(N_labels, "Range of realistic boreal observations"),
+         col = c(cols[c(1, 3)], col_range),
+         lty = 1, lwd = c(rep(lwd_model, 2), lwd_obs))
+  dev.off()11
+}
+
+# ----------------------------
+# lh_11: N_bar vs bulk soil N (N_s)
+# Shows whether the depleted-surface N tracks bulk soil N
+# ----------------------------
+plot_Nbar_vs_Ns <- function() {
+  # --- Model parameters (from p_test_boreal.ini) ---
+  u_max       <- 0.088     # kg N m-2 yr-1  (maximum surface uptake rate)
+  D_diff      <- 0.01      # m2 yr-1        (N diffusion coefficient)
+  k_13        <- 2.5       # zone radius = k_13 * crown_radius
+  k_15        <- 0.05      # kg N m-3       (Michaelis-Menten half-saturation)
+  depth       <- 1.5       # m              (soil depth)
+  rho_myco    <- 330       # kg m-3
+  myco_d      <- 1e-5      # m              (ECM hypha diameter)
+  mycorrhized <- 0.9       # fraction of roots colonised by ECM
+
+  # --- Analytical N_bar (mirrors uptake.cpp::compute_N_bar) ---
+  N_bar_analytic <- function(N_s, SA_active, A_zone, r_zone) {
+    if (SA_active <= 0 || A_zone <= 0) return(N_s)
+    alpha <- u_max * SA_active * r_zone / (D_diff * A_zone)
+    b     <- N_s - k_15 - alpha
+    disc  <- sqrt(b^2 + 4 * k_15 * N_s)
+    ifelse(b >= 0, 0.5 * (b + disc), 2 * k_15 * N_s / (disc - b))
+  }
+
+  # --- Zone geometry (mirrors uptake.cpp::uptake_core) ---
+  zone_geom <- function(crown_area) {
+    cr <- sqrt(crown_area / pi)
+    R  <- k_13 * cr
+    if (R > depth) {
+      e      <- sqrt(R^2 - depth^2)
+      A_zone <- pi * R^2 + pi * (depth^2 / e) * log((R + e) / depth)
+    } else {
+      A_zone <- pi * R^2 + pi * R * depth
+    }
+    list(R = R, A_zone = A_zone)
+  }
+
+  # --- SA_active computation ---
+  # SA_fr: fine root surface area = pi * root_d * root_length * root_no * crown_area * lai
+  k_1         <- 0.35   # root diameter parameter
+  root_no_val <- 3e5
+  root_len_val <- 1.5   # mm
+  lai_val      <- 3
+  root_d_mm    <- k_1 / sqrt(root_len_val)
+  SA_fr_per_m2 <- pi * (root_d_mm / 1000) * (root_len_val / 1000) * root_no_val * lai_val
+
+  SA_active_for_stage <- function(crown_area, ecto_mass) {
+    SA_fr <- SA_fr_per_m2 * crown_area
+    SA_m  <- 4 * max(0, ecto_mass) / (rho_myco * myco_d)
+    (1 - mycorrhized) * SA_fr + SA_m
+  }
+
+  # --- Tree stages (crown_area m², ecto_mass kg) ---
+  stages <- list(
+    list(label = "Seedling (no ECM)",     crown = 0.05,  ecto = 0,    lty = 1),
+    list(label = "Young tree (ECM 0.01 kg)", crown = 1.0, ecto = 0.01, lty = 2),
+    list(label = "Mature tree (ECM 0.1 kg)", crown = 10.0, ecto = 0.1, lty = 4)
+  )
+  stage_cols <- c("#888888", "#E69F00", "#0072B2")
+
+  # --- N_s sweep ---
+  N_s_vec <- seq(0.001, 2.0, length.out = 300)
+
+  # --- Simulation end-point data (median of last 20% of each run) ---
+  last_n <- function(d) {
+    idx <- ceiling(0.8 * nrow(d)):nrow(d)
+    median(d$N_bar[idx], na.rm = TRUE)
+  }
+  sim_pts <- data.frame(
+    N_s   = c(1.65, 0.5, 0.1),
+    N_bar = c(last_n(df), last_n(df_2), last_n(df_3)),
+    col   = c("#0072B2", "#E69F00", "#D55E00")
+  )
+
+  # --- Plot ---
+  png("RScripts/plots/lh_11_Nbar_vs_Ns.png", width = 7, height = 6,
+      units = "in", res = 300)
+  par(mar = c(5, 6, 3, 1), family = "serif", las = 1, tcl = -0.4, mgp = c(4, 1, 0))
+
+  plot(N_s_vec, N_s_vec, type = "n",
+       xlim = c(0, 2), ylim = c(0, 2),
+       xlab = expression(N[s]~"(kg N m"^{-3}*")"),
+       ylab = expression(bar(N)~"(kg N m"^{-3}*")"),
+       main = expression("Depletion: surface N ("*bar(N)*") vs bulk soil N ("*N[s]*")"),
+       cex.axis = 1, cex.lab = 1.1, cex.main = 1)
+
+  # 1:1 reference line (no depletion)
+  abline(0, 1, lty = 2, col = "grey40", lwd = 1.5)
+  text(1.85, 1.95, expression(bar(N)*" = "*N[s]), col = "grey40", cex = 0.85, adj = c(1, 1))
+
+  # Analytical curves per tree stage
+  for (k in seq_along(stages)) {
+    s    <- stages[[k]]
+    geom <- zone_geom(s$crown)
+    SA   <- SA_active_for_stage(s$crown, s$ecto)
+    N_bar_curve <- sapply(N_s_vec, function(ns)
+      N_bar_analytic(ns, SA, geom$A_zone, geom$R))
+    lines(N_s_vec, N_bar_curve, col = stage_cols[k], lwd = 2, lty = s$lty)
+  }
+
+  # Simulation steady-state points
+  points(sim_pts$N_s, sim_pts$N_bar,
+         col = sim_pts$col, pch = 17, cex = 1.4)
+
+  # Vertical reference lines for simulated N_s values
+  abline(v = c(0.1, 0.5, 1.65), lty = 3, col = "grey70", lwd = 0.8)
+
+  legend("topleft", bty = "n", cex = 0.85,
+         legend = c(expression(bar(N)*" = "*N[s]*" (no depletion)"),
+                    sapply(stages, "[[", "label"),
+                    "Simulation steady-state"),
+         col  = c("grey40", stage_cols, "grey20"),
+         lty  = c(2, sapply(stages, "[[", "lty"), NA),
+         pch  = c(NA, NA, NA, NA, 17),
+         lwd  = c(1.5, 2, 2, 2, NA))
+
+  box(bty = "l")
   dev.off()
+  message("Saved: RScripts/plots/lh_11_Nbar_vs_Ns.png")
 }
 
