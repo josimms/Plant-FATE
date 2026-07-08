@@ -17,8 +17,11 @@ inline void print_phydro(const phydro::PHydroResultNitrogen& res, std::string s)
 // **
 template<class _Climate>
 phydro::PHydroResultNitrogen Assimilator::leaf_assimilation_rate(double fipar, double fapar, _Climate& C, PlantParameters& par, PlantTraits& traits, PlantArchitecture* G, double t){
-  double effective_alpha = G->using_Ib ? par.alpha_ib * par.alpha : par.alpha;
-  double infrastructure = G->using_Ib ? G->I_b + effective_alpha : 1;
+  double effective_alpha = par.alpha;
+  // MM form with decoupled coefficient: cost = alpha / (1 + I_b/alpha_ib).
+  // At I_b=0: cost=alpha (same as no-I_b baseline). Marginal benefit of roots is larger at
+  // low I_b (N-limited) than high I_b, giving the correct investment direction.
+  double infrastructure = G->using_Ib ? (1.0 + G->I_b / par.alpha_ib) : 1;
 
   phydro::ParCostNitrogen par_cost(effective_alpha, par.gamma, infrastructure);
 	phydro::ParPlant par_plant(traits.K_leaf, traits.p50_leaf, traits.b_leaf);
