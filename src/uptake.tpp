@@ -42,16 +42,11 @@ void Uptake::nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& p
   // UPTAKE ROOTS
   G.nitrogen_uptake_roots = age_factor * (1.0 - mycorrhized) * U_root;
 
-  // I_b: use the N actually delivered by the fungal network on the previous
-  // timestep (G.N_export) rather than the current-step soil uptake estimate.
-  // G.N_export already carries age_factor * m * f_temp via mycorrhizal_root_reduction,
-  // so only the direct-root term needs age_factor applied here.
-  // The mobilisable fraction of the tree's N store is also included: a plant with
-  // accumulated N reserves can sustain stomatal opening beyond what current uptake alone
-  // would allow.
+  // I_b: current-timestep N flux from roots and mycorrhiza only (no N store).
+  // Excluding the N store lets I_b reflect actual soil N supply, which varies
+  // meaningfully between low-N and high-N conditions.
   {
-    double N_store_rate = T.k_mob_N * std::max(G.nitrogen_tree, 0.0) * par.years_per_tunit_avg;
-    double N_eff = G.nitrogen_uptake_roots + G.N_export + N_store_rate;
+    double N_eff = G.nitrogen_uptake_roots + G.N_export;
     I_b = std::max(N_eff / G.crown_area, 1e-10);
   }
 
