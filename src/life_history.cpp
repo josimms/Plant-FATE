@@ -171,6 +171,8 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
 		, "leaf_mass"
 		, "root_mass"
     , "ectomycorrhiza_mass"
+    , "ectomycorrhiza_N_free"
+    , "ectomycorrhiza_N_biomass"
 		, "stem_mass"
 		, "coarse_root_mass"
 		, "total_mass"
@@ -236,6 +238,8 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
 		, P.geometry.leaf_mass(P.traits)
 		, P.geometry.root_mass(P.traits)
     , P.geometry.ectomycorrhiza_mass
+    , P.geometry.ectomycorrhiza_N_free
+    , P.geometry.ectomycorrhiza_mass * 0.44 * P.traits.nc_myco
 		, P.geometry.stem_mass(P.traits)
 		, P.geometry.coarse_root_mass(P.traits)
 		, P.get_biomass()
