@@ -89,6 +89,7 @@ RCPP_MODULE(plantfate_module){
 	class_ <plant::PlantParameters>("PlantParameters")
 		.field("rs",       &plant::PlantParameters::rs)
 		.field("rr",       &plant::PlantParameters::rr)
+		.field("r_myco",   &plant::PlantParameters::r_myco)
 		// Tier 2: infrastructure cost in phydro objective
 		.field("alpha_ib", &plant::PlantParameters::alpha_ib)
 		.field("cD0",      &plant::PlantParameters::cD0)

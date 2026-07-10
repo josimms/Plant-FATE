@@ -39,8 +39,9 @@ class PlantArchitecture{
 	double diameter;             ///< basal diameter (diameter at ground level)
 	double root_no;              ///< Number of root tips [no]
 	double root_length;          ///< Root length, [mm]
-	double ectomycorrhiza_mass;  ///< Mycorrhizal biomass [kg]
-	double ectomycorrhiza_N_free;  ///< Mycorrhizal free nitrogen [kg]
+	double ectomycorrhiza_mass;    ///< Mycorrhizal biomass [kg C equivalent]
+	double ectomycorrhiza_N_free;  ///< Mycorrhizal labile N pool [kg N]
+	double ectomycorrhiza_C_free;  ///< Mycorrhizal labile C pool [kg C] — accumulates when N limits growth
 	
 	// nitrogen state
 	double nitrogen_tree;                ///< Nitrogen in the tree [g] TODO: is this in kg rather than g
@@ -61,7 +62,8 @@ class PlantArchitecture{
 	double I_b = 1.0;                    ///< Belowground infrastructure index [m] (Eq. belowground_infra)
 	bool using_Ib = false;               ///< Mirror of Uptake::using_Ib; set each timestep before assimilation
 	double dmass_myco_dt;                ///< Mycorrhizal mass difference [kg C per time unit]
-	double dN_myco_dt_free;              ///< Nitrogen free changed [kg N per time unit]
+	double dN_myco_dt_free;              ///< Rate of change of labile N in mycorrhiza [kg N per time unit]
+	double dC_myco_dt_free;              ///< Rate of change of labile C in mycorrhiza [kg C per time unit]
 	
 	// ode-based calculations of sapwood and heartwood (for debug)
 	double sap_frac_ode = 1;

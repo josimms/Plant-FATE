@@ -37,8 +37,9 @@ class Plant{
 		// double dseeds_dt_pool;
 		// double dseeds_dt_germ;
 		double dnitrogen_dt_free;  ///< Nitrogen free rate of change in tree
-		double dmass_myco_dt;   ///< Rate of change of mycorrhizal biomass
-		double dN_myco_dt_free; ///< Rate of change of free nitrogen in mycorrhiza
+		double dmass_myco_dt;      ///< Rate of change of mycorrhizal biomass
+		double dN_myco_dt_free;    ///< Rate of change of labile N in mycorrhiza
+		double dC_myco_dt_free;    ///< Rate of change of labile C in mycorrhiza
 	} rates;
 
 	/// @brief Mortality components

@@ -158,6 +158,7 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
 		, "rl"
 		, "rr"
 		, "rs"
+		, "r_myco"
 		, "tl"
 		, "tr"
 		, "dpsi"
@@ -172,6 +173,7 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
 		, "root_mass"
     , "ectomycorrhiza_mass"
     , "ectomycorrhiza_N_free"
+    , "ectomycorrhiza_C_free"
     , "ectomycorrhiza_N_biomass"
 		, "stem_mass"
 		, "coarse_root_mass"
@@ -225,6 +227,7 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
 		, P.assimilator.plant_assim.rleaf
 		, P.assimilator.plant_assim.rroot
 		, P.assimilator.plant_assim.rstem
+		, P.par.r_myco * std::max(0.0, P.geometry.ectomycorrhiza_mass) * P.par.years_per_tunit_avg
 		, P.assimilator.plant_assim.tleaf
 		, P.assimilator.plant_assim.troot
 		, P.assimilator.plant_assim.dpsi_avg
@@ -239,6 +242,7 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
 		, P.geometry.root_mass(P.traits)
     , P.geometry.ectomycorrhiza_mass
     , P.geometry.ectomycorrhiza_N_free
+    , P.geometry.ectomycorrhiza_C_free
     , P.geometry.ectomycorrhiza_mass * 0.44 * P.traits.nc_myco
 		, P.geometry.stem_mass(P.traits)
 		, P.geometry.coarse_root_mass(P.traits)
@@ -308,6 +312,7 @@ void LifeHistoryOptimizer::set_state(vector<double>::iterator it){
 	P.state.mortality = *it++;
 	P.geometry.ectomycorrhiza_mass      = *it++;
 	P.geometry.ectomycorrhiza_N_free    = *it++;
+	P.geometry.ectomycorrhiza_C_free    = *it++;
 	P.set_nitrogen(*it++);
 }
 
@@ -322,6 +327,7 @@ void LifeHistoryOptimizer::get_rates(vector<double>::iterator it){
 	*it++ = P.rates.dmort_dt;
 	*it++ = P.rates.dmass_myco_dt;
 	*it++ = P.rates.dN_myco_dt_free;
+	*it++ = P.rates.dC_myco_dt_free;
 	*it++ = P.rates.dnitrogen_dt_free;
 }
 
@@ -352,10 +358,11 @@ void LifeHistoryOptimizer::grow_for_dt(double t, double dt){
 		get_rates(dSdt.begin());
 		};
 
-	std::vector<double> S = {P.geometry.lai, P.geometry.get_size(), 
-                          prod, litter_pool, rep, seeds, P.state.mortality, 
+	std::vector<double> S = {P.geometry.lai, P.geometry.get_size(),
+                          prod, litter_pool, rep, seeds, P.state.mortality,
                           P.geometry.ectomycorrhiza_mass,
                           P.geometry.ectomycorrhiza_N_free,
+                          P.geometry.ectomycorrhiza_C_free,
                           P.geometry.nitrogen_tree};
 	RK4(t, dt, S, derivs);
 	//Euler(t, dt, S, derivs);

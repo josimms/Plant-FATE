@@ -208,6 +208,7 @@ void PlantParameters::init(io::Initializer& I){
 	rd                 = I.get<double>("rd");
 	rr                 = I.get<double>("rr");
 	rs                 = I.get<double>("rs");
+	r_myco             = I.get<double>("r_myco");
 	p50x_cost          = I.get<double>("p50x_cost");
 
 	cbio               = I.get<double>("cbio");
