@@ -61,10 +61,10 @@ testing_mode <- TRUE
 plan(multicore, workers = parallel::detectCores() - 1)
 
 # Parameter ranges
-n_pts_main  <- if (testing_mode) 10 else 21
+n_pts_main  <- if (testing_mode) 15 else 21
 n_pts_joint <- if (testing_mode) 5  else 8   # per-axis for 3D co-optimisation sweep
 
-nitrogen_values <- seq(0.01, 2.0, length.out = n_pts_main)
+nitrogen_values <- seq(0.01, 10.0, length.out = n_pts_main)
 
 # Joint co-optimisation grid (coarser to keep run count tractable)
 joint_ecto_allo_values    <- seq(0.0,  0.3, length.out = n_pts_joint)
@@ -163,15 +163,23 @@ joint_gs <- all_joint_df %>%
     height                     = mean(height,                     na.rm = TRUE),
     ectomycorrhiza_mass        = mean(ectomycorrhiza_mass,        na.rm = TRUE),
     ectomycorrhiza_N_biomass   = mean(ectomycorrhiza_N_biomass,   na.rm = TRUE),
+    ectomycorrhiza_C_free      = mean(ectomycorrhiza_C_free,      na.rm = TRUE),
+    ectomycorrhiza_N_free      = mean(ectomycorrhiza_N_free,      na.rm = TRUE),
     crown_area                 = mean(crown_area,                 na.rm = TRUE),
     N_bar                      = mean(N_bar,                      na.rm = TRUE),
     C_export_to_myco           = mean(C_export_to_myco,           na.rm = TRUE),
     mycorrhizal_export_to_tree = mean(mycorrhizal_export_to_tree, na.rm = TRUE),
     root_uptake                = mean(root_uptake,                na.rm = TRUE),
+    myco_uptake                = mean(myco_uptake,                na.rm = TRUE),
     assim_gross                = mean(assim_gross,                na.rm = TRUE),
     optimal_leaf_nitrogen      = mean(optimal_leaf_nitrogen,      na.rm = TRUE),
     leaf_nitrogen_concentration = mean(leaf_nitrogen_concentration, na.rm = TRUE),
     tree_nitrogen               = mean(tree_nitrogen,              na.rm = TRUE),
+    root_mass                   = mean(root_mass,                  na.rm = TRUE),
+    coarse_root_mass            = mean(coarse_root_mass,           na.rm = TRUE),
+    total_mass                  = mean(total_mass,                 na.rm = TRUE),
+    fineroot_lifespan           = mean(fineroot_lifespan,          na.rm = TRUE),
+    total_prod                  = mean(total_prod,                 na.rm = TRUE),
     .groups = "drop"
   )
 
@@ -187,6 +195,7 @@ opt_joint <- joint_gs %>%
   ) %>%
   slice_max(height, n = 1, with_ties = FALSE) %>%
   ungroup()
+
 
 # --- Stability bands: all combos within 1% of maximum height per soil N ---
 # This shows how flat the fitness landscape is around each optimum
@@ -204,7 +213,7 @@ stab_joint <- joint_gs %>%
 
 joint_height_range <- range(opt_joint$height, na.rm = TRUE)
 
-shape_vals <- c("Optimal parameters" = 3, "Model output" = 1)
+shape_vals <- c("Optimal parameters" = 3, "Model output" = 1, "Calculated" = 18)
 ltype_vals <- c("Trend line"   = "dashed")
 
 # Produces a 2-row data frame for a straight trend-line segment
@@ -257,6 +266,20 @@ p_joint_rl <- ggplot(opt_joint, aes(x = soil_nitrogen, y = root_length)) +
   labs(tag = "C", x = "Soil nitrogen (g N m⁻³)", y = "Optimal root length (m)") +
   pub_theme
 
+p_joint_total_bga <- ggplot(
+    opt_joint,
+    aes(x = soil_nitrogen,
+        y = (C_export_to_myco + root_mass * 0.44 / fineroot_lifespan) / total_prod)
+  ) +
+  geom_ribbon(data = stab_outputs, aes(x = soil_nitrogen, ymin = bga_lo, ymax = bga_hi),
+              fill = "grey80", colour = NA, inherit.aes = FALSE) +
+  geom_point(aes(shape = "Calculated"), colour = "black", size = 4, stroke = 1.5) +
+  shared_scales +
+  expand_limits(y = 0) +
+  labs(tag = "D", x = "Soil nitrogen (g N m⁻³)",
+       y = "Total belowground C\nallocation (fraction NPP)") +
+  pub_theme
+
 # --- IQR ribbon across near-optimal combos (≥99% of max height) for panels D–I ---
 # Ribbon shows spread of each output across the stability band;
 # dots remain at the single height-maximising parameter combo.
@@ -274,8 +297,8 @@ stab_outputs <- joint_gs %>%
     height_hi     = max(height, na.rm = TRUE),
     nbar_lo       = min(N_bar, na.rm = TRUE),
     nbar_hi       = max(N_bar, na.rm = TRUE),
-    cn_lo         = min(ectomycorrhiza_mass * 0.44 / pmax(ectomycorrhiza_N_biomass, 1e-12), na.rm = TRUE),
-    cn_hi         = max(ectomycorrhiza_mass * 0.44 / pmax(ectomycorrhiza_N_biomass, 1e-12), na.rm = TRUE),
+    cn_lo         = min((ectomycorrhiza_mass * 0.44 + ectomycorrhiza_C_free) / pmax(ectomycorrhiza_N_biomass + ectomycorrhiza_N_free, 1e-12), na.rm = TRUE),
+    cn_hi         = max((ectomycorrhiza_mass * 0.44 + ectomycorrhiza_C_free) / pmax(ectomycorrhiza_N_biomass + ectomycorrhiza_N_free, 1e-12), na.rm = TRUE),
     gpp_lo        = min(assim_gross / crown_area, na.rm = TRUE),
     gpp_hi        = max(assim_gross / crown_area, na.rm = TRUE),
     n_upper_lo    = min(leaf_nitrogen_concentration, na.rm = TRUE),
@@ -284,13 +307,15 @@ stab_outputs <- joint_gs %>%
     n_realised_hi = max(optimal_leaf_nitrogen, na.rm = TRUE),
     n_free_lo     = min(tree_nitrogen, na.rm = TRUE),
     n_free_hi     = max(tree_nitrogen, na.rm = TRUE),
+    bga_lo        = min((C_export_to_myco + root_mass * 0.44 / fineroot_lifespan) / total_prod, na.rm = TRUE),
+    bga_hi        = max((C_export_to_myco + root_mass * 0.44 / fineroot_lifespan) / total_prod, na.rm = TRUE),
     .groups = "drop"
   )
 
-# Mycorrhizal structural C:N at the optimal combo
+# Mycorrhizal total C:N (structural + labile pools) at the optimal combo
 opt_joint_cn <- opt_joint %>%
-  mutate(CN = ectomycorrhiza_mass * 0.44 /
-              pmax(ectomycorrhiza_N_biomass, 1e-12))
+  mutate(CN = (ectomycorrhiza_mass * 0.44 + ectomycorrhiza_C_free) /
+              pmax(ectomycorrhiza_N_biomass + ectomycorrhiza_N_free, 1e-12))
 
 # --- Middle row: emergent biomass and height ---
 p_joint_ecm <- ggplot(opt_joint, aes(x = soil_nitrogen, y = ectomycorrhiza_mass)) +
@@ -299,7 +324,7 @@ p_joint_ecm <- ggplot(opt_joint, aes(x = soil_nitrogen, y = ectomycorrhiza_mass)
   geom_point(aes(shape = "Model output"), colour = "black", size = 4, stroke = 1.5) +
   shared_scales +
   scale_y_continuous(labels = scales::label_scientific()) +
-  labs(tag = "D", x = "Soil nitrogen (g N m⁻³)", y = "Ectomycorrhizal\nbiomass (kg)") +
+  labs(tag = "E", x = "Soil nitrogen (g N m⁻³)", y = "Ectomycorrhizal\nbiomass (kg)") +
   pub_theme
 
 p_joint_ecm_area <- ggplot(opt_joint, aes(x = soil_nitrogen, y = ectomycorrhiza_mass / crown_area)) +
@@ -308,7 +333,7 @@ p_joint_ecm_area <- ggplot(opt_joint, aes(x = soil_nitrogen, y = ectomycorrhiza_
   geom_point(aes(shape = "Model output"), colour = "black", size = 4, stroke = 1.5) +
   shared_scales +
   scale_y_continuous(labels = scales::label_scientific()) +
-  labs(tag = "E", x = "Soil nitrogen (g N m⁻³)", y = "Ectomycorrhizal biomass\nper crown area (kg m⁻²)") +
+  labs(tag = "F", x = "Soil nitrogen (g N m⁻³)", y = "Ectomycorrhizal biomass\nper crown area (kg m⁻²)") +
   pub_theme
 
 p_joint_height <- ggplot(opt_joint, aes(x = soil_nitrogen, y = height)) +
@@ -317,7 +342,7 @@ p_joint_height <- ggplot(opt_joint, aes(x = soil_nitrogen, y = height)) +
   geom_point(aes(shape = "Model output"), colour = "black", size = 4, stroke = 1.5) +
   shared_scales +
   expand_limits(y = 0) +
-  labs(tag = "H", x = "Soil nitrogen (g N m⁻³)", y = "Height (m)") +
+  labs(tag = "I", x = "Soil nitrogen (g N m⁻³)", y = "Height (m)") +
   pub_theme
 
 # --- Bottom row: N depletion and mycorrhizal economics ---
@@ -326,20 +351,20 @@ p_joint_nbar <- ggplot(opt_joint, aes(x = soil_nitrogen, y = N_bar)) +
               fill = "grey80", colour = NA, inherit.aes = FALSE) +
   geom_point(aes(shape = "Model output"), colour = "black", size = 4, stroke = 1.5) +
   shared_scales +
-  labs(tag = "F", x = "Soil nitrogen (g N m⁻³)",
+  labs(tag = "G", x = "Soil nitrogen (g N m⁻³)",
        y = expression(bar(N)~"(kg N m"^{-3}*")")) +
   pub_theme
 
-# Mycorrhizal structural C:N = 1/nc_myco = 10
-# C (kg C) = ectomycorrhiza_mass * 0.44
-# N (kg N) = ectomycorrhiza_N_biomass  (= mass * 0.44 * nc_myco, already in kg N)
+# Mycorrhizal total C:N (structural biomass + labile free pools)
+# C (kg C) = ectomycorrhiza_mass * 0.44 + ectomycorrhiza_C_free
+# N (kg N) = ectomycorrhiza_N_biomass + ectomycorrhiza_N_free
 p_joint_myco_cn <- ggplot(opt_joint_cn, aes(x = soil_nitrogen, y = CN)) +
   geom_ribbon(data = stab_outputs, aes(x = soil_nitrogen, ymin = cn_lo, ymax = cn_hi),
               fill = "grey80", colour = NA, inherit.aes = FALSE) +
   geom_point(aes(shape = "Model output"), colour = "black", size = 4, stroke = 1.5) +
   shared_scales +
   scale_y_continuous(labels = scales::label_scientific(digits = 2)) +
-  labs(tag = "G", x = "Soil nitrogen (g N m⁻³)",
+  labs(tag = "H", x = "Soil nitrogen (g N m⁻³)",
        y = "Mycorrhizal C:N ratio\n(kg C kg⁻¹ N)") +
   pub_theme
 
@@ -349,7 +374,7 @@ p_joint_gpp <- ggplot(opt_joint, aes(x = soil_nitrogen, y = assim_gross / crown_
   geom_point(aes(shape = "Model output"), colour = "black", size = 4, stroke = 1.5) +
   shared_scales +
   expand_limits(y = 0) +
-  labs(tag = "I", x = "Soil nitrogen (g N m⁻³)",
+  labs(tag = "J", x = "Soil nitrogen (g N m⁻³)",
        y = "GPP per crown area\n(kg C m⁻² yr⁻¹)") +
   pub_theme
 
@@ -369,7 +394,7 @@ p_joint_n_limit <- ggplot(opt_joint, aes(x = soil_nitrogen)) +
   scale_colour_manual(values = c("Potential (leaf N pool)" = "steelblue"),
                        name = NULL) +
   expand_limits(y = 0) +
-  labs(tag = "J", x = "Soil nitrogen (g N m⁻³)",
+  labs(tag = "K", x = "Soil nitrogen (g N m⁻³)",
        y = "Leaf N concentration\n(kg N kg⁻¹ leaf)") +
   pub_theme
 
@@ -385,7 +410,7 @@ p_joint_nfree <- ggplot(opt_joint, aes(x = soil_nitrogen, y = tree_nitrogen)) +
   geom_point(aes(shape = "Model output"), colour = "black", size = 4, stroke = 1.5) +
   shared_scales +
   expand_limits(y = 0) +
-  labs(tag = "K", x = "Soil nitrogen (g N m⁻³)",
+  labs(tag = "L", x = "Soil nitrogen (g N m⁻³)",
        y = "Free N pool at maturity\n(kg N tree⁻¹)") +
   pub_theme
 
@@ -397,12 +422,12 @@ make_row_title <- function(label) {
   )
 }
 
-# 4-column layout: A-C parameters, D-G mycorrhizal & N depletion, H-K growth & N status
+# 4-column layout: A-D parameters, E-H mycorrhizal & N depletion, I-L growth & N status
 # Stability bands (grey bars) on A-C show the range of params achieving ≥99% of max height
 joint_optima <-
   guide_area() /
   make_row_title("Parameters to be Optimised") /
-  (p_joint_ecto | p_joint_rn | p_joint_rl | plot_spacer()) /
+  (p_joint_ecto | p_joint_rn | p_joint_rl | p_joint_total_bga) /
   make_row_title("Model results: Mycorrhizal dynamics & N depletion") /
   (p_joint_ecm | p_joint_ecm_area | p_joint_nbar | p_joint_myco_cn) /
   make_row_title("Model results: Tree Status") /
@@ -420,6 +445,85 @@ joint_optima
 ggsave("plots/11_joint_optima.png", plot = joint_optima, width = 22, height = 18, dpi = 300)
 ```
 
+## Mycorrhizal N transfer diagnostics
+
+```{r myco_transfer_diag}
+# Test whether the transfer bottleneck (max_N_transfer cap) is limiting the tree
+# at low soil N.  Four panels:
+#   1. Total N taken up by mycorrhiza (myco_uptake)
+#   2. N actually exported to the tree (mycorrhizal_export_to_tree)
+#   3. N sitting in the free fungal pool (ectomycorrhiza_N_free)
+#   4. Transfer efficiency: export / uptake
+diag_df <- opt_joint %>%
+  mutate(transfer_efficiency = mycorrhizal_export_to_tree /
+                               pmax(myco_uptake, 1e-12))
+
+p_diag_uptake <- ggplot(diag_df, aes(x = soil_nitrogen, y = myco_uptake)) +
+  geom_point(shape = 1, size = 3) +
+  labs(x = "Soil nitrogen (g N m⁻³)",
+       y = "Mycorrhizal N uptake\n(kg N tree⁻¹ yr⁻¹)", tag = "A") +
+  pub_theme
+
+p_diag_export <- ggplot(diag_df, aes(x = soil_nitrogen, y = mycorrhizal_export_to_tree)) +
+  geom_point(shape = 1, size = 3) +
+  labs(x = "Soil nitrogen (g N m⁻³)",
+       y = "N exported to tree\n(kg N tree⁻¹ yr⁻¹)", tag = "B") +
+  pub_theme
+
+p_diag_nfree <- ggplot(diag_df, aes(x = soil_nitrogen, y = ectomycorrhiza_N_free)) +
+  geom_point(shape = 1, size = 3) +
+  labs(x = "Soil nitrogen (g N m⁻³)",
+       y = "Fungal free N pool\n(kg N)", tag = "C") +
+  pub_theme
+
+p_diag_eff <- ggplot(diag_df, aes(x = soil_nitrogen, y = transfer_efficiency)) +
+  geom_point(shape = 1, size = 3) +
+  labs(x = "Soil nitrogen (g N m⁻³)",
+       y = "Transfer efficiency\n(export / uptake)", tag = "D") +
+  pub_theme
+
+myco_transfer_diag <- (p_diag_uptake | p_diag_export | p_diag_nfree | p_diag_eff)
+myco_transfer_diag
+
+ggsave("plots/12_myco_transfer_diag.png", plot = myco_transfer_diag,
+       width = 18, height = 5, dpi = 300)
+```
+
+## Belowground C allocation components
+
+```{r bga_components}
+bga_diag <- opt_joint %>%
+  select(soil_nitrogen, C_export_to_myco, root_mass, fineroot_lifespan, total_prod) %>%
+  mutate(
+    myco_term  = C_export_to_myco / total_prod,
+    root_term  = root_mass * 0.44 / fineroot_lifespan / total_prod,
+    total_bga  = myco_term + root_term
+  ) %>%
+  tidyr::pivot_longer(cols = c(myco_term, root_term, total_bga),
+                      names_to = "component", values_to = "fraction") %>%
+  mutate(component = factor(component,
+                            levels = c("myco_term", "root_term", "total_bga"),
+                            labels = c("Mycorrhizal (C export / GPP)",
+                                       "Root turnover (root C / GPP)",
+                                       "Total belowground")))
+
+p_bga_diag <- ggplot(bga_diag, aes(x = soil_nitrogen, y = fraction, colour = component)) +
+  geom_point(size = 3) +
+  geom_line() +
+  scale_colour_manual(values = c("Mycorrhizal (C export / GPP)" = "darkorange",
+                                  "Root turnover (root C / GPP)" = "steelblue",
+                                  "Total belowground"           = "black"),
+                      name = NULL) +
+  expand_limits(y = 0) +
+  labs(x = "Soil nitrogen (g N m⁻³)",
+       y = "C allocation (fraction of GPP)") +
+  pub_theme
+
+p_bga_diag
+
+ggsave("plots/13_bga_components.png", plot = p_bga_diag, width = 8, height = 5, dpi = 300)
+```
+
 ## Joint optima: trajectories over time
 
 ```{r joint_optima_trajectories}
@@ -429,8 +533,8 @@ opt_traj <- all_joint_df %>%
   inner_join(opt_joint %>% select(soil_nitrogen, ecto_allo, root_no, root_length),
              by = c("soil_nitrogen", "ecto_allo", "root_no", "root_length")) %>%
   mutate(date       = as.Date(date),
-         CN         = ectomycorrhiza_mass * 0.44 /
-                        pmax(ectomycorrhiza_N_biomass, 1e-12),
+         CN         = (ectomycorrhiza_mass * 0.44 + ectomycorrhiza_C_free) /
+                        pmax(ectomycorrhiza_N_biomass + ectomycorrhiza_N_free, 1e-12),
          gpp_per_ca = assim_gross / crown_area)
 
 traj_colour <- scale_colour_viridis_c(option = "plasma",
