@@ -30,8 +30,9 @@ void PlantArchitecture::init(PlantParameters& par, PlantTraits& traits){
 }
 
 void PlantArchitecture::init_nitrogen(double _nu, double _nt, PlantTraits& traits){
-  nitrogen_uptake_roots = _nu; 
+  nitrogen_uptake_roots = _nu;
   ectomycorrhiza_N_free = 0.01 * _nu;
+  ectomycorrhiza_C_free = 0.0;
   set_nitrogen(_nt, traits);
 }
 
@@ -188,23 +189,34 @@ void PlantArchitecture::dmyco_dt(
     double max_N_transfer,
     const PlantParameters& par
 ) {
-  // Growth is purely C-driven (exudates from tree determine biomass accumulation)
-  double growth_C_potential = exudates * traits.mycorrhizal_biomass_conversion * 0.44;
+  double gross_C   = exudates * traits.mycorrhizal_biomass_conversion * 0.44;
+  double resp_myco = par.r_myco * std::max(0.0, ectomycorrhiza_mass) * par.years_per_tunit_avg;
+  double gross_C_net = std::max(0.0, gross_C - resp_myco);
 
-  // N availability: current uptake + mobilisation from labile free pool
+  // C available: current exudates (net of structural respiration) + mobilised labile C
+  double C_pool_rate = std::max(0.0, ectomycorrhiza_C_free) * traits.k_mob_N * par.years_per_tunit_avg;
+  double C_available = gross_C_net + C_pool_rate;
+
+  // N available: current uptake + mobilised labile N
   double N_pool_rate = std::max(0.0, ectomycorrhiza_N_free) * traits.k_mob_N * par.years_per_tunit_avg;
-  double N_available  = N_pool_rate + U_myco;
+  double N_available = N_pool_rate + U_myco;
 
-  // Flexible stoichiometry: incorporate as much N as available, up to stoichiometric demand.
-  // When N-poor, fungi build C-rich tissue (high C:N); when N-rich, C:N approaches 1/nc_myco.
-  double N_incorporated = std::min(N_available, growth_C_potential * traits.nc_myco);
+  // Co-limited growth: whichever resource is scarcer limits ECM biomass production
+  double C_for_growth  = std::min(C_available, N_available / traits.nc_myco);
+  double N_incorporated = C_for_growth * traits.nc_myco;
 
-  // Surplus N after growth is exported to the tree
+  // Surplus N exported to tree
   double N_remaining = std::max(0.0, N_available - N_incorporated);
   N_export = std::min(N_remaining * mycorrhizal_root_reduction, max_N_transfer);
 
-  dmass_myco_dt    = growth_C_potential - ectomycorrhiza_mass * traits.mycorrhizal_turnover * par.years_per_tunit_avg;
-  dN_myco_dt_free  = U_myco - N_incorporated - N_export + ectomycorrhiza_mass * traits.nc_myco * traits.mycorrhizal_turnover * traits.k_14 * par.years_per_tunit_avg;
+  dmass_myco_dt   = C_for_growth - ectomycorrhiza_mass * traits.mycorrhizal_turnover * par.years_per_tunit_avg;
+
+  // Labile C pool: accumulates surplus when N limits growth; respired at r_myco to prevent unbounded growth
+  dC_myco_dt_free = gross_C_net - C_for_growth
+                  - par.r_myco * std::max(0.0, ectomycorrhiza_C_free) * par.years_per_tunit_avg;
+
+  dN_myco_dt_free = U_myco - N_incorporated - N_export
+                  + ectomycorrhiza_mass * traits.nc_myco * traits.mycorrhizal_turnover * traits.k_14 * par.years_per_tunit_avg;
 }
 
 double PlantArchitecture::coarse_root_mass(const PlantTraits& traits) const{

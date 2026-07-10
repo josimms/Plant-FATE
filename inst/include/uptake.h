@@ -28,6 +28,7 @@ public:
   double rho_myco;
   double D;
   double N_s;
+  double f_myco_pool; ///< Fraction of N_s in organic pool accessible only to mycorrhiza [-]
   double u_max;
   double depth;
 
@@ -43,7 +44,7 @@ public:
   /// @{brief Uptake Functions
   double uptake_age(const PlantArchitecture& G, PlantTraits& T);
 
-  double compute_N_bar(double SA_active, double A_zone, double r_zone) const;
+  double compute_N_bar(double SA_active, double A_zone, double r_zone, double N_s_eff) const;
 
   void uptake_core(const PlantArchitecture& G, PlantTraits& traits, PlantParameters& par);
 
