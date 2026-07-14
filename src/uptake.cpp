@@ -68,8 +68,8 @@ namespace plant {
         ? u_max * SA_active_val * R / (D * A_zone)
         : 0.0;
 
-    N_bar_val       = compute_N_bar(SA_active_val, A_zone, R, N_s_near);
-    double mm_near  = N_bar_val / (N_bar_val + k_15);
+    N_bar_roots     = compute_N_bar(SA_active_val, A_zone, R, N_s_near);
+    double mm_near  = N_bar_roots / (N_bar_roots + k_15);
 
     U_root          = SA_fr * u_max * mm_near * par.years_per_tunit_avg;
     double U_myco_near = SA_m * u_max * mm_near * par.years_per_tunit_avg;
@@ -77,9 +77,10 @@ namespace plant {
     // --- Far-field: mycorrhiza-only access to organic N pool ---
     // Same zone geometry (average tree in a stand, not isolated), but only
     // mycorrhizal surface area can exploit this fraction of the total N_s.
-    double N_s_far  = f_myco_pool * N_s;
-    double N_bar_far = compute_N_bar(SA_m, A_zone, R, N_s_far);
-    double mm_far   = N_bar_far / (N_bar_far + k_15);
+    double N_s_far      = f_myco_pool * N_s;
+    double N_bar_myco_val = compute_N_bar(SA_m, A_zone, R, N_s_far);
+    N_bar_myco          = N_bar_myco_val;
+    double mm_far       = N_bar_myco_val / (N_bar_myco_val + k_15);
     double U_myco_far = SA_m * u_max * mm_far * par.years_per_tunit_avg;
 
     U_myco = U_myco_near + U_myco_far;

@@ -33,11 +33,27 @@ void Uptake::nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& p
   U_root *= f_temp;
   U_myco *= f_temp;
 
-  // Maximum N transfer rate across the root-fungus membrane interface.
-  // Caps how much mycorrhizal N the root can actually absorb, regardless of
-  // how much the fungus takes up. Analogous to u_max for direct root uptake.
-  max_N_transfer = u_transfer * mycorrhized * G.root_surface_area(T) * par.years_per_tunit_avg;
-  max_C_transfer = c_transfer * mycorrhized * G.root_surface_area(T) * par.years_per_tunit_avg;
+  // Cap: if fungal N:C exceeds structural ratio by 10%, stop soil N acquisition.
+  // Commented out: structural_N is ~1e-57 at init so the ratio immediately explodes
+  // and the cap fires permanently, keeping U_myco = 0 throughout the run.
+  // {
+  //   double structural_N = G.ectomycorrhiza_mass * 0.44 * T.nc_myco;
+  //   if (structural_N > 0.0 && G.ectomycorrhiza_N_free / structural_N > 0.1) {
+  //     U_myco        = 0.0;
+  //     SA_active_val = (1.0 - mycorrhized) * G.root_surface_area(T);
+  //     N_bar_roots   = (1.0 - f_myco_pool) * N_s;
+  //     N_bar_myco    = f_myco_pool * N_s;
+  //     alpha_val     = 0.0;
+  //   }
+  // }
+
+  // Maximum C/N transfer capacity at the root-fungus interface.
+  // root_interface [m² yr tunit⁻¹]: colonised root surface area × time scaling.
+  // u_transfer and c_transfer are fluxes per unit surface area [kg m⁻² yr⁻¹],
+  // so max_N/C_transfer have units of [kg tunit⁻¹].
+  double root_interface = age_factor * mycorrhized * G.root_surface_area(T) * par.years_per_tunit_avg;
+  max_N_transfer = u_transfer * root_interface;
+  max_C_transfer = c_transfer * root_interface;
   
   // UPTAKE ROOTS
   G.nitrogen_uptake_roots = age_factor * (1.0 - mycorrhized) * U_root;
@@ -54,7 +70,6 @@ void Uptake::nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& p
   G.using_Ib = using_Ib;
 
   // Mycorrhizal reduction factor (age, colonisation fraction, temperature).
-  // The surface-area cap is applied inside dmyco_dt where N available is known.
   mycorrhizal_root_reduction = age_factor * mycorrhized * f_temp;
 }
 

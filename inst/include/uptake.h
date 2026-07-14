@@ -17,7 +17,8 @@ public:
   bool   using_Ib = true; ///< Toggle: if false, I_b is fixed at 1 (no infrastructure cost)
 
   // Diagnostics (set by uptake_core, readable for logging)
-  double N_bar_val    = 0.0;  ///< Mean N concentration at absorbing surface [kg N m^-3]
+  double N_bar_roots = 0.0;  ///< Mean N concentration at root absorbing surface (mineral pool, roots + myco) [kg N m^-3]
+  double N_bar_myco  = 0.0;  ///< Mean N concentration at mycorrhizal absorbing surface (organic pool, myco only) [kg N m^-3]
   double r_zone_val   = 0.0;  ///< Root zone radius [m]
   double alpha_val    = 0.0;  ///< Diffusion-demand ratio alpha_tip [-]
   double SA_active_val = 0.0; ///< Active absorbing surface area [m^2]
@@ -35,9 +36,9 @@ public:
   double k_8;
   double k_13;   ///< Zone radius factor: R_zone = k_13 * crown_radius
   double k_15;   ///< Biochemical half-saturation constant [kg N m^-3]
-  double u_transfer; ///< Max N transfer rate at root-fungus interface [kg N m^-2 yr^-1]
+  double u_transfer; ///< Max N transfer rate at root-fungus interface per colonised tip [kg N tip^-1 yr^-1]
   double max_N_transfer = 0.0; ///< Computed max mycorrhizal N transfer per timestep [kg N]
-  double c_transfer; ///< Max C transfer rate at root-fungus interface [kg C m^-2 yr^-1]
+  double c_transfer; ///< Max C transfer rate at root-fungus interface per colonised tip [kg C tip^-1 yr^-1]
   double max_C_transfer = 0.0; ///< Computed max mycorrhizal C transfer per timestep [kg C]
 
   // Uptake equations
