@@ -31,7 +31,7 @@ void PlantArchitecture::init(PlantParameters& par, PlantTraits& traits){
 
 void PlantArchitecture::init_nitrogen(double _nu, double _nt, PlantTraits& traits){
   nitrogen_uptake_roots = _nu;
-  ectomycorrhiza_N_free = 0.01 * _nu;
+  ectomycorrhiza_N_free = ectomycorrhiza_mass * 0.44 * traits.nc_myco;
   ectomycorrhiza_C_free = 0.0;
   set_nitrogen(_nt, traits);
 }
@@ -190,16 +190,19 @@ void PlantArchitecture::dmyco_dt(
     const PlantParameters& par
 ) {
   double gross_C   = exudates * traits.mycorrhizal_biomass_conversion * 0.44;
-  double resp_myco = par.r_myco * std::max(0.0, ectomycorrhiza_mass) * par.years_per_tunit_avg;
+  double resp_myco = par.r_myco * 0.44 * std::max(0.0, ectomycorrhiza_mass) * par.years_per_tunit_avg;
   double gross_C_net = std::max(0.0, gross_C - resp_myco);
 
   // C available: current exudates (net of structural respiration) + mobilised labile C
   double C_pool_rate = std::max(0.0, ectomycorrhiza_C_free) * traits.k_mob_N * par.years_per_tunit_avg;
   double C_available = gross_C_net + C_pool_rate;
 
-  // N available: current uptake + mobilised labile N
+  // N released from dying hyphae this timestep — available immediately for growth/export
+  double turnover_N = ectomycorrhiza_mass * 0.44 * traits.nc_myco * traits.mycorrhizal_turnover * traits.k_14 * par.years_per_tunit_avg;
+
+  // N available: current uptake + mobilised labile N + this-step turnover recycling
   double N_pool_rate = std::max(0.0, ectomycorrhiza_N_free) * traits.k_mob_N * par.years_per_tunit_avg;
-  double N_available = N_pool_rate + U_myco;
+  double N_available = N_pool_rate + U_myco + turnover_N;
 
   // Co-limited growth: whichever resource is scarcer limits ECM biomass production
   double C_for_growth  = std::min(C_available, N_available / traits.nc_myco);
@@ -215,8 +218,7 @@ void PlantArchitecture::dmyco_dt(
   dC_myco_dt_free = gross_C_net - C_for_growth
                   - par.r_myco * std::max(0.0, ectomycorrhiza_C_free) * par.years_per_tunit_avg;
 
-  dN_myco_dt_free = U_myco - N_incorporated - N_export
-                  + ectomycorrhiza_mass * traits.nc_myco * traits.mycorrhizal_turnover * traits.k_14 * par.years_per_tunit_avg;
+  dN_myco_dt_free = U_myco + turnover_N - N_incorporated - N_export;
 }
 
 double PlantArchitecture::coarse_root_mass(const PlantTraits& traits) const{
