@@ -36,10 +36,6 @@ class PlantTraits{
 	double m;               ///< Crown shape flatness at the top
 	double n;               ///< Crown top-heaviness 
 	
-	// roots
-	double root_no;         ///< root number [Number, average per root tip]
-	double root_length;     ///< root length [mm, average root tip length]
-	
 	double k_0;             ///< Exponent in root diameter–length allometry d(l) = k_1 / l^k_0 (Ding)
 	double k_1;             ///< Fitting parameter for root length (Ding)
 	double k_2;             ///< Fitted parameter for woody plants (Kong, 2019)
@@ -101,8 +97,7 @@ class PlantParameters{
 	double root_length0;		        ///< Initial root length
 	double nitrogen_start0;         ///< Initial nitrogen
 	double nitrogen_uptake0;        ///< Initial uptake
-	double ectomycorrhizal_mass0;   ///< Ectomycorrhiza mass
-	
+
 	// Allocation and geometric paramaters  
 	double fg;		              ///< upper canopy gap fraction
 
