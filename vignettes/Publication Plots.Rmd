@@ -73,6 +73,7 @@ joint_root_no_values      <- 3*10^seq(3, 6, length.out = n_pts_joint)
 joint_root_length_values  <- 1.5 #seq(0.05, 6,   length.out = n_pts_joint)
 param_file <- "/home/josimms/Documents/Austria/Plant-FATE/tests/params/p_test_boreal.ini"
 weather_file <- "/home/josimms/Documents/Austria/Plant-FATE/data/ERAS_Monthly.csv"
+k_mob_N <- new(LifeHistoryOptimizer, param_file)$traits0$k_mob_N
 
 # -------------------------------
 # Core simulation function with safe error handling
@@ -664,7 +665,7 @@ make_optima_figure <- function(gs_data, var_col, fig_title, obj_label = NULL) {
     mutate(
       ecm_frac_gpp   = C_export_to_myco / assim_gross,
       total_n_uptake = myco_uptake + root_uptake,
-      transfer_eff   = mycorrhizal_export_to_tree / pmax(myco_uptake, 1e-12),
+      transfer_eff   = mycorrhizal_export_to_tree / pmax(myco_uptake + ectomycorrhiza_N_free * k_mob_N, 1e-12),
       n_deficit      = optimal_leaf_nitrogen - leaf_nitrogen_concentration,
       tr_c           = tr * 0.44,
       rr_frac        = rr * 0.44 / assim_gross,
@@ -1173,7 +1174,7 @@ make_yearly_optima_figure <- function(annual_data, x_col, x_lab, fig_title,
                          pmax(ectomycorrhiza_N_biomass + ectomycorrhiza_N_free, 1e-12),
       ecm_frac_gpp   = C_export_to_myco / assim_gross,
       total_n_uptake = myco_uptake + root_uptake,
-      transfer_eff   = mycorrhizal_export_to_tree / pmax(myco_uptake, 1e-12),
+      transfer_eff   = mycorrhizal_export_to_tree / pmax(myco_uptake + ectomycorrhiza_N_free * k_mob_N, 1e-12),
       tr_c           = tr * 0.44,
       rr_frac        = rr * 0.44 / assim_gross,
       tr_c_frac      = tr * 0.44 / assim_gross,
@@ -1394,7 +1395,6 @@ met_summer <- read_csv(weather_file, show_col_types = FALSE) %>%
 
 # Diagnostic: GPP per crown area vs candidate x-variables to find cleanest relationship
 gpp_diag <- annual_opt_gpp %>%
-  filter(year >= start_year + 5) %>%
   left_join(met_summer, by = "year") %>%
   mutate(
     gpp_ca         = assim_gross / crown_area,
@@ -1611,9 +1611,7 @@ ggsave("plots/16c_annual_gpp_traj.png",
 
 ```{r stability_metrics}
 # Compute per (soil_nitrogen, year) stability metrics from the full parameter grid.
-# Filter early years to avoid seedling establishment artefact (same as gpp_diag).
 stab_metrics <- annual_gs_all %>%
-  filter(year >= start_year + 5) %>%
   group_by(soil_nitrogen, year) %>%
   summarise(
     n_total      = n(),
@@ -1639,7 +1637,7 @@ stab_metrics <- annual_gs_all %>%
 
 # Year-to-year optimal trajectories (already one row per year × soil N)
 yy_opt <- annual_opt_gpp %>%
-  filter(year >= start_year + 5)
+  filter(year >= start_year)
 
 n_col <- scale_colour_viridis_c(name = "Soil N\n(kg m⁻³)", option = "viridis")
 pt_n  <- geom_point(size = 1.8, shape = 16, alpha = 0.7, na.rm = TRUE)
