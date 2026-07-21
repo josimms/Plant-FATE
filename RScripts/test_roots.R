@@ -2626,7 +2626,7 @@ original_life_histroy <- function() {
          legend = c(N_labels, "Range of realistic boreal observations"),
          col = c(cols[c(1, 3)], col_range),
          lty = 1, lwd = c(rep(lwd_model, 2), lwd_obs))
-  dev.off()11
+  dev.off()
 }
 
 # ----------------------------
