@@ -2196,12 +2196,12 @@ original_life_histroy <- function() {
   ## ---------------------------------------------------
   ## ---------------------------------------------------
   
+  #################################################
+  
   hyde_all = "~/Documents/Austria/Hyytiala_all_data/"
   data <- lapply(paste0(hyde_all, list.files(hyde_all))[1:9], read.csv)
   names(data) <- list.files(hyde_all)[1:9]
   useful_data <- merge(data[[2]], data[[5]], c('plotID', 'eventID', 'eventYear'), all=TRUE)
-  
-  #################################################
   
   lho <- new(LifeHistoryOptimizer, "tests/params/p_test_boreal.ini")
   lho$set_i_metFile("tests/data/ERAS_Monthly.csv")
@@ -2290,7 +2290,8 @@ original_life_histroy <- function() {
   df_3$date <- dates
   
   # Set color scheme
-  cols <- c("#0072B2", "#E69F00", "#D55E00")
+  col_obs <- c("#0072B2", "#E69F00", "#D55E00")
+  col_range <- c("lightblue")
   N_labels <- c("N = Low", "N = High")
 
   dir.create("RScripts/plots", showWarnings = FALSE, recursive = TRUE)
@@ -2306,7 +2307,11 @@ original_life_histroy <- function() {
   lwd_obs    <- 2
   pch_obs    <- 16
   pch_lit    <- 17
-  
+
+  add_range <- function(x, y_min, y_max, col = adjustcolor(col_range, alpha.f = 0.5), lwd = lwd_obs, cap = 0.015) {
+    arrows(x, y_min, x, y_max, code = 3, angle = 90, length = cap, col = col, lwd = lwd)
+  }
+
   # (a) GPP
   ylim_gpp <- range(df$assim_gross/df$crown_area/2.04, df_2$assim_gross/df_2$crown_area/2.04, df_3$assim_gross/df_3$crown_area/2.04,
                     Eddy_covariance$GPP_mean_kg, na.rm = TRUE)
