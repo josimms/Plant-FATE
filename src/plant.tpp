@@ -189,7 +189,7 @@ void Plant::calc_demographic_rates(Env& env, double t){
     }
 
     // Mycorrhizal turnover runs regardless of nitrogen status; exudates = 0 when no photosynthesis
-    geometry.dmyco_dt(npp_exudates, traits, uptake.U_myco, uptake.mycorrhizal_root_reduction, uptake.max_N_transfer, par);
+    geometry.dmyco_dt(npp_exudates, traits, uptake.U_myco, uptake.mycorrhizal_root_reduction, uptake.max_N_transfer, uptake.investment_from_mycorrhiza, par);
     rates.dmass_myco_dt   = geometry.dmass_myco_dt;
     rates.dN_myco_dt_free = geometry.dN_myco_dt_free;
     rates.dC_myco_dt_free = geometry.dC_myco_dt_free;

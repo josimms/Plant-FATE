@@ -127,7 +127,7 @@ class PlantArchitecture{
 	///@brief Nitrogen value of biomass and ectomycorrhizal operations
 	/// @{
 	double total_mass_nitrogen(const PlantTraits& traits) const;
-	void dmyco_dt(double exudates, const PlantTraits& traits, double U_myco, double mycorrhizal_root_reduction, double max_N_transfer, const PlantParameters& par);
+	void dmyco_dt(double exudates, const PlantTraits& traits, double U_myco, double mycorrhizal_root_reduction, double max_N_transfer, double investment_from_mycorrhiza, const PlantParameters& par);
 	/// @}
 
 	// These functions are used to get and set state variables

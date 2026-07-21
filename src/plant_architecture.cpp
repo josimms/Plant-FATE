@@ -187,6 +187,7 @@ void PlantArchitecture::dmyco_dt(
     double U_myco,
     double mycorrhizal_root_reduction,
     double max_N_transfer,
+    double investment_from_mycorrhiza,
     const PlantParameters& par
 ) {
   double gross_C   = exudates * traits.mycorrhizal_biomass_conversion * 0.44;
@@ -204,13 +205,17 @@ void PlantArchitecture::dmyco_dt(
   double N_pool_rate = std::max(0.0, ectomycorrhiza_N_free) * traits.k_mob_N * par.years_per_tunit_avg;
   double N_available = N_pool_rate + U_myco + turnover_N;
 
+  // Baseline N guaranteed to tree regardless of C saturation (obligate symbiotic exchange)
+  double N_base = investment_from_mycorrhiza * U_myco;
+  double N_for_growth = std::max(0.0, N_available - N_base);
+
   // Co-limited growth: whichever resource is scarcer limits ECM biomass production
-  double C_for_growth  = std::min(C_available, N_available / traits.nc_myco);
+  double C_for_growth  = std::min(C_available, N_for_growth / traits.nc_myco);
   double N_incorporated = C_for_growth * traits.nc_myco;
 
-  // Surplus N exported to tree
-  double N_remaining = std::max(0.0, N_available - N_incorporated);
-  N_export = std::min(N_remaining * mycorrhizal_root_reduction, max_N_transfer);
+  // Surplus N exported to tree (baseline already committed)
+  double N_remaining = std::max(0.0, N_for_growth - N_incorporated);
+  N_export = N_base + std::min(N_remaining * mycorrhizal_root_reduction, max_N_transfer);
 
   dmass_myco_dt   = C_for_growth - ectomycorrhiza_mass * traits.mycorrhizal_turnover * par.years_per_tunit_avg;
 
