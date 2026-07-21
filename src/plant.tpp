@@ -178,8 +178,7 @@ void Plant::calc_demographic_rates(Env& env, double t){
         res = assimilator.net_production(env, &geometry, par, traits, t);
 
         double res_all = std::max(res.npp, 0.0);
-        npp_exudates = std::min(res_all * traits.investment_from_tree,
-                                uptake.max_C_transfer);
+        npp_exudates = res_all * traits.investment_from_tree;
         geometry.C_export_to_myco = npp_exudates;
         double res_after_myco = res_all - npp_exudates;
 

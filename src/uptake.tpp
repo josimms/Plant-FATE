@@ -33,6 +33,13 @@ void Uptake::nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& p
   U_root *= f_temp;
   U_myco *= f_temp;
 
+  // C:N uptake limitation commented out — does not work correctly
+  // if (G.ectomycorrhiza_mass >= G.root_mass(T) &&
+  //     G.ectomycorrhiza_C_free > 1e-12 &&
+  //     G.ectomycorrhiza_N_free / G.ectomycorrhiza_C_free > T.nc_myco) {
+  //     U_myco = 0.0;
+  // }
+
   // Cap: if fungal N:C exceeds structural ratio by 10%, stop soil N acquisition.
   // Commented out: structural_N is ~1e-57 at init so the ratio immediately explodes
   // and the cap fires permanently, keeping U_myco = 0 throughout the run.
@@ -47,13 +54,12 @@ void Uptake::nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& p
   //   }
   // }
 
-  // Maximum C/N transfer capacity at the root-fungus interface.
+  // Maximum N transfer capacity at the root-fungus interface.
   // root_interface [m² yr tunit⁻¹]: colonised root surface area × time scaling.
-  // u_transfer and c_transfer are fluxes per unit surface area [kg m⁻² yr⁻¹],
-  // so max_N/C_transfer have units of [kg tunit⁻¹].
+  // u_transfer is flux per unit surface area [kg m⁻² yr⁻¹],
+  // so max_N_transfer has units of [kg tunit⁻¹].
   double root_interface = age_factor * mycorrhized * G.root_surface_area(T) * par.years_per_tunit_avg;
   max_N_transfer = u_transfer * root_interface;
-  max_C_transfer = c_transfer * root_interface;
   
   // UPTAKE ROOTS
   G.nitrogen_uptake_roots = age_factor * (1.0 - mycorrhized) * U_root;

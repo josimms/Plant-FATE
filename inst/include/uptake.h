@@ -38,8 +38,7 @@ public:
   double k_15;   ///< Biochemical half-saturation constant [kg N m^-3]
   double u_transfer; ///< Max N transfer rate at root-fungus interface per colonised tip [kg N tip^-1 yr^-1]
   double max_N_transfer = 0.0; ///< Computed max mycorrhizal N transfer per timestep [kg N]
-  double c_transfer; ///< Max C transfer rate at root-fungus interface per colonised tip [kg C tip^-1 yr^-1]
-  double max_C_transfer = 0.0; ///< Computed max mycorrhizal C transfer per timestep [kg C]
+
 
   // Uptake equations
   /// @{brief Uptake Functions

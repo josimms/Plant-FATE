@@ -44,8 +44,6 @@ RCPP_MODULE(plantfate_module){
 		.field("u_max",        &plant::Uptake::u_max)
 		.field("D",            &plant::Uptake::D)
 		.field("k_15",         &plant::Uptake::k_15)
-		// Tier 2: trade-off structure
-		.field("k_13",         &plant::Uptake::k_13)
 		// Tier 3: root architecture
 		.field("k_8",          &plant::Uptake::k_8)
 		// diagnostic read-backs

@@ -20,7 +20,6 @@ namespace plant {
     k_13        = I.get<double>("k_13");
     k_15        = I.get<double>("k_15");
     u_transfer  = I.get<double>("u_transfer");
-    c_transfer  = I.get<double>("c_transfer");
   }
 
   double Uptake::uptake_age(const PlantArchitecture& G, PlantTraits& T) {
@@ -51,7 +50,7 @@ namespace plant {
     double A_zone;
     if (R > depth) {
       double e = std::sqrt(R * R - depth * depth);
-      A_zone = M_PI * R * R + M_PI * (depth * depth / e) * std::log((R + e) / depth);
+      A_zone = M_PI * R * R + M_PI * R * (depth * depth / e) * std::log((R + e) / depth);
     } else {
       // fallback: sphere (R == depth) or approximate
       A_zone = M_PI * R * R + M_PI * R * depth;
