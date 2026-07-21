@@ -1,0 +1,220 @@
+---
+title: "Data Comparison"
+author: "Joanna"
+date: "2026-07-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+library(zoo)
+library(data.table)
+library(patchwork)
+library(here)
+```
+
+```{r theme, include=FALSE}
+pub_theme <- theme_classic(base_size = 22) +
+  theme(
+    axis.title       = element_text(size = 22, face = "bold"),
+    axis.text        = element_text(size = 20, colour = "black"),
+    axis.line        = element_line(colour = "black", linewidth = 0.6),
+    axis.ticks       = element_line(colour = "black", linewidth = 0.5),
+    legend.title     = element_text(size = 22, face = "bold"),
+    legend.text      = element_text(size = 20),
+    legend.key.size  = unit(0.9, "lines"),
+    panel.grid.major = element_line(colour = "grey90", linewidth = 0.3),
+    panel.grid.minor = element_blank(),
+    plot.background  = element_rect(fill = "white", colour = NA),
+    panel.background = element_rect(fill = "white", colour = NA),
+    plot.margin      = margin(8, 12, 8, 8),
+    strip.text       = element_text(size = 22, face = "bold")
+  )
+```
+
+## Data reading
+
+```{r data_reading}
+hyde_all = "~/Documents/Austria/Hyytiala_all_data/"
+data <- lapply(paste0(hyde_all, list.files(hyde_all))[1:9], read.csv)
+names(data) <- list.files(hyde_all)[1:9]
+useful_data <- merge(data[[2]], data[[5]], c('plotID', 'eventID', 'eventYear'), all=TRUE)
+```
+
+## Data comparison
+
+```{r data_load}
+ecm_data_all <- read.csv(here("RScripts/ecm_root_data_compiled.csv"), stringsAsFactors = FALSE)
+
+# Strip leading ~, <, > from all columns so approximate values become plain numbers
+ecm_data_all <- as.data.frame(lapply(ecm_data_all, function(col) {
+  if (is.character(col)) {
+    cleaned <- gsub("^[~<>]+", "", trimws(col))
+    num <- suppressWarnings(as.numeric(cleaned))
+    if (sum(!is.na(num)) > sum(!is.na(suppressWarnings(as.numeric(col))))) num else col
+  } else col
+}))
+
+# Model is calibrated for Scots pine / boreal evergreen conifer — keep only conifers
+evergreen_conifers <- c("Pinus sylvestris", "Picea abies", "Picea abies (control)",
+                        "Picea glauca", "Picea spp.", "Mixed (Pinus/Picea)")
+ecm_data <- ecm_data_all[ecm_data_all$species %in% evergreen_conifers, ]
+ecm_data <- ecm_data[is.na(ecm_data$soil_CN_ratio) | ecm_data$soil_CN_ratio < 100, ]
+ecm_data$species <- factor(ecm_data$species, levels = evergreen_conifers)
+
+species_colours <- c(
+  "Pinus sylvestris"     = "#E69F00",
+  "Picea abies"          = "#56B4E9",
+  "Picea abies (control)"= "#009E73",
+  "Picea glauca"         = "#F0E442",
+  "Picea spp."           = "#0072B2",
+  "Mixed (Pinus/Picea)"  = "#D55E00"
+)
+species_scale <- scale_colour_manual(name = "Species", values = species_colours,
+                                     drop = FALSE,
+                                     guide = guide_legend(ncol = 3, byrow = TRUE))
+
+# Tip density: convert million m⁻² → m⁻² to match model root_no units
+ecm_data$tip_density_per_m2 <- ecm_data$ecm_tip_density_million_per_m2_soil * 1e6
+```
+
+### Plot 07 A — Root length vs soil N
+*Matches heatmap p2 (y-axis: root length, mm)*
+
+```{r data_07a}
+d_rl <- ecm_data[!is.na(ecm_data$ecm_root_tip_length_mm) &
+                 !is.na(ecm_data$soil_CN_ratio), ]
+
+p_data_rl <- ggplot(d_rl, aes(x = soil_CN_ratio, y = ecm_root_tip_length_mm,
+                               colour = species)) +
+  geom_point(size = 4.5, alpha = 0.8) +
+  labs(
+    x = "Soil C:N ratio",
+    y = "ECM root tip\nlength (mm)",
+    colour = "Species"
+  ) +
+  species_scale +
+  pub_theme
+```
+
+### Plot 07 B — Root / tip density vs soil N
+*Matches heatmap p1 (y-axis: root number per crown area, m⁻²)*
+
+```{r data_07b}
+d_td <- ecm_data[!is.na(ecm_data$ecm_tip_density_million_per_m2_BA) &
+                 !is.na(ecm_data$soil_CN_ratio), ]
+
+p_data_td <- ggplot(d_td, aes(x = soil_CN_ratio, y = ecm_tip_density_million_per_m2_BA,
+                               colour = species)) +
+  geom_point(size = 4.5, alpha = 0.8) +
+  scale_y_log10(labels = scales::label_scientific()) +
+  labs(
+    x = "Soil C:N ratio",
+    y = "ECM tip density\n(million m⁻² basal area)",
+    colour = "Species"
+  ) +
+  species_scale +
+  pub_theme
+```
+
+### Plot 09 A — ECM mycelium biomass vs soil N
+*Matches heatmap p_ecm_mass (y-axis: ectomycorrhiza_mass)*
+
+```{r data_09a}
+d_ecm <- ecm_data[!is.na(ecm_data$ecm_mycelium_biomass_kg_ha) &
+                  !is.na(ecm_data$soil_CN_ratio), ]
+
+p_data_ecm <- ggplot(d_ecm, aes(x = soil_CN_ratio, y = ecm_mycelium_biomass_kg_ha,
+                                 colour = species)) +
+  geom_point(size = 4.5, alpha = 0.8) +
+  scale_y_log10(labels = scales::label_number(accuracy = 1)) +
+  labs(
+    x = "Soil C:N ratio",
+    y = "ECM mycelium\nbiomass (kg ha⁻¹)",
+    colour = "Species"
+  ) +
+  species_scale +
+  pub_theme
+```
+
+### Plot 09 B — ECM root biomass vs soil N
+*Proxy for ectomycorrhizal allocation (p_ecto_allo)*
+
+```{r data_09b}
+d_ecmr <- ecm_data[!is.na(ecm_data$ecm_root_biomass_kg_per_m2_basal_area) &
+                   !is.na(ecm_data$soil_CN_ratio), ]
+
+p_data_ecmr <- ggplot(d_ecmr, aes(x = soil_CN_ratio,
+                                    y = ecm_root_biomass_kg_per_m2_basal_area,
+                                    colour = species)) +
+  geom_point(size = 4.5, alpha = 0.8) +
+  labs(
+    x = "Soil C:N ratio",
+    y = "ECM root biomass\n(kg m⁻² basal area)",
+    colour = "Species"
+  ) +
+  species_scale +
+  pub_theme
+```
+
+### ECM colonisation percentage vs soil N
+
+```{r data_colonisation}
+d_col_plot <- ecm_data[!is.na(ecm_data$ecm_colonisation_pct) &
+                        !is.na(ecm_data$soil_CN_ratio), ]
+
+p_data_col <- ggplot(d_col_plot, aes(x = soil_CN_ratio, y = ecm_colonisation_pct,
+                                      colour = species)) +
+  geom_point(size = 4.5, alpha = 0.8) +
+  coord_cartesian(ylim = c(NA, 100)) +
+  labs(
+    x      = "Soil C:N ratio",
+    y      = "ECM colonisation (%)",
+    colour = "Species"
+  ) +
+  theme(legend.text = element_text(size = 12),
+        legend.title = element_text(size = 13)) +
+  pub_theme
+```
+
+```{r data_combined}
+# Standalone legend using all species so the hash is consistent
+legend_plot <- ggplot(
+    data.frame(species = factor(evergreen_conifers, levels = evergreen_conifers)),
+    aes(x = 1, y = 1, colour = species)) +
+  geom_point(alpha = 0) +
+  species_scale +
+  theme_void() +
+  theme(legend.position   = c(0.5, 0.5),
+        legend.text       = element_text(size = 22),
+        legend.title      = element_text(size = 24, face = "bold"),
+        legend.key.size   = unit(1.5, "lines"),
+        axis.text.x       = element_blank(),
+        axis.text.y       = element_blank(),
+        axis.title.x      = element_blank(),
+        axis.title.y      = element_blank(),
+        axis.ticks        = element_blank(),
+        panel.background  = element_blank()) +
+  guides(colour = guide_legend(ncol = 1,
+                               override.aes = list(alpha = 1, size = 5)))
+
+data_combined <- wrap_plots(
+  p_data_rl   + theme(legend.position = "none"),
+  p_data_td   + theme(legend.position = "none"),
+  p_data_ecm  + theme(legend.position = "none"),
+  p_data_ecmr + theme(legend.position = "none"),
+  p_data_col  + theme(legend.position = "none"),
+  legend_plot,
+  ncol = 3
+) + plot_annotation(tag_levels = list(c("A","B","C","D","E",""))) &
+  theme(plot.tag   = element_text(size = 28, face = "bold"),
+        axis.text  = element_text(size = 24),
+        axis.title = element_text(size = 26, face = "bold"))
+
+ggsave("plots/data_combined.png",
+       plot = data_combined, width = 24, height = 14, dpi = 300)
+```

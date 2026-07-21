@@ -1,0 +1,489 @@
+---
+title: "Plant-FATE: One-at-a-time Sensitivity Analysis"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    fig_width: 14
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+## Libraries
+
+```{r libraries}
+library(PlantFATE)
+library(tidyverse)
+library(furrr)
+library(patchwork)
+
+plan(multicore, workers = max(1, parallel::detectCores() - 1))
+```
+
+## Settings
+
+```{r settings}
+param_file    <- "/home/josimms/Documents/Austria/Plant-FATE/tests/params/p_test_boreal.ini"
+weather_file  <- "/home/josimms/Documents/Austria/Plant-FATE/data/ERAS_Monthly.csv"
+
+testing_mode  <- FALSE   # set TRUE for a quick sanity check (shorter run)
+start_year    <- 1960
+end_year      <- if (testing_mode) 1985 else 2022
+dt            <- 1/12
+
+soil_n_default <- 0.405   # kg N m⁻³ — N_s default from p_test_boreal.ini
+perturb_frac   <- 0.10    # ±10% of |baseline|
+
+# Outputs to track: summer (Jun–Aug) mean over the last 10 years of the run
+output_vars <- c(
+  "assim_gross",
+  "height",
+  "leaf_nitrogen_concentration",
+  "ectomycorrhiza_mass",
+  "total_n_uptake",
+  "gpp_ca"
+)
+
+output_labels <- c(
+  assim_gross                 = "GPP (kg C yr⁻¹)",
+  height                      = "Height (m)",
+  leaf_nitrogen_concentration = "Leaf N conc. (kg N kg⁻¹)",
+  ectomycorrhiza_mass         = "ECM biomass (kg)",
+  total_n_uptake              = "Total N uptake (kg N yr⁻¹)",
+  gpp_ca                      = "GPP / crown area (kg C m⁻² yr⁻¹)"
+)
+
+dir.create("plots", showWarnings = FALSE)
+```
+
+## Parameter definitions
+
+Parameters are grouped by process; baselines match `p_test_boreal.ini`.
+
+```{r param_definitions}
+params <- list(
+  # --- Photosynthesis ---
+  list(struct = "par0",    field = "kphio",               label = "Quantum yield (kphio)",          group = "Photosynthesis", baseline = 0.08),
+  list(struct = "par0",    field = "alpha",               label = "Photo. capacity cost (α)",       group = "Photosynthesis", baseline = 0.1008),
+  list(struct = "par0",    field = "gamma",               label = "Hydraulic path cost (γ)",        group = "Photosynthesis", baseline = 0.1805),
+  list(struct = "par0",    field = "a_jmax",              label = "Jmax:Vcmax scaling (a_jmax)",    group = "Photosynthesis", baseline = 3600),
+  # --- Plant traits ---
+  list(struct = "traits0", field = "lma",                 label = "Leaf mass per area (LMA)",       group = "Plant traits",   baseline = 0.086),
+  list(struct = "traits0", field = "hmat",                label = "Max height (hmat, m)",           group = "Plant traits",   baseline = 35),
+  list(struct = "traits0", field = "wood_density",        label = "Wood density (kg m⁻³)",          group = "Plant traits",   baseline = 412),
+  list(struct = "traits0", field = "p50_xylem",           label = "Xylem P50 (MPa)",                group = "Plant traits",   baseline = -7),
+  # --- ECM / mycorrhiza ---
+  list(struct = "traits0", field = "investment_from_tree",label = "ECM C allocation fraction",      group = "ECM",            baseline = 0.15),
+  list(struct = "traits0", field = "mycorrhizal_turnover",label = "ECM turnover rate (yr⁻¹)",      group = "ECM",            baseline = 2.0),
+  list(struct = "traits0", field = "nc_myco",             label = "ECM N:C ratio (nc_myco)",        group = "ECM",            baseline = 0.1),
+  # --- Respiration ---
+  list(struct = "par0",    field = "rr",                  label = "Fine root resp. rate (rr)",      group = "Respiration",    baseline = 0.4),
+  list(struct = "par0",    field = "r_myco",              label = "ECM maint. resp. rate (r_myco)", group = "Respiration",    baseline = 0.3),
+  list(struct = "par0",    field = "rs",                  label = "Sapwood resp. rate (rs)",        group = "Respiration",    baseline = 0.04),
+  # --- N uptake ---
+  list(struct = "uptake0", field = "u_max",               label = "Max area-based uptake (u_max)",  group = "N uptake",       baseline = 0.0088),
+  list(struct = "uptake0", field = "k_15",                label = "MM half-saturation (k_15)",      group = "N uptake",       baseline = 0.7),
+  list(struct = "uptake0", field = "D",                   label = "Soil N diffusion (D)",           group = "N uptake",       baseline = 0.025),
+  list(struct = "uptake0", field = "mycorrhized",         label = "Colonisation fraction",          group = "N uptake",       baseline = 1.0),
+  list(struct = "uptake0", field = "u_transfer",          label = "N transfer rate (u_transfer)",   group = "N uptake",       baseline = 3.8e-3),
+  list(struct = "par0",    field = "nitrogen_start0",     label = "Initial tree N (nitrogen_start0)", group = "N uptake",     baseline = 0.0039)
+)
+
+# Ordered factor levels for plots (group order preserved)
+param_levels <- map_chr(params, "label")
+
+group_levels <- c("Photosynthesis", "Plant traits", "ECM", "Respiration", "N uptake")
+group_pal    <- c(
+  "Photosynthesis" = "#4dac26",
+  "Plant traits"   = "#7b3294",
+  "ECM"            = "#d01c8b",
+  "Respiration"    = "#f1a340",
+  "N uptake"       = "#2166ac"
+)
+```
+
+## Simulation helpers
+
+```{r sim_helpers}
+# Run the LifeHistoryOptimizer with an optional single-parameter perturbation.
+# The parameter is set on the appropriate struct (par0 / traits0 / uptake0)
+# before lho$init() is called, matching the pattern in Publication Plots.Rmd.
+run_lho <- function(struct = NULL, field = NULL, value = NULL) {
+  lho <- new(LifeHistoryOptimizer, param_file)
+  lho$set_i_metFile(weather_file)
+  lho$set_a_metFile(weather_file)
+  lho$set_co2File("")
+  lho$set_soil_nitrogen(soil_n_default)
+
+  if (!is.null(struct)) {
+    switch(struct,
+      par0    = { lho$par0[[field]]    <- value },
+      traits0 = { lho$traits0[[field]] <- value },
+      uptake0 = { lho$uptake0[[field]] <- value }
+    )
+  }
+
+  lho$init()
+
+  header    <- lho$get_header()
+  years_seq <- seq(start_year, end_year, dt)
+
+  results <- lapply(years_seq, function(t) {
+    tryCatch({
+      lho$grow_for_dt(t, dt)
+      setNames(as.data.frame(t(lho$get_state(t + dt))), header)
+    }, error = function(e) NULL)
+  })
+
+  df <- do.call(rbind, Filter(Negate(is.null), results))
+  df$date <- seq(as.Date(paste0(start_year, "-01-01")),
+                 by = "month", length.out = nrow(df))
+  df
+}
+
+# Summer (Jun–Aug) mean over the last 10 years.
+summarise_run <- function(df) {
+  df |>
+    mutate(
+      year           = as.integer(format(date, "%Y")),
+      month          = as.integer(format(date, "%m")),
+      total_n_uptake = root_uptake + myco_uptake,
+      gpp_ca         = assim_gross / pmax(crown_area, 1e-12)
+    ) |>
+    filter(year >= max(year) - 9, month %in% 6:8) |>
+    summarise(across(all_of(output_vars), ~ mean(.x, na.rm = TRUE)))
+}
+```
+
+## Baseline run
+
+```{r baseline_run, cache=TRUE}
+cat("Running baseline...\n")
+baseline_sim     <- run_lho()
+baseline_summary <- summarise_run(baseline_sim)
+print(round(baseline_summary, 5))
+```
+
+## OAT perturbation runs
+
+Results are cached to CSV so you can re-run the notebook without repeating simulations.
+
+```{r perturbation_runs, cache=TRUE}
+sa_cache <- "plots/sa_perturb_results.csv"
+
+if (file.exists(sa_cache)) {
+  perturb_df <- read_csv(sa_cache, show_col_types = FALSE)
+  cat("Loaded", nrow(perturb_df), "rows from cache:", sa_cache, "\n")
+
+} else {
+  # Build flat table of all (param, direction, value) combinations
+  perturbation_table <- map_dfr(params, function(p) {
+    delta <- perturb_frac * abs(p$baseline)
+    tibble(
+      param           = p$field,
+      label           = p$label,
+      group           = p$group,
+      struct          = p$struct,
+      direction       = c("high", "low"),
+      perturbed_value = c(p$baseline + delta, p$baseline - delta)
+    )
+  })
+
+  cat("Running", nrow(perturbation_table), "perturbed simulations in parallel...\n")
+
+  perturb_results <- future_map(
+    seq_len(nrow(perturbation_table)),
+    function(i) {
+      row <- perturbation_table[i, ]
+      tryCatch({
+        df   <- run_lho(row$struct, row$param, row$perturbed_value)
+        smry <- summarise_run(df)
+        bind_cols(
+          tibble(param = row$param, label = row$label, group = row$group,
+                 direction = row$direction),
+          smry
+        )
+      }, error = function(e) {
+        message("FAILED: ", row$label, " (", row$direction, "): ", conditionMessage(e))
+        NULL
+      })
+    },
+    .options = furrr_options(seed = NULL)
+  )
+
+  perturb_df <- bind_rows(perturb_results)
+  write_csv(perturb_df, sa_cache)
+  cat("Saved results to", sa_cache, "\n")
+}
+```
+
+## Sensitivity indices
+
+The normalized sensitivity index S gives the percentage change in each output per 1% change in the parameter:
+
+$$S = \frac{y_{+} - y_{-}}{y_{\text{baseline}}} \cdot \frac{1}{2 \delta}$$
+
+where $\delta = 0.10$ (10% perturbation).
+
+```{r sensitivity_indices}
+# Pivot so each row has both high and low values per (param, output_var)
+sens_long <- perturb_df |>
+  pivot_longer(cols = all_of(output_vars), names_to = "output_var", values_to = "y") |>
+  pivot_wider(names_from = direction, values_from = y)
+
+baseline_long <- baseline_summary |>
+  pivot_longer(cols = everything(), names_to = "output_var", values_to = "y_baseline")
+
+sens_df <- sens_long |>
+  left_join(baseline_long, by = "output_var") |>
+  mutate(
+    S = (high - low) / pmax(abs(y_baseline), 1e-12) / (2 * perturb_frac),
+    label      = factor(label, levels = rev(param_levels)),
+    group      = factor(group, levels = group_levels),
+    output_var = factor(output_var, levels = output_vars)
+  )
+
+# Top 20 by |S|
+sens_df |>
+  arrange(desc(abs(S))) |>
+  transmute(group, Parameter = label, Output = output_var,
+            S = round(S, 3),
+            Baseline = round(y_baseline, 5),
+            High = round(high, 5),
+            Low  = round(low,  5)) |>
+  head(20) |>
+  print()
+```
+
+## Tornado charts
+
+Parameters are ordered by S within each panel so the most influential appear at the top. Colours indicate parameter group.
+
+```{r tornado_charts, fig.height=22, fig.width=18}
+tornado_plots <- map(output_vars, function(ov) {
+  dat <- sens_df |>
+    filter(output_var == ov) |>
+    mutate(label = fct_reorder(label, S))
+
+  ggplot(dat, aes(x = S, y = label, fill = group)) +
+    geom_col(width = 0.7) +
+    geom_vline(xintercept = 0, linewidth = 0.5, colour = "grey30") +
+    scale_fill_manual(values = group_pal, name = "Group",
+                      drop = FALSE) +
+    labs(title = output_labels[[ov]],
+         x = "Sensitivity index",
+         y = NULL) +
+    theme_classic(base_size = 22) +
+    theme(legend.position = "none",
+          plot.title = element_text(face = "bold", size = 22))
+})
+
+wrap_plots(tornado_plots, ncol = 3, guides = "collect") +
+  plot_annotation(
+    #subtitle = "S = % change in output per 1% change in parameter  |  summer mean, last 10 simulation years",
+    theme    = theme(plot.subtitle = element_text(size = 18, colour = "grey40"))
+  ) &
+  theme(legend.position = "bottom",
+        legend.title    = element_text(face = "bold"))
+
+ggsave("plots/sensitivity_tornado.png", width = 26, height = 20, dpi = 300)
+```
+
+## Sensitivity heatmap
+
+All parameters × outputs in one view. Red = positive S (higher parameter → higher output), blue = negative.
+
+```{r sensitivity_heatmap, fig.height=10, fig.width=13}
+heat_df <- sens_df |>
+  mutate(
+    out_lab = factor(unname(output_labels[as.character(output_var)]),
+                     levels = unname(output_labels))
+  )
+
+s_lim <- heat_df |>
+  filter(as.character(label) != "Quantum yield (kphio)") |>
+  pull(S) |> abs() |> max(na.rm = TRUE)
+
+ggplot(heat_df |> filter(as.character(label) != "Quantum yield (kphio)"),
+       aes(x = out_lab, y = label, fill = S)) +
+  geom_tile(colour = "white", linewidth = 0.5) +
+  geom_text(aes(label = sprintf("%.2f", S)),
+            colour = "grey20", size = 5.5, fontface = "bold") +
+  scale_fill_distiller(palette  = "PuOr", direction = -1,
+                       limits   = c(-s_lim, s_lim),
+                       oob      = scales::squish,
+                       name     = "Sensitivity\nindex (S)") +
+  scale_x_discrete(position = "bottom") +
+  facet_grid(group ~ ., scales = "free_y", space = "free_y") +
+  labs(x = NULL, y = NULL) +
+  theme_minimal(base_size = 22) +
+  theme(
+    axis.text.x   = element_text(angle = -25, hjust = 0, size = 20),
+    axis.text.y   = element_text(size  = 20),
+    strip.text.y  = element_text(angle = 0, face = "bold", size = 22),
+    panel.grid    = element_blank(),
+    legend.position = "right",
+    plot.title    = element_text(face = "bold")
+  )
+
+ggsave("plots/sensitivity_heatmap.png", width = 18, height = 14, dpi = 300)
+```
+
+## Parameter trajectory plots
+
+For the 3 parameters with highest |S| on `gpp_ca`, show the time series of all outputs
+under baseline, +10%, and −10% conditions.
+
+```{r trajectory_plots, fig.height=14, fig.width=16}
+# Identify the 3 most influential parameters for gpp_ca
+top3 <- sens_df |>
+  filter(output_var == "gpp_ca") |>
+  arrange(desc(abs(S))) |>
+  slice_head(n = 3) |>
+  pull(label) |> as.character()
+
+cat("Top 3 parameters for gpp_ca:", paste(top3, collapse = ", "), "\n")
+
+# Re-run (or use cached data) for these parameters + baseline
+top3_params <- keep(params, ~ .x$label %in% top3)
+
+traj_list <- c(
+  list(list(label = "Baseline", struct = NULL, field = NULL, value = NULL)),
+  map(top3_params, function(p) {
+    delta <- perturb_frac * abs(p$baseline)
+    list(
+      list(label = paste0(p$label, " +10%"), struct = p$struct, field = p$field, value = p$baseline + delta),
+      list(label = paste0(p$label, " −10%"), struct = p$struct, field = p$field, value = p$baseline - delta)
+    )
+  }) |> list_flatten()
+)
+
+traj_runs <- map(traj_list, function(r) {
+  df <- run_lho(r$struct, r$field, r$value)
+  df |>
+    mutate(
+      run_label      = r$label,
+      year           = as.integer(format(date, "%Y")),
+      month          = as.integer(format(date, "%m")),
+      total_n_uptake = root_uptake + myco_uptake,
+      gpp_ca         = assim_gross / pmax(crown_area, 1e-12)
+    ) |>
+    filter(month %in% 6:8) |>
+    group_by(run_label, year) |>
+    summarise(across(all_of(output_vars), ~ mean(.x, na.rm = TRUE)), .groups = "drop")
+})
+
+traj_df <- bind_rows(traj_runs) |>
+  mutate(
+    param_group = case_when(
+      run_label == "Baseline"                     ~ "Baseline",
+      str_detect(run_label, top3[1])              ~ top3[1],
+      length(top3) >= 2 & str_detect(run_label, top3[2]) ~ top3[2],
+      length(top3) >= 3 & str_detect(run_label, top3[3]) ~ top3[3],
+      TRUE                                        ~ run_label
+    ),
+    linetype = ifelse(str_detect(run_label, "\\+10%"), "dashed",
+               ifelse(str_detect(run_label, "−10%"),   "dotted", "solid"))
+  )
+
+traj_color <- c("Baseline" = "black",
+                setNames(c("#e41a1c", "#377eb8", "#4dac26"), top3[seq_along(top3)]))
+
+traj_ltype <- c("solid", "dashed", "dotted")
+
+traj_panel <- function(var) {
+  ggplot(traj_df, aes(x = year, y = .data[[var]],
+                       colour = param_group, linetype = run_label)) +
+    geom_line(linewidth = 0.8) +
+    scale_colour_manual(values = traj_color, name = "Parameter") +
+    scale_linetype_manual(
+      values = setNames(
+        c("solid", rep(c("dashed", "dotted"), length(top3_params))),
+        c("Baseline", map(top3_params, function(p)
+            c(paste0(p$label, " +10%"), paste0(p$label, " −10%"))) |> unlist())
+      ),
+      guide = "none"
+    ) +
+    labs(x = "Year", y = output_labels[[var]]) +
+    expand_limits(y = 0) +
+    theme_classic(base_size = 22)
+}
+
+traj_plots <- map(output_vars, traj_panel)
+
+wrap_plots(traj_plots, ncol = 2, guides = "collect") +
+  plot_annotation(
+    title    = "Trajectories for 3 most sensitive parameters (net GPP / crown area)",
+    subtitle = "Solid = baseline; dashed = +10%; dotted = −10%",
+    theme    = theme(plot.title    = element_text(face = "bold"),
+                     plot.subtitle = element_text(colour = "grey40"))
+  ) &
+  theme(legend.position = "right")
+
+ggsave("plots/sensitivity_trajectories.png", width = 16, height = 18, dpi = 300)
+```
+
+## kphio diagnostic: total N uptake over time
+
+Does the large negative sensitivity of total N uptake to kphio reflect a life-history-stage shift rather than a direct parameter effect? If so, the high-kphio plant will grow faster (greater height) but show lower N uptake in later years as it passes through a different allocation phase.
+
+```{r kphio_diagnostic, fig.height=8, fig.width=14}
+kphio_baseline <- params[[which(map_chr(params, "field") == "kphio")]]$baseline
+kphio_delta    <- perturb_frac * kphio_baseline
+
+kphio_runs <- list(
+  list(label = "Baseline",   value = NULL),
+  list(label = "kphio +10%", value = kphio_baseline + kphio_delta),
+  list(label = "kphio −10%", value = kphio_baseline - kphio_delta)
+)
+
+kphio_traj <- map(kphio_runs, function(r) {
+  df <- if (is.null(r$value)) baseline_sim else run_lho("par0", "kphio", r$value)
+  df |>
+    mutate(
+      run_label      = r$label,
+      year           = as.integer(format(date, "%Y")),
+      month          = as.integer(format(date, "%m")),
+      total_n_uptake = root_uptake + myco_uptake
+    ) |>
+    filter(month %in% 6:8) |>
+    group_by(run_label, year) |>
+    summarise(total_n_uptake = mean(total_n_uptake, na.rm = TRUE),
+              height         = mean(height,         na.rm = TRUE),
+              .groups = "drop")
+}) |> bind_rows() |>
+  mutate(run_label = factor(run_label, levels = c("Baseline", "kphio +10%", "kphio −10%")))
+
+kphio_pal      <- c("Baseline" = "black", "kphio +10%" = "#e41a1c", "kphio −10%" = "#377eb8")
+kphio_linetypes <- c("Baseline" = "solid", "kphio +10%" = "dashed", "kphio −10%" = "dotted")
+
+p_n <- ggplot(kphio_traj, aes(x = year, y = total_n_uptake,
+                               colour = run_label, linetype = run_label)) +
+  geom_line(linewidth = 1) +
+  scale_colour_manual(values = kphio_pal,      name = NULL) +
+  scale_linetype_manual(values = kphio_linetypes, name = NULL) +
+  labs(x = "Year", y = "Total N uptake (kg N yr⁻¹)") +
+  expand_limits(y = 0) +
+  theme_classic(base_size = 22)
+
+p_h <- ggplot(kphio_traj, aes(x = year, y = height,
+                               colour = run_label, linetype = run_label)) +
+  geom_line(linewidth = 1) +
+  scale_colour_manual(values = kphio_pal,      name = NULL) +
+  scale_linetype_manual(values = kphio_linetypes, name = NULL) +
+  labs(x = "Year", y = "Height (m)") +
+  expand_limits(y = 0) +
+  theme_classic(base_size = 22)
+
+(p_n | p_h) +
+  plot_annotation(
+    subtitle = "Summer (Jun–Aug) means  |  solid = baseline, dashed = +10%, dotted = −10%",
+    theme    = theme(plot.subtitle = element_text(size = 16, colour = "grey40"))
+  ) &
+  theme(legend.position = "bottom")
+
+ggsave("plots/kphio_n_uptake_diagnostic.png", width = 14, height = 8, dpi = 300)
+```
