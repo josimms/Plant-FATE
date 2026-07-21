@@ -76,9 +76,13 @@ params <- list(
   list(struct = "traits0", field = "wood_density",        label = "Wood density (kg m⁻³)",          group = "Plant traits",   baseline = 412),
   list(struct = "traits0", field = "p50_xylem",           label = "Xylem P50 (MPa)",                group = "Plant traits",   baseline = -7),
   # --- ECM / mycorrhiza ---
-  list(struct = "traits0", field = "investment_from_tree",label = "ECM C allocation fraction",      group = "ECM",            baseline = 0.15),
-  list(struct = "traits0", field = "mycorrhizal_turnover",label = "ECM turnover rate (yr⁻¹)",      group = "ECM",            baseline = 2.0),
-  list(struct = "traits0", field = "nc_myco",             label = "ECM N:C ratio (nc_myco)",        group = "ECM",            baseline = 0.1),
+  list(struct = "traits0", field = "investment_from_tree",          label = "ECM C allocation fraction",         group = "ECM", baseline = 0.15),
+  list(struct = "traits0", field = "mycorrhizal_turnover",          label = "ECM turnover rate (yr⁻¹)",         group = "ECM", baseline = 2.0),
+  list(struct = "traits0", field = "nc_myco",                       label = "ECM N:C ratio (nc_myco)",           group = "ECM", baseline = 0.1),
+  list(struct = "traits0", field = "mycorrhizal_biomass_conversion",label = "ECM biomass conversion (kg kg⁻¹)", group = "ECM", baseline = 2.27),
+  list(struct = "uptake0", field = "rho_myco",                      label = "ECM tissue density (kg m⁻³)",      group = "ECM", baseline = 1200),
+  list(struct = "uptake0", field = "myco_diameter",                  label = "Hyphal diameter (m)",              group = "ECM", baseline = 2e-5),
+  list(struct = "uptake0", field = "investment_from_mycorrhiza",     label = "ECM N return fraction",            group = "ECM", baseline = 0.1),
   # --- Respiration ---
   list(struct = "par0",    field = "rr",                  label = "Fine root resp. rate (rr)",      group = "Respiration",    baseline = 0.4),
   list(struct = "par0",    field = "r_myco",              label = "ECM maint. resp. rate (r_myco)", group = "Respiration",    baseline = 0.3),

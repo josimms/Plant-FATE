@@ -293,25 +293,7 @@ p_joint_rl <- ggplot(opt_joint, aes(x = soil_nitrogen, y = root_length)) +
 r_coarse_root <- 0.04   # coarse root respiration rate [yr^-1], same as rs (sapwood) in p_test_boreal.ini
 rr_param      <- 0.4    # fine root respiration rate [yr^-1], rr in p_test_boreal.ini
 
-p_joint_total_bga <- ggplot(
-    opt_joint,
-    aes(x = soil_nitrogen,
-        y = (C_export_to_myco + root_mass * 0.44 / fineroot_lifespan + rr * 0.44 +
-               (r_coarse_root / rr_param) * rr * 0.44 * coarse_root_mass / root_mass) / pmax(assim_gross, 1e-12))
-  ) +
-  geom_ribbon(data = stab_outputs, aes(x = soil_nitrogen, ymin = bga_lo, ymax = bga_hi),
-              fill = "grey80", colour = NA, inherit.aes = FALSE) +
-  geom_point(aes(shape = "Calculated"), colour = "black", size = 4, stroke = 1.5) +
-  shared_scales +
-  scale_y_continuous(labels = scales::label_percent()) +
-  expand_limits(y = 0) + soil_n_expand +
-  labs(tag = "D", x = "Soil nitrogen (g N m⁻³)",
-       y = "Total belowground C\nallocation (% GPP)") +
-  pub_theme
-
 # --- IQR ribbon across near-optimal combos (≥99% of max height) for panels D–I ---
-# Ribbon shows spread of each output across the stability band;
-# dots remain at the single height-maximising parameter combo.
 stab_outputs <- joint_gs %>%
   group_by(soil_nitrogen) %>%
   mutate(max_m    = max(height, na.rm = TRUE),
@@ -346,6 +328,22 @@ stab_outputs <- joint_gs %>%
                            (r_coarse_root / rr_param) * rr * 0.44 * coarse_root_mass / root_mass) / pmax(assim_gross, 1e-12), na.rm = TRUE),
     .groups = "drop"
   )
+
+p_joint_total_bga <- ggplot(
+    opt_joint,
+    aes(x = soil_nitrogen,
+        y = (C_export_to_myco + root_mass * 0.44 / fineroot_lifespan + rr * 0.44 +
+               (r_coarse_root / rr_param) * rr * 0.44 * coarse_root_mass / root_mass) / pmax(assim_gross, 1e-12))
+  ) +
+  geom_ribbon(data = stab_outputs, aes(x = soil_nitrogen, ymin = bga_lo, ymax = bga_hi),
+              fill = "grey80", colour = NA, inherit.aes = FALSE) +
+  geom_point(aes(shape = "Calculated"), colour = "black", size = 4, stroke = 1.5) +
+  shared_scales +
+  scale_y_continuous(labels = scales::label_percent()) +
+  expand_limits(y = 0) + soil_n_expand +
+  labs(tag = "D", x = "Soil nitrogen (g N m⁻³)",
+       y = "Total belowground C\nallocation (% GPP)") +
+  pub_theme
 
 # Mycorrhizal total C:N (structural + labile pools) at the optimal combo
 opt_joint_cn <- opt_joint %>%
@@ -971,12 +969,68 @@ fig_joint_optima <- make_optima_figure(
 ggsave("plots/11_joint_optima.png", plot = fig_joint_optima, width = 22, height = 42, dpi = 300)
 ```
 
+## Yearly GPP-optimal: data wrangling
+
+```{r annual_gpp_wrangling}
+annual_gs_all <- all_joint_df %>%
+  mutate(
+    year  = as.integer(format(as.Date(date), "%Y")),
+    month = as.integer(format(as.Date(date), "%m"))
+  ) %>%
+  filter(month %in% 6:8) %>%
+  group_by(soil_nitrogen, year, ecto_allo, root_no, root_length) %>%
+  summarise(
+    height                      = mean(height,                      na.rm = TRUE),
+    ectomycorrhiza_mass         = mean(ectomycorrhiza_mass,         na.rm = TRUE),
+    ectomycorrhiza_N_biomass    = mean(ectomycorrhiza_N_biomass,    na.rm = TRUE),
+    ectomycorrhiza_C_free       = mean(ectomycorrhiza_C_free,       na.rm = TRUE),
+    ectomycorrhiza_N_free       = mean(ectomycorrhiza_N_free,       na.rm = TRUE),
+    crown_area                  = mean(crown_area,                  na.rm = TRUE),
+    lai                         = mean(lai,                         na.rm = TRUE),
+    N_bar_roots                 = mean(N_bar_roots,                 na.rm = TRUE),
+    N_bar_myco                  = mean(N_bar_myco,                  na.rm = TRUE),
+    C_export_to_myco            = mean(C_export_to_myco,            na.rm = TRUE),
+    mycorrhizal_export_to_tree  = mean(mycorrhizal_export_to_tree,  na.rm = TRUE),
+    root_uptake                 = mean(root_uptake,                 na.rm = TRUE),
+    myco_uptake                 = mean(myco_uptake,                 na.rm = TRUE),
+    assim_gross                 = mean(assim_gross,                 na.rm = TRUE),
+    optimal_leaf_nitrogen       = mean(optimal_leaf_nitrogen,       na.rm = TRUE),
+    leaf_nitrogen_concentration = mean(leaf_nitrogen_concentration, na.rm = TRUE),
+    tree_nitrogen               = mean(tree_nitrogen,               na.rm = TRUE),
+    root_mass                   = mean(root_mass,                   na.rm = TRUE),
+    coarse_root_mass            = mean(coarse_root_mass,            na.rm = TRUE),
+    total_mass                  = mean(total_mass,                  na.rm = TRUE),
+    fineroot_lifespan           = mean(fineroot_lifespan,           na.rm = TRUE),
+    rr                          = mean(rr,                          na.rm = TRUE),
+    tr                          = mean(tr,                          na.rm = TRUE),
+    ppfd                        = mean(ppfd,                        na.rm = TRUE),
+    belowground_infrastructure  = mean(belowground_infrastructure,  na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    net_gpp_ca   = (assim_gross - C_export_to_myco - rr * 0.44 - tr * 0.44) / crown_area,
+    ecm_frac_gpp = C_export_to_myco / assim_gross
+  ) %>%
+  arrange(soil_nitrogen, ecto_allo, root_no, root_length, year) %>%
+  group_by(soil_nitrogen, ecto_allo, root_no, root_length) %>%
+  mutate(height_increment = height - lag(height)) %>%
+  ungroup()
+
+# For each year × soil_nitrogen: the parameter combo with the highest net GPP per crown area
+annual_opt_gpp <- annual_gs_all %>%
+  group_by(soil_nitrogen, year) %>%
+  slice_max(net_gpp_ca, n = 1, with_ties = FALSE) %>%
+  ungroup()
+```
+
 ## Joint optima: trajectories over time
 
 ```{r joint_optima_trajectories}
-# Low and high N endpoints of the sweep
-n_low  <- nitrogen_values[5]
-n_high <- nitrogen_values[length(nitrogen_values)]
+# Use actual unique N values from the data so cached results with a different
+# n_pts_main don't cause n_low to miss every row in the filter.
+soil_N_unique <- sort(unique(annual_opt_gpp$soil_nitrogen))
+n_low  <- soil_N_unique[5]
+n_high <- soil_N_unique[length(soil_N_unique)]
 
 # Derive trajectory data from annual_opt_gpp (net GPP/crown optimisation, consistent with 16a)
 # filtered to the two N endpoints so trajectories show how optima shift as the tree ages.
@@ -1106,60 +1160,6 @@ ggsave("plots/11b_joint_optima_trajectories.png",
        plot = joint_optima_traj, width = 20, height = 18, dpi = 300)
 ```
 
-## Yearly GPP-optimal: data wrangling
-
-```{r annual_gpp_wrangling}
-annual_gs_all <- all_joint_df %>%
-  mutate(
-    year  = as.integer(format(as.Date(date), "%Y")),
-    month = as.integer(format(as.Date(date), "%m"))
-  ) %>%
-  filter(month %in% 6:8) %>%
-  group_by(soil_nitrogen, year, ecto_allo, root_no, root_length) %>%
-  summarise(
-    height                      = mean(height,                      na.rm = TRUE),
-    ectomycorrhiza_mass         = mean(ectomycorrhiza_mass,         na.rm = TRUE),
-    ectomycorrhiza_N_biomass    = mean(ectomycorrhiza_N_biomass,    na.rm = TRUE),
-    ectomycorrhiza_C_free       = mean(ectomycorrhiza_C_free,       na.rm = TRUE),
-    ectomycorrhiza_N_free       = mean(ectomycorrhiza_N_free,       na.rm = TRUE),
-    crown_area                  = mean(crown_area,                  na.rm = TRUE),
-    lai                         = mean(lai,                         na.rm = TRUE),
-    N_bar_roots                 = mean(N_bar_roots,                 na.rm = TRUE),
-    N_bar_myco                  = mean(N_bar_myco,                  na.rm = TRUE),
-    C_export_to_myco            = mean(C_export_to_myco,            na.rm = TRUE),
-    mycorrhizal_export_to_tree  = mean(mycorrhizal_export_to_tree,  na.rm = TRUE),
-    root_uptake                 = mean(root_uptake,                 na.rm = TRUE),
-    myco_uptake                 = mean(myco_uptake,                 na.rm = TRUE),
-    assim_gross                 = mean(assim_gross,                 na.rm = TRUE),
-    optimal_leaf_nitrogen       = mean(optimal_leaf_nitrogen,       na.rm = TRUE),
-    leaf_nitrogen_concentration = mean(leaf_nitrogen_concentration, na.rm = TRUE),
-    tree_nitrogen               = mean(tree_nitrogen,               na.rm = TRUE),
-    root_mass                   = mean(root_mass,                   na.rm = TRUE),
-    coarse_root_mass            = mean(coarse_root_mass,            na.rm = TRUE),
-    total_mass                  = mean(total_mass,                  na.rm = TRUE),
-    fineroot_lifespan           = mean(fineroot_lifespan,           na.rm = TRUE),
-    rr                          = mean(rr,                          na.rm = TRUE),
-    tr                          = mean(tr,                          na.rm = TRUE),
-    ppfd                        = mean(ppfd,                        na.rm = TRUE),
-    belowground_infrastructure  = mean(belowground_infrastructure,  na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  mutate(
-    net_gpp_ca   = (assim_gross - C_export_to_myco - rr * 0.44 - tr * 0.44) / crown_area,
-    ecm_frac_gpp = C_export_to_myco / assim_gross
-  ) %>%
-  arrange(soil_nitrogen, ecto_allo, root_no, root_length, year) %>%
-  group_by(soil_nitrogen, ecto_allo, root_no, root_length) %>%
-  mutate(height_increment = height - lag(height)) %>%
-  ungroup()
-
-# For each year × soil_nitrogen: the parameter combo with the highest net GPP per crown area
-annual_opt_gpp <- annual_gs_all %>%
-  group_by(soil_nitrogen, year) %>%
-  slice_max(net_gpp_ca, n = 1, with_ties = FALSE) %>%
-  ungroup()
-```
-
 ## Yearly GPP-optimal: plot function
 
 ```{r make_yearly_optima_figure}
@@ -1180,6 +1180,11 @@ make_yearly_optima_figure <- function(annual_data, x_col, x_lab, fig_title,
       all_bg_c_frac  = (rr * 0.44 + tr * 0.44 + C_export_to_myco) / assim_gross,
       cn_exchange    = C_export_to_myco / pmax(mycorrhizal_export_to_tree, 1e-12),
       bga            = (C_export_to_myco + rr * 0.44 + tr * 0.44) / assim_gross,
+      # mycorrhizal CUE: 1 - maintenance / gross_C  (r_myco=0.5, conversion=2.27 from p_test_boreal.ini)
+      gross_C_myco   = C_export_to_myco * 2.27 * 0.44,
+      maint_myco     = 0.5 * 0.44 * ectomycorrhiza_mass,
+      CUE_myco       = pmax(0, pmin(1, 1 - maint_myco / pmax(gross_C_myco, 1e-12))),
+      eff_rF         = 1 / pmax(CN, 1e-3),
       # max_N_transfer cap (k_0=0.2, k_1=0.35, k_8=2.7 from p_test_boreal.ini)
       root_diam_mm   = 0.35 / root_length^0.2,
       SA_tip_m2      = pi * (root_diam_mm / 1000) * (root_length / 1000),
@@ -1328,10 +1333,21 @@ make_yearly_optima_figure <- function(annual_data, x_col, x_lab, fig_title,
     pt + yr_line + expand_limits(y = 0) +
     labs(tag = "X", x = x_lab, y = "Root turnover C cost\n(kg C / yr)") + pub_theme
 
-  # ── Row 7: C fractions of GPP ─────────────────────────────────────────────────
+  # ── Row 7: ECM free N pool ────────────────────────────────────────────────────
   pBB <- ggplot(dat, aes(x = !!x_sym, y = ectomycorrhiza_N_free)) +
     pt + yr_line + expand_limits(y = 0) +
     labs(tag = "BB", x = x_lab, y = "ECM free N pool\n(kg N)") + pub_theme
+
+  # ── Row 8: N transfer efficiency ──────────────────────────────────────────────
+  pPhi_CUE <- ggplot(dat, aes(x = CUE_myco, y = transfer_eff)) +
+    pt + yr_line + expand_limits(y = 0, x = 0) +
+    labs(tag = "ΦA", x = "Mycorrhizal C-use efficiency (CUE)",
+         y = "N transfer efficiency\nφ / (U_IN + U_ON)") + pub_theme
+
+  pPhi_rF <- ggplot(dat, aes(x = eff_rF, y = transfer_eff)) +
+    pt + yr_line + expand_limits(y = 0, x = 0) +
+    labs(tag = "ΦB", x = expression("Effective fungal N:C, "*italic(r)[F]~"(kg N kg C"^{-1}*")"),
+         y = "N transfer efficiency\nφ / (U_IN + U_ON)") + pub_theme
 
   guide_area() /
     make_row_title("Parameters to be Optimised") /
@@ -1345,8 +1361,10 @@ make_yearly_optima_figure <- function(annual_data, x_col, x_lab, fig_title,
     make_row_title("N Uptake & Demand / ECM N Pool") /
     (pT_p | pBB) /
     make_row_title("Root Biomass & Costs") /
-    (pU | pW | pX) +
-    plot_layout(heights = c(0.15, 0.07, 1, 0.07, 1, 0.07, 1, 0.07, 1, 0.07, 1, 0.07, 1),
+    (pU | pW | pX) /
+    make_row_title("N Transfer Efficiency") /
+    (pPhi_CUE | pPhi_rF) +
+    plot_layout(heights = c(0.15, 0.07, 1, 0.07, 1, 0.07, 1, 0.07, 1, 0.07, 1, 0.07, 1, 0.07, 1),
                 guides = "collect") +
     plot_annotation(
       title    = fig_title,
