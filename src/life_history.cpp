@@ -203,11 +203,12 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
     , "root_uptake"
     , "myco_uptake"
     , "N_bar_roots"
-    , "N_bar_myco"
+    , "N_static"
     , "r_zone"
     , "alpha"
     , "SA_active"
     , "C_export_to_myco"
+    , "myco_uptake_static"
 	};
 }
 
@@ -273,11 +274,12 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
     , P.uptake.U_root
     , P.uptake.U_myco
     , P.uptake.N_bar_roots
-    , P.uptake.N_bar_myco
+    , P.uptake.N_static_val
     , P.uptake.r_zone_val
     , P.uptake.alpha_val
     , P.uptake.SA_active_val
     , P.geometry.C_export_to_myco
+    , P.uptake.U_myco_static
 	};
 }
 

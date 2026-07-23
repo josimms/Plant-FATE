@@ -18,7 +18,7 @@ public:
 
   // Diagnostics (set by uptake_core, readable for logging)
   double N_bar_roots = 0.0;  ///< Mean N concentration at root absorbing surface (mineral pool, roots + myco) [kg N m^-3]
-  double N_bar_myco  = 0.0;  ///< Mean N concentration at mycorrhizal absorbing surface (organic pool, myco only) [kg N m^-3]
+  double N_static_val = 0.0;  ///< Organic (static) N pool concentration available for mycorrhizal mining [kg N m^-3]
   double r_zone_val   = 0.0;  ///< Root zone radius [m]
   double alpha_val    = 0.0;  ///< Diffusion-demand ratio alpha_tip [-]
   double SA_active_val = 0.0; ///< Active absorbing surface area [m^2]
@@ -29,7 +29,8 @@ public:
   double rho_myco;
   double D;
   double N_s;
-  double f_myco_pool; ///< Fraction of N_s in organic pool accessible only to mycorrhiza [-]
+  double f_static;    ///< Fraction of N_s in the static (organic) pool, accessible only by mycorrhizal mining [-]
+  double k_mine;      ///< Mycorrhizal mining rate per unit fungal biomass [kg N kg_C^-1 yr^-1]
   double u_max;
   double depth;
 
@@ -39,6 +40,7 @@ public:
   double u_transfer; ///< Max N transfer rate at root-fungus interface per colonised tip [kg N tip^-1 yr^-1]
   double max_N_transfer = 0.0; ///< Computed max mycorrhizal N transfer per timestep [kg N]
   double investment_from_mycorrhiza = 0.1; ///< Fraction of mycorrhizal N uptake guaranteed to transfer to tree, independent of C saturation [-]
+  double U_myco_static = 0.0;  ///< Mycorrhizal N uptake from the static (organic) pool only [kg N per time unit]
 
 
   // Uptake equations

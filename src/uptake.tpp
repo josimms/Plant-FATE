@@ -48,8 +48,8 @@ void Uptake::nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& p
   //   if (structural_N > 0.0 && G.ectomycorrhiza_N_free / structural_N > 0.1) {
   //     U_myco        = 0.0;
   //     SA_active_val = (1.0 - mycorrhized) * G.root_surface_area(T);
-  //     N_bar_roots   = (1.0 - f_myco_pool) * N_s;
-  //     N_bar_myco    = f_myco_pool * N_s;
+  //     N_bar_roots   = (1.0 - f_static) * N_s;
+  //     N_static_val  = f_static * N_s;
   //     alpha_val     = 0.0;
   //   }
   // }

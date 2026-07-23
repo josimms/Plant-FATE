@@ -14,7 +14,8 @@ namespace plant {
     rho_myco    = I.get<double>("rho_myco");
     D           = I.get<double>("D");
     N_s         = I.get<double>("N_s");
-    f_myco_pool = I.get<double>("f_myco_pool");
+    f_static    = I.get<double>("f_static");
+    k_mine      = I.get<double>("k_mine");
     depth       = I.get<double>("depth");
     k_8         = I.get<double>("k_8");
     k_13        = I.get<double>("k_13");
@@ -58,32 +59,30 @@ namespace plant {
     }
     r_zone_val    = R;
 
-    // --- Near-field: roots and mycorrhiza compete for mineral N pool ---
-    // Roots only access (1-f_myco_pool) of N_s; mycorrhiza compete in the same zone.
-    double N_s_near = (1.0 - f_myco_pool) * N_s;
-    SA_active_val   = (1.0 - mycorrhized) * SA_fr + SA_m;
+    // --- Near-field: roots and mycorrhiza compete for diffusible (mineral) N pool ---
+    double N_diffused = (1.0 - f_static) * N_s;
+    SA_active_val     = (1.0 - mycorrhized) * SA_fr + SA_m;
 
     // alpha diagnostic (near-field)
     alpha_val = (SA_active_val > 0.0 && A_zone > 0.0)
         ? u_max * SA_active_val * R / (D * A_zone)
         : 0.0;
 
-    N_bar_roots     = compute_N_bar(SA_active_val, A_zone, R, N_s_near);
-    double mm_near  = N_bar_roots / (N_bar_roots + k_15);
+    N_bar_roots        = compute_N_bar(SA_active_val, A_zone, R, N_diffused);
+    double mm_near     = N_bar_roots / (N_bar_roots + k_15);
 
-    U_root          = SA_fr * u_max * mm_near * par.years_per_tunit_avg;
-    double U_myco_near = SA_m * u_max * mm_near * par.years_per_tunit_avg;
+    U_root             = SA_fr * u_max * mm_near * par.years_per_tunit_avg;
+    double U_myco_near = SA_m  * u_max * mm_near * par.years_per_tunit_avg;
 
-    // --- Far-field: mycorrhiza-only access to organic N pool ---
-    // Same zone geometry (average tree in a stand, not isolated), but only
-    // mycorrhizal surface area can exploit this fraction of the total N_s.
-    double N_s_far      = f_myco_pool * N_s;
-    double N_bar_myco_val = compute_N_bar(SA_m, A_zone, R, N_s_far);
-    N_bar_myco          = N_bar_myco_val;
-    double mm_far       = N_bar_myco_val / (N_bar_myco_val + k_15);
-    double U_myco_far = SA_m * u_max * mm_far * par.years_per_tunit_avg;
+    // --- Static (organic) pool: mycorrhiza mine directly, no diffusion step ---
+    // Access scales with fungal biomass (enzymatic activity + network reach).
+    // N is acquired immediately on mining; completely inaccessible without mycorrhiza.
+    double N_static      = f_static * N_s;
+    N_static_val         = N_static;
+    double mm_static     = N_static / (N_static + k_15);
+    U_myco_static = k_mine * std::max(0.0, G.ectomycorrhiza_mass) * mm_static * par.years_per_tunit_avg;
 
-    U_myco = U_myco_near + U_myco_far;
+    U_myco = U_myco_near + U_myco_static;
   }
 
 } // End namespace
