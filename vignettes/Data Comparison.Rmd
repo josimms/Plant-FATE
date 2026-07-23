@@ -215,6 +215,6 @@ data_combined <- wrap_plots(
         axis.text  = element_text(size = 24),
         axis.title = element_text(size = 26, face = "bold"))
 
-ggsave("plots/data_combined.png",
+ggsave("manuscript/oup-authoring-template/Figures/data_combined.png",
        plot = data_combined, width = 24, height = 14, dpi = 300)
 ```

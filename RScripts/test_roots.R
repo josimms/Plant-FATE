@@ -2290,12 +2290,12 @@ original_life_histroy <- function() {
   df_3$date <- dates
   
   # Set color scheme
-  col_obs <- c("#0072B2", "#E69F00", "#D55E00")
+  col_obs <- c("lightblue")
   col_range <- c("lightblue")
   N_labels <- c("N = Low", "N = High")
 
   dir.create("RScripts/plots", showWarnings = FALSE, recursive = TRUE)
-  png("RScripts/plots/lh_09_publication_main.png", width = 16, height = 12, units = "in", res = 300)
+  png("manuscript/oup-authoring-template/Figures/lh_09_publication_main.png", width = 16, height = 12, units = "in", res = 300)
   par(mfrow = c(4, 2), mar = c(4, 6, 3, 1), oma = c(4, 0, 2, 0),
       family = "serif", las = 1, tcl = -0.4, mgp = c(4, 1, 0))
 
@@ -2549,7 +2549,7 @@ original_life_histroy <- function() {
   sa2 <- compute_sa_density(df_2)
   sa3 <- compute_sa_density(df_3)
 
-  png("RScripts/plots/lh_10_publication_belowground.png", width = 14, height = 12, units = "in", res = 300)
+  png("manuscript/oup-authoring-template/Figures/lh_10_publication_belowground.png", width = 14, height = 12, units = "in", res = 300)
   par(mfrow = c(3, 2), mar = c(4, 6, 3, 1), oma = c(4, 0, 2, 0),
       family = "serif", las = 1, tcl = -0.4, mgp = c(4, 1, 0))
 

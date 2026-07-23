@@ -429,7 +429,7 @@ fig_diagnostics <- (p_Nbar_D | p_Nbar_n) / (p_U_Ns | p_U_B) +
   plot_annotation(tag_levels = "a", tag_prefix = "(", tag_suffix = ")") &
   theme(plot.tag = element_text(size = 16, face = "bold"))
 fig_diagnostics
-ggsave("vignettes/plots/01_diagnostics.png", plot = fig_diagnostics, width = 12, height = 8)
+ggsave("manuscript/oup-authoring-template/Figures/01_diagnostics.png", plot = fig_diagnostics, width = 12, height = 8)
 ```
 
 ---
@@ -957,7 +957,7 @@ p_d2 <- ggplot(df_myco_B_hi,
 fig_limits <- (p_a2 | p_b2) / (p_c2 | p_d2) +
   plot_layout(guides = "collect") & theme(legend.position = "right")
 fig_limits
-ggsave("vignettes/plots/03_limits.png",
+ggsave("manuscript/oup-authoring-template/Figures/03_limits.png",
        plot = fig_limits, width = 16, height = 10)
 ```
 

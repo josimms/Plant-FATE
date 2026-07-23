@@ -514,7 +514,7 @@ combined_plot <- (p_biomass_comparison + (p_density_diameter / p_diameter_length
   plot_layout(widths = c(1.6, 1)) +
   plot_annotation(tag_levels = 'a', tag_prefix = '(', tag_suffix = ')')) &
   theme(plot.tag = element_text(size = 28, face = "bold"))
-ggsave("pine_spruce_combined.png", plot = combined_plot, width = 17, height = 12, dpi = 300)
+ggsave("manuscript/oup-authoring-template/Figures/pine_spruce_combined.png", plot = combined_plot, width = 17, height = 12, dpi = 300)
 ```
 
 # Age related

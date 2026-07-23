@@ -35,6 +35,8 @@ end_year      <- if (testing_mode) 1985 else 2022
 dt            <- 1/12
 
 soil_n_default <- 0.405   # kg N m⁻³ — N_s default from p_test_boreal.ini
+
+pub_fig_dir <- "manuscript/oup-authoring-template/Figures"
 perturb_frac   <- 0.10    # ±10% of |baseline|
 
 # Outputs to track: summer (Jun–Aug) mean over the last 10 years of the run
@@ -93,7 +95,9 @@ params <- list(
   list(struct = "uptake0", field = "D",                   label = "Soil N diffusion (D)",           group = "N uptake",       baseline = 0.025),
   list(struct = "uptake0", field = "mycorrhized",         label = "Colonisation fraction",          group = "N uptake",       baseline = 1.0),
   list(struct = "uptake0", field = "u_transfer",          label = "N transfer rate (u_transfer)",   group = "N uptake",       baseline = 3.8e-3),
-  list(struct = "par0",    field = "nitrogen_start0",     label = "Initial tree N (nitrogen_start0)", group = "N uptake",     baseline = 0.0039)
+  list(struct = "par0",    field = "nitrogen_start0",     label = "Initial tree N (nitrogen_start0)", group = "N uptake",     baseline = 0.0039),
+  list(struct = "uptake0", field = "f_static",            label = "Organic N fraction (f_static)",  group = "N uptake",       baseline = 0.2),
+  list(struct = "uptake0", field = "k_mine",              label = "ECM mining rate (k_mine)",        group = "ECM",            baseline = 1.5)
 )
 
 # Ordered factor levels for plots (group order preserved)
@@ -294,6 +298,7 @@ wrap_plots(tornado_plots, ncol = 3, guides = "collect") +
         legend.title    = element_text(face = "bold"))
 
 ggsave("plots/sensitivity_tornado.png", width = 26, height = 20, dpi = 300)
+ggsave(file.path(pub_fig_dir, "sensitivity_tornado.png"), width = 26, height = 20, dpi = 300)
 ```
 
 ## Sensitivity heatmap
@@ -333,7 +338,7 @@ ggplot(heat_df |> filter(as.character(label) != "Quantum yield (kphio)"),
     plot.title    = element_text(face = "bold")
   )
 
-ggsave("plots/sensitivity_heatmap.png", width = 18, height = 14, dpi = 300)
+ggsave("manuscript/oup-authoring-template/Figures/sensitivity_heatmap.png", width = 18, height = 14, dpi = 300)
 ```
 
 ## Parameter trajectory plots
@@ -428,6 +433,7 @@ wrap_plots(traj_plots, ncol = 2, guides = "collect") +
   theme(legend.position = "right")
 
 ggsave("plots/sensitivity_trajectories.png", width = 16, height = 18, dpi = 300)
+ggsave(file.path(pub_fig_dir, "sensitivity_trajectories.png"), width = 16, height = 18, dpi = 300)
 ```
 
 ## kphio diagnostic: total N uptake over time
@@ -490,4 +496,5 @@ p_h <- ggplot(kphio_traj, aes(x = year, y = height,
   theme(legend.position = "bottom")
 
 ggsave("plots/kphio_n_uptake_diagnostic.png", width = 14, height = 8, dpi = 300)
+ggsave(file.path(pub_fig_dir, "kphio_n_uptake_diagnostic.png"), width = 14, height = 8, dpi = 300)
 ```
