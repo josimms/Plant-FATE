@@ -18,6 +18,7 @@ gprof2dot.py
 *.hx
 *.hppx
 *.tppx
+manuscript/
 *.cux
 *.cuhx
 *.gch
@@ -60,3 +61,4 @@ configure
 .RDataTmp10
 CLAUDE.md
 .RDataTmp6
+manuscript/
