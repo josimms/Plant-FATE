@@ -15,6 +15,8 @@ library(zoo)
 library(data.table)
 library(patchwork)
 library(here)
+
+pub_fig_dir <- here::here("manuscript/oup-authoring-template/Figures")
 ```
 
 ```{r theme, include=FALSE}
@@ -181,6 +183,26 @@ p_data_col <- ggplot(d_col_plot, aes(x = soil_CN_ratio, y = ecm_colonisation_pct
   pub_theme
 ```
 
+### ECM tip density — 2D density vs soil C:N
+
+```{r data_ecm_density}
+d_col_dens <- ecm_data[!is.na(ecm_data$ecm_colonisation_pct), ]
+
+p_data_col_dens <- ggplot(d_col_dens, aes(x = ecm_colonisation_pct)) +
+  geom_histogram(aes(y = after_stat(count), fill = species),
+                 binwidth = 5, colour = "white", alpha = 0.8,
+                 position = "stack") +
+  geom_density(aes(y = after_stat(count) * 5), colour = "grey30",
+               linewidth = 0.8, adjust = 1.5) +
+  scale_fill_manual(name = "Species", values = species_colours, drop = FALSE) +
+  coord_cartesian(xlim = c(0, 100)) +
+  labs(
+    x = "ECM colonisation (%)",
+    y = "Count"
+  ) +
+  pub_theme
+```
+
 ```{r data_combined}
 # Standalone legend using all species so the hash is consistent
 legend_plot <- ggplot(
@@ -203,18 +225,19 @@ legend_plot <- ggplot(
                                override.aes = list(alpha = 1, size = 5)))
 
 data_combined <- wrap_plots(
-  p_data_rl   + theme(legend.position = "none"),
-  p_data_td   + theme(legend.position = "none"),
-  p_data_ecm  + theme(legend.position = "none"),
-  p_data_ecmr + theme(legend.position = "none"),
-  p_data_col  + theme(legend.position = "none"),
+  p_data_rl      + theme(legend.position = "none"),
+  p_data_td      + theme(legend.position = "none"),
+  p_data_col_dens + theme(legend.position = "none"),
+  p_data_ecm     + theme(legend.position = "none"),
+  p_data_ecmr    + theme(legend.position = "none"),
+  p_data_col     + theme(legend.position = "none"),
   legend_plot,
   ncol = 3
-) + plot_annotation(tag_levels = list(c("A","B","C","D","E",""))) &
+) + plot_annotation(tag_levels = list(c("A","B","C","D","E","F",""))) &
   theme(plot.tag   = element_text(size = 28, face = "bold"),
         axis.text  = element_text(size = 24),
         axis.title = element_text(size = 26, face = "bold"))
 
-ggsave("manuscript/oup-authoring-template/Figures/data_combined.png",
-       plot = data_combined, width = 24, height = 14, dpi = 300)
+ggsave(file.path(pub_fig_dir, "data_combined.png"),
+       plot = data_combined, width = 24, height = 21, dpi = 300)
 ```

@@ -36,7 +36,7 @@ dt            <- 1/12
 
 soil_n_default <- 0.405   # kg N m⁻³ — N_s default from p_test_boreal.ini
 
-pub_fig_dir <- "manuscript/oup-authoring-template/Figures"
+pub_fig_dir <- here::here("manuscript/oup-authoring-template/Figures")
 perturb_frac   <- 0.10    # ±10% of |baseline|
 
 # Outputs to track: summer (Jun–Aug) mean over the last 10 years of the run
@@ -58,7 +58,6 @@ output_labels <- c(
   gpp_ca                      = "GPP / crown area (kg C m⁻² yr⁻¹)"
 )
 
-dir.create("plots", showWarnings = FALSE)
 ```
 
 ## Parameter definitions
@@ -297,7 +296,6 @@ wrap_plots(tornado_plots, ncol = 3, guides = "collect") +
   theme(legend.position = "bottom",
         legend.title    = element_text(face = "bold"))
 
-ggsave("plots/sensitivity_tornado.png", width = 26, height = 20, dpi = 300)
 ggsave(file.path(pub_fig_dir, "sensitivity_tornado.png"), width = 26, height = 20, dpi = 300)
 ```
 
@@ -338,7 +336,7 @@ ggplot(heat_df |> filter(as.character(label) != "Quantum yield (kphio)"),
     plot.title    = element_text(face = "bold")
   )
 
-ggsave("manuscript/oup-authoring-template/Figures/sensitivity_heatmap.png", width = 18, height = 14, dpi = 300)
+ggsave(file.path(pub_fig_dir, "sensitivity_heatmap.png"), width = 18, height = 14, dpi = 300)
 ```
 
 ## Parameter trajectory plots
@@ -432,7 +430,6 @@ wrap_plots(traj_plots, ncol = 2, guides = "collect") +
   ) &
   theme(legend.position = "right")
 
-ggsave("plots/sensitivity_trajectories.png", width = 16, height = 18, dpi = 300)
 ggsave(file.path(pub_fig_dir, "sensitivity_trajectories.png"), width = 16, height = 18, dpi = 300)
 ```
 
@@ -495,6 +492,5 @@ p_h <- ggplot(kphio_traj, aes(x = year, y = height,
   ) &
   theme(legend.position = "bottom")
 
-ggsave("plots/kphio_n_uptake_diagnostic.png", width = 14, height = 8, dpi = 300)
 ggsave(file.path(pub_fig_dir, "kphio_n_uptake_diagnostic.png"), width = 14, height = 8, dpi = 300)
 ```

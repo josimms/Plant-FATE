@@ -25,23 +25,23 @@ library(here)
 ```
 
 ```{r theme, include=FALSE}
-pub_theme <- theme_classic(base_size = 22) +
+pub_theme <- theme_classic(base_size = 24) +
   theme(
-    axis.title       = element_text(size = 22, face = "bold"),
-    axis.text        = element_text(size = 20, colour = "black"),
+    axis.title       = element_text(size = 24, face = "bold"),
+    axis.text        = element_text(size = 22, colour = "black"),
     axis.line        = element_line(colour = "black", linewidth = 0.6),
     axis.ticks       = element_line(colour = "black", linewidth = 0.5),
-    legend.text      = element_text(size = 20),
+    legend.text      = element_text(size = 22),
     legend.key.size  = unit(0.9, "lines"),
     panel.grid.major = element_line(colour = "grey90", linewidth = 0.3),
     panel.grid.minor = element_blank(),
     plot.background  = element_rect(fill = "white", colour = NA),
     panel.background = element_rect(fill = "white", colour = NA),
     plot.margin           = margin(8, 12, 8, 8),
-    strip.text            = element_text(size = 22, face = "bold"),
-    plot.tag              = element_text(size = 18, face = "bold"),
+    strip.text            = element_text(size = 24, face = "bold"),
+    plot.tag              = element_text(size = 20, face = "bold"),
     legend.title.position = "top",
-    legend.title          = element_text(size = 22, face = "bold", hjust = 0.5)
+    legend.title          = element_text(size = 24, face = "bold", hjust = 0.5)
   )
 ```
 
@@ -141,10 +141,7 @@ run_sim_safe <- function(rl, rn, n, eb) {
   result
 }
 
-run_date  <- format(Sys.Date(), "%Y-%m-%d")
-plot_dir  <- file.path("plots", run_date)
-dir.create(plot_dir, showWarnings = FALSE, recursive = TRUE)
-pub_fig_dir <- "manuscript/oup-authoring-template/Figures"
+pub_fig_dir <- here::here("manuscript/oup-authoring-template/Figures")
 
 pub_cache <- "plots/pub_plots_all_joint.csv"
 
@@ -199,6 +196,7 @@ joint_gs <- all_joint_df %>%
     C_export_to_myco           = mean(C_export_to_myco,           na.rm = TRUE),
     mycorrhizal_export_to_tree = mean(mycorrhizal_export_to_tree, na.rm = TRUE),
     root_uptake                = mean(root_uptake,                na.rm = TRUE),
+    root_uptake_actual         = mean(root_uptake_actual,         na.rm = TRUE),
     myco_uptake                = mean(myco_uptake,                na.rm = TRUE),
     assim_gross                = mean(assim_gross,                na.rm = TRUE),
     optimal_leaf_nitrogen      = mean(optimal_leaf_nitrogen,      na.rm = TRUE),
@@ -525,14 +523,16 @@ joint_optima
 ## Objective function comparison
 
 ```{r objective_comparison}
-# Net GPP per crown area: GPP minus all N-related belowground C costs, per m2 canopy.
+# GPP minus belowground carbon costs per unit leaf area. All flux terms scale with
+# A_c * LAI because fine root biomass is proportional to total leaf area (B_fr ∝ n * A_c * LAI).
+# Note: only root-related costs are subtracted (not whole-tree autotrophic respiration).
 #   rr             = fine root respiration (kg biomass / time unit); * 0.44 = carbon
 #   tr             = fine root turnover   (kg biomass / time unit); * 0.44 = carbon
 #   C_export_to_myco = C paid to mycorrhiza (kg C / time unit)
 # Coarse root respiration excluded: invariant to root_no and ecto_allo.
 add_net_gpp_ca <- function(df) {
   df %>% mutate(
-    net_gpp_ca = (assim_gross - C_export_to_myco - rr * 0.44 - tr * 0.44) / crown_area
+    net_gpp_ca = (assim_gross - C_export_to_myco - rr * 0.44 - tr * 0.44) / (crown_area * lai)
   )
 }
 
@@ -641,12 +641,12 @@ make_optima_figure <- function(gs_data, var_col, fig_title, obj_label = NULL) {
       cexport_frac_hi = max(C_export_to_myco / assim_gross,                             na.rm = TRUE),
       myco_up_lo      = min(myco_uptake,                                                na.rm = TRUE),
       myco_up_hi      = max(myco_uptake,                                                na.rm = TRUE),
-      root_up_lo      = min(root_uptake,                                                na.rm = TRUE),
-      root_up_hi      = max(root_uptake,                                                na.rm = TRUE),
+      root_up_lo      = min(root_uptake_actual,                                          na.rm = TRUE),
+      root_up_hi      = max(root_uptake_actual,                                          na.rm = TRUE),
       n_return_lo     = min(mycorrhizal_export_to_tree,                                 na.rm = TRUE),
       n_return_hi     = max(mycorrhizal_export_to_tree,                                 na.rm = TRUE),
-      total_n_lo      = min(myco_uptake + root_uptake,                                  na.rm = TRUE),
-      total_n_hi      = max(myco_uptake + root_uptake,                                  na.rm = TRUE),
+      total_n_lo      = min(myco_uptake + root_uptake_actual,                           na.rm = TRUE),
+      total_n_hi      = max(myco_uptake + root_uptake_actual,                           na.rm = TRUE),
       transf_eff_lo   = min(mycorrhizal_export_to_tree / pmax(myco_uptake, 1e-12),      na.rm = TRUE),
       transf_eff_hi   = max(mycorrhizal_export_to_tree / pmax(myco_uptake, 1e-12),      na.rm = TRUE),
       n_deficit_lo    = min(optimal_leaf_nitrogen - leaf_nitrogen_concentration,         na.rm = TRUE),
@@ -677,7 +677,7 @@ make_optima_figure <- function(gs_data, var_col, fig_title, obj_label = NULL) {
   opt_fluxes <- opt %>%
     mutate(
       ecm_frac_gpp   = C_export_to_myco / assim_gross,
-      total_n_uptake = myco_uptake + root_uptake,
+      total_n_uptake = myco_uptake + root_uptake_actual,
       transfer_eff   = mycorrhizal_export_to_tree / pmax(myco_uptake + ectomycorrhiza_N_free * k_mob_N, 1e-12),
       n_deficit      = optimal_leaf_nitrogen - leaf_nitrogen_concentration,
       tr_c           = tr * 0.44,
@@ -861,7 +861,7 @@ allocation (% GPP)") +
     fn_scales + scale_y_continuous(labels = scales::label_percent()) + expand_limits(y = c(0, 1)) +
     labs(tag = "N", x = "Soil nitrogen (kg N / m3)", y = "C to ECM\n(% GPP)") + pub_theme
 
-  pO <- ggplot(opt_fluxes, aes(x = soil_nitrogen, y = root_uptake)) +
+  pO <- ggplot(opt_fluxes, aes(x = soil_nitrogen, y = root_uptake_actual)) +
     geom_ribbon(data = stab_out, aes(x = soil_nitrogen, ymin = root_up_lo, ymax = root_up_hi),
                 fill = "grey80", colour = NA, inherit.aes = FALSE) +
     geom_point(aes(shape = "Model output"), colour = "black", size = 3, stroke = 1.2) +
@@ -1000,6 +1000,7 @@ annual_gs_all <- all_joint_df %>%
     C_export_to_myco            = mean(C_export_to_myco,            na.rm = TRUE),
     mycorrhizal_export_to_tree  = mean(mycorrhizal_export_to_tree,  na.rm = TRUE),
     root_uptake                 = mean(root_uptake,                 na.rm = TRUE),
+    root_uptake_actual          = mean(root_uptake_actual,          na.rm = TRUE),
     myco_uptake                 = mean(myco_uptake,                 na.rm = TRUE),
     assim_gross                 = mean(assim_gross,                 na.rm = TRUE),
     optimal_leaf_nitrogen       = mean(optimal_leaf_nitrogen,       na.rm = TRUE),
@@ -1017,10 +1018,11 @@ annual_gs_all <- all_joint_df %>%
     .groups = "drop"
   ) %>%
   mutate(
-    net_gpp_ca    = (assim_gross - C_export_to_myco - rr * 0.44 - tr * 0.44) / crown_area,
+    net_gpp_ca    = (assim_gross - C_export_to_myco - rr * 0.44 - tr * 0.44) / (crown_area * lai),
     ecm_frac_gpp  = C_export_to_myco / assim_gross,
     myco_N_access = k_mine * ectomycorrhiza_mass * N_static,
-    accessible_N  = N_bar_roots + N_static
+    accessible_N  = N_bar_roots + N_static,
+    mycorrhized   = 0.9
   ) %>%
   arrange(soil_nitrogen, ecto_allo, root_no, root_length, year) %>%
   group_by(soil_nitrogen, ecto_allo, root_no, root_length) %>%
@@ -1030,7 +1032,7 @@ annual_gs_all_full <- annual_gs_all
 annual_gs_all <- annual_gs_all %>%
   filter(year >= min(year, na.rm = TRUE) + 5)
 
-# For each year × soil_nitrogen: the parameter combo with the highest net GPP per crown area
+# For each year × soil_nitrogen: the parameter combo with the highest GPP minus root costs
 annual_opt_gpp <- annual_gs_all %>%
   group_by(soil_nitrogen, year) %>%
   slice_max(net_gpp_ca, n = 1, with_ties = FALSE) %>%
@@ -1040,25 +1042,26 @@ annual_opt_gpp <- annual_gs_all %>%
 ## Joint optima: trajectories over time
 
 ```{r joint_optima_trajectories}
-# Use actual unique N values from the data so cached results with a different
-# n_pts_main don't cause n_low to miss every row in the filter.
-soil_N_unique <- sort(unique(annual_opt_gpp$soil_nitrogen))
-n_low  <- soil_N_unique[5]
-n_high <- soil_N_unique[length(soil_N_unique)]
+# Use actual unique N values from the data; indices match 16c (annual_gpp_traj).
+soil_N_unique  <- sort(unique(annual_opt_gpp$soil_nitrogen))
+n_low_c  <- soil_N_unique[2]
+n_high_c <- soil_N_unique[5]
 
-# Derive trajectory data from annual_opt_gpp (net GPP/crown optimisation, consistent with 16a)
+n_label_low_c  <- paste0("Low N (",  round(n_low_c,  2), " g m⁻³)")
+n_label_high_c <- paste0("High N (", round(n_high_c, 2), " g m⁻³)")
+
+# Derive trajectory data from annual_opt_gpp (GPP minus root costs optimisation, consistent with 16a)
 # filtered to the two N endpoints so trajectories show how optima shift as the tree ages.
 annual_opt <- annual_opt_gpp %>%
-  filter(soil_nitrogen %in% c(n_low, n_high)) %>%
+  filter(soil_nitrogen %in% c(n_low_c, n_high_c)) %>%
   mutate(
     CN         = (ectomycorrhiza_mass * 0.44 + ectomycorrhiza_C_free) /
                    pmax(ectomycorrhiza_N_biomass + ectomycorrhiza_N_free, 1e-12),
     gpp_per_ca = assim_gross / crown_area,
     N_label    = factor(
-      ifelse(soil_nitrogen == n_low, "Low N", "High N"),
+      ifelse(soil_nitrogen == n_low_c, "Low N", "High N"),
       levels = c("Low N", "High N"),
-      labels = c(paste0("Low N (",  round(n_low,  1), " g m⁻³)"),
-                 paste0("High N (", round(n_high, 1), " g m⁻³)"))
+      labels = c(n_label_low_c, n_label_high_c)
     )
   )
 
@@ -1073,7 +1076,7 @@ p_traj_ecto <- ggplot(annual_opt,
   geom_point(size = 2, shape = 3, stroke = 1.5) +
   traj_colour2 +
   scale_y_continuous(labels = scales::label_percent()) +
-  labs(x = NULL, y = "Optimal ECM C allocation\n(% NPP)") +
+  labs(tag = "(a)", x = NULL, y = "Optimal ECM C allocation\n(% NPP)") +
   pub_theme
 
 p_traj_rn <- ggplot(annual_opt,
@@ -1081,14 +1084,22 @@ p_traj_rn <- ggplot(annual_opt,
   geom_point(size = 2, shape = 3, stroke = 1.5) +
   traj_colour2 +
   scale_y_log10(labels = scales::label_scientific()) +
-  labs(x = NULL, y = "Optimal root number\nper crown area (no m⁻²)") +
+  labs(tag = "(b)", x = NULL, y = "Optimal root number\nper crown area (no m⁻²)") +
   pub_theme
 
 p_traj_rl <- ggplot(annual_opt,
     aes(x = year, y = root_length, colour = N_label, group = N_label)) +
   geom_point(size = 2, shape = 3, stroke = 1.5) +
   traj_colour2 +
-  labs(x = NULL, y = "Optimal root length (m)") +
+  labs(tag = "(c)", x = NULL, y = "Optimal root length (m)") +
+  pub_theme
+
+p_traj_myco <- ggplot(annual_opt,
+    aes(x = year, y = mycorrhized, colour = N_label, group = N_label)) +
+  geom_point(size = 2, shape = 3, stroke = 1.5) +
+  traj_colour2 +
+  scale_y_continuous(labels = scales::label_percent(), limits = c(0, 1)) +
+  labs(tag = "(d)", x = NULL, y = "ECM colonisation\n(% roots covered)") +
   pub_theme
 
 # --- Middle row: emergent mycorrhizal outputs ---
@@ -1097,7 +1108,7 @@ p_traj_ecm <- ggplot(annual_opt,
   geom_point(size = 1.5) +
   traj_colour2 +
   scale_y_continuous(labels = scales::label_scientific()) +
-  labs(x = NULL, y = "Ectomycorrhizal\nbiomass (kg)") +
+  labs(tag = "(e)", x = NULL, y = "Ectomycorrhizal\nbiomass (kg)") +
   pub_theme
 
 p_traj_ecm_area <- ggplot(annual_opt,
@@ -1106,36 +1117,52 @@ p_traj_ecm_area <- ggplot(annual_opt,
   geom_point(size = 1.5) +
   traj_colour2 +
   scale_y_continuous(labels = scales::label_scientific()) +
-  labs(x = NULL, y = "Ectomycorrhizal biomass\nper crown area (kg m⁻²)") +
+  labs(tag = "(f)", x = NULL, y = "Ectomycorrhizal biomass\nper crown area (kg m⁻²)") +
   pub_theme
 
 p_traj_nbar <- ggplot(annual_opt,
     aes(x = year, y = N_bar_roots, colour = N_label, group = N_label)) +
   geom_point(size = 1.5) +
   traj_colour2 +
-  labs(x = NULL, y = expression(bar(N)[roots]~"(kg N m"^{-3}*")")) +
+  labs(tag = "(g)", x = NULL, y = expression(bar(N)[roots]~"(kg N m"^{-3}*")")) +
   pub_theme
 
 p_traj_cn <- ggplot(annual_opt,
     aes(x = year, y = CN, colour = N_label, group = N_label)) +
   geom_point(size = 1.5) +
   traj_colour2 +
-  labs(x = NULL, y = "Mycorrhizal C:N ratio\n(kg C kg⁻¹ N)") +
+  labs(tag = "(h)", x = NULL, y = "Mycorrhizal C:N ratio\n(kg C kg⁻¹ N)") +
   pub_theme
 
 # --- Bottom row: tree status ---
-p_traj_height <- ggplot(annual_opt,
-    aes(x = year, y = height, colour = N_label, group = N_label)) +
-  geom_point(size = 1.5) +
-  traj_colour2 +
-  labs(x = NULL, y = "Height (m)") +
-  pub_theme
+p_traj_height <- {
+  best_ht <- annual_gs_all %>%
+    group_by(soil_nitrogen, ecto_allo, root_no, root_length) %>%
+    summarise(mean_gpp_ca = mean(net_gpp_ca, na.rm = TRUE), .groups = "drop") %>%
+    group_by(soil_nitrogen) %>%
+    slice_max(mean_gpp_ca, n = 1, with_ties = FALSE) %>%
+    select(soil_nitrogen, ecto_allo, root_no, root_length)
+
+  annual_gs_all_full %>%
+    semi_join(best_ht, by = c("soil_nitrogen", "ecto_allo", "root_no", "root_length")) %>%
+    filter(soil_nitrogen %in% c(n_low_c, n_high_c), !is.na(height_increment)) %>%
+    mutate(N_label = factor(
+      ifelse(soil_nitrogen == n_low_c, "Low N", "High N"),
+      levels = c("Low N", "High N"),
+      labels = c(n_label_low_c, n_label_high_c)
+    )) %>%
+    ggplot(aes(x = year, y = height_increment, colour = N_label, group = N_label)) +
+    geom_point(size = 1.5) +
+    traj_colour2 +
+    labs(tag = "(i)", x = NULL, y = "Height increment\n(m yr⁻¹)") +
+    pub_theme
+}
 
 p_traj_gpp <- ggplot(annual_opt,
     aes(x = year, y = gpp_per_ca, colour = N_label, group = N_label)) +
   geom_point(size = 1.5) +
   traj_colour2 +
-  labs(x = NULL, y = "GPP per crown area\n(kg C m⁻² yr⁻¹)") +
+  labs(tag = "(j)", x = NULL, y = "GPP per crown area\n(kg C m⁻² yr⁻¹)") +
   pub_theme
 
 p_traj_n_limit <- ggplot(annual_opt,
@@ -1143,35 +1170,57 @@ p_traj_n_limit <- ggplot(annual_opt,
   geom_point(aes(y = leaf_nitrogen_concentration), shape = 1, size = 1.5) +
   geom_point(aes(y = optimal_leaf_nitrogen), shape = 16, size = 1.5) +
   traj_colour2 +
-  labs(x = NULL, y = "Leaf N concentration\n(kg N kg⁻¹ leaf)") +
+  labs(tag = "(k)", x = NULL, y = "Leaf N concentration\n(kg N kg⁻¹ leaf)") +
   pub_theme
 
 p_traj_nfree <- ggplot(annual_opt,
     aes(x = year, y = tree_nitrogen, colour = N_label, group = N_label)) +
   geom_point(size = 1.5) +
   traj_colour2 +
-  labs(x = NULL, y = "Free N pool\n(kg N tree⁻¹)") +
+  labs(tag = "(l)", x = NULL, y = "Free N pool\n(kg N tree⁻¹)") +
   pub_theme
 
-traj_tags <- list(c("", "A", "B", "C", "", "", "D", "E", "F", "G", "", "H", "I", "J", "K"))
+# Phantom plot used only for its legend: colour = Soil N, shape = plot type
+legend_df_11b <- data.frame(
+  x         = 1:4,
+  y         = 1:4,
+  soil_n    = factor(rep(c(n_label_low_c, n_label_high_c), 2),
+                     levels = c(n_label_low_c, n_label_high_c)),
+  plot_type = factor(rep(c("Parameters", "Model results"), each = 2),
+                     levels = c("Parameters", "Model results"))
+)
 
-joint_optima_traj <-
-  make_row_title("Parameters to be Optimised") /
-  wrap_plots(p_traj_ecto, p_traj_rn, p_traj_rl, ncol = 3) /
-  make_row_title("Model results: Mycorrhizal dynamics & N depletion") /
-  (p_traj_ecm | p_traj_ecm_area | p_traj_nbar | p_traj_cn) /
-  make_row_title("Model results: Tree Status") /
-  (p_traj_height | p_traj_gpp | p_traj_n_limit | p_traj_nfree) +
-  plot_layout(heights = c(0.07, 1, 0.07, 1, 0.07, 1), guides = "collect") +
-  plot_annotation(tag_levels = traj_tags) &
-  theme(plot.tag        = element_text(size = 22, face = "bold"),
-        legend.text     = element_text(size = 18),
-        legend.key.size = unit(1.2, "lines"),
-        legend.position = "right")
+p_legend_11b <- ggplot(legend_df_11b, aes(x, y, colour = soil_n, shape = plot_type)) +
+  geom_point(size = 3, stroke = 1.5) +
+  scale_colour_manual(name = "Soil N", values = c("#2166ac", "#d6604d")) +
+  scale_shape_manual(name = NULL, values = c("Parameters" = 3, "Model results" = 16)) +
+  coord_cartesian(xlim = c(100, 200), ylim = c(100, 200)) +
+  theme_void() +
+  theme(legend.position  = "bottom",
+        legend.direction = "horizontal",
+        legend.text      = element_text(size = 22),
+        legend.title     = element_text(size = 22, face = "bold"),
+        legend.key.size  = unit(1.2, "lines"))
+
+joint_optima_traj <- wrap_plots(
+  (make_row_title("Parameters to be Optimised") /
+   wrap_plots(p_traj_ecto, p_traj_rn, p_traj_rl, p_traj_myco, ncol = 4) /
+   make_row_title("Model results: Mycorrhizal dynamics & N depletion") /
+   (p_traj_ecm | p_traj_ecm_area | p_traj_nbar | p_traj_cn) /
+   make_row_title("Model results: Tree Status") /
+   (p_traj_height | p_traj_gpp | p_traj_n_limit | p_traj_nfree) +
+   plot_layout(heights = c(0.07, 1, 0.07, 1, 0.07, 1)) &
+   theme(plot.tag        = element_text(size = 22, face = "bold"),
+         legend.text     = element_text(size = 22),
+         legend.key.size = unit(1.2, "lines"),
+         legend.position = "none",
+         axis.text.x     = element_text(angle = 45, hjust = 1))),
+  p_legend_11b,
+  nrow    = 2,
+  heights = c(17, 1)
+)
 joint_optima_traj
 
-ggsave(file.path(plot_dir, "11b_joint_optima_trajectories.png"),
-       plot = joint_optima_traj, width = 20, height = 18, dpi = 300)
 ggsave(file.path(pub_fig_dir, "11b_joint_optima_trajectories.png"),
        plot = joint_optima_traj, width = 20, height = 18, dpi = 300)
 ```
@@ -1188,7 +1237,7 @@ make_yearly_optima_figure <- function(annual_data, x_col, x_lab, fig_title,
       CN             = (ectomycorrhiza_mass * 0.44 + ectomycorrhiza_C_free) /
                          pmax(ectomycorrhiza_N_biomass + ectomycorrhiza_N_free, 1e-12),
       ecm_frac_gpp   = C_export_to_myco / assim_gross,
-      total_n_uptake = myco_uptake + root_uptake,
+      total_n_uptake = myco_uptake + root_uptake_actual,
       transfer_eff   = mycorrhizal_export_to_tree / pmax(myco_uptake + ectomycorrhiza_N_free * k_mob_N, 1e-12),
       tr_c           = tr * 0.44,
       rr_frac        = rr * 0.44 / assim_gross,
@@ -1296,7 +1345,7 @@ make_yearly_optima_figure <- function(annual_data, x_col, x_lab, fig_title,
 
   pObj <- ggplot(dat, aes(x = !!x_sym, y = net_gpp_ca)) +
     pt + yr_line + expand_limits(y = 0) +
-    labs(tag = "J2", x = x_lab, y = "Net GPP per crown area\n(objective, kg C m⁻² yr⁻¹)") + pub_theme
+    labs(tag = "J2", x = x_lab, y = "GPP − root costs\n(kg C m⁻² yr⁻¹)") + pub_theme
 
   pK <- ggplot(dat, aes(x = leaf_nitrogen_concentration, y = optimal_leaf_nitrogen)) +
     geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
@@ -1417,7 +1466,7 @@ gpp_diag <- annual_opt_gpp %>%
     myco_SA_m2     = 4 * ectomycorrhiza_mass / (1200 * 2e-5),
     root_up_per_SA = root_uptake  / pmax(root_SA_m2,  1e-12),
     myco_up_per_SA = myco_uptake  / pmax(myco_SA_m2,  1e-12),
-    total_n_uptake = root_uptake + myco_uptake,
+    total_n_uptake = root_uptake_actual + myco_uptake,
     myco_N_access  = k_mine * ectomycorrhiza_mass * N_static,
     accessible_N   = N_bar_roots + N_static
   )
@@ -1434,14 +1483,16 @@ candidates <- list(
   list(col = "belowground_infrastructure",lab = "I_b (belowground N factor)")
 )
 
-diag_plots <- lapply(candidates, function(v) {
+tag_letters <- paste0("(", letters[seq_along(candidates)], ")")
+diag_plots <- lapply(seq_along(candidates), function(i) {
+  v <- candidates[[i]]
   ggplot(gpp_diag, aes(x = .data[[v$col]], y = gpp_ca, colour = year)) +
     geom_point(size = 1.5, alpha = 0.7, na.rm = TRUE) +
     scale_colour_viridis_c(name = "Year", option = "viridis",
                            guide = guide_colorbar(barwidth  = unit(15, "cm"),
                                                   barheight = unit(0.5, "cm"))) +
     expand_limits(y = 0) +
-    labs(x = v$lab, y = "GPP / crown area\n(kg C m⁻² yr⁻¹)") +
+    labs(tag = tag_letters[i], x = v$lab, y = "GPP / crown area\n(kg C m⁻² yr⁻¹)") +
     pub_theme
 })
 
@@ -1449,8 +1500,6 @@ fig_gpp_xvar <- wrap_plots(diag_plots, ncol = 3, guides = "collect") +
   plot_layout(guides = "collect") &
   theme(legend.position = "bottom")
 fig_gpp_xvar
-ggsave(file.path(plot_dir, "16a_gpp_xvar_diagnostic.png"), plot = fig_gpp_xvar,
-       width = 18, height = 18, dpi = 300)
 ggsave(file.path(pub_fig_dir, "16a_gpp_xvar_diagnostic.png"), plot = fig_gpp_xvar,
        width = 18, height = 18, dpi = 300)
 ```
@@ -1463,8 +1512,6 @@ fig_annual_nbar <- make_yearly_optima_figure(
   fig_title = "Yearly GPP-optimal — x = N̄ roots (effective N at absorbing surface)"
 )
 fig_annual_nbar
-ggsave(file.path(plot_dir, "16a_annual_gpp_nbar.png"), plot = fig_annual_nbar,
-       width = 22, height = 42, dpi = 300)
 ggsave(file.path(pub_fig_dir, "16a_annual_gpp_nbar.png"), plot = fig_annual_nbar,
        width = 22, height = 42, dpi = 300)
 
@@ -1474,6 +1521,10 @@ ggsave(file.path(pub_fig_dir, "16a_annual_gpp_nbar.png"), plot = fig_annual_nbar
 ## Yearly GPP-optimal: trajectories
 
 ```{r annual_gpp_traj}
+# Use smaller N indices: index 2 (~0.26 g m⁻³) and index 5 (~1.0 g m⁻³)
+n_low_c  <- soil_N_unique[2]
+n_high_c <- soil_N_unique[5]
+
 # For each soil_nitrogen, find the single (ecto_allo, root_no, root_length) combo
 # that maximises mean net_gpp_ca across all years, then follow that combo's full
 # trajectory — this gives a physically consistent path (no year-to-year jumps).
@@ -1487,107 +1538,143 @@ best_combo_lifetime <- annual_gs_all_full %>%
 traj_gpp <- annual_gs_all_full %>%
   semi_join(best_combo_lifetime,
             by = c("soil_nitrogen", "ecto_allo", "root_no", "root_length")) %>%
-  filter(soil_nitrogen %in% c(n_low, n_high)) %>%
+  filter(soil_nitrogen %in% c(n_low_c, n_high_c)) %>%
   mutate(
     CN           = (ectomycorrhiza_mass * 0.44 + ectomycorrhiza_C_free) /
                      pmax(ectomycorrhiza_N_biomass + ectomycorrhiza_N_free, 1e-12),
     gpp_per_ca   = assim_gross / crown_area,
     ecm_frac_gpp = C_export_to_myco / assim_gross,
     N_label      = factor(
-      ifelse(soil_nitrogen == n_low, "Low N", "High N"),
+      ifelse(soil_nitrogen == n_low_c, "Low N", "High N"),
       levels = c("Low N", "High N"),
-      labels = c(paste0("Low N (",  round(n_low,  1), " g m⁻³)"),
-                 paste0("High N (", round(n_high, 1), " g m⁻³)"))
+      labels = c(paste0("Low N (",  round(n_low_c,  2), " g m⁻³)"),
+                 paste0("High N (", round(n_high_c, 2), " g m⁻³)"))
     )
   )
 
 traj_colour_gpp <- scale_colour_manual(
   name   = "Soil N",
-  values = c("#2166ac", "#d6604d")
+  values = c("#2166ac", "#d6604d"),
+  guide  = guide_legend(override.aes = list(linetype = "solid", linewidth = 0.8))
 )
 
 # Row 1: lifetime-optimal parameter values (flat lines — fixed for whole trajectory)
 p_tg_ecto <- ggplot(traj_gpp, aes(x = year, y = ecto_allo, colour = N_label, group = N_label)) +
   geom_line(linewidth = 0.8) +
   traj_colour_gpp + scale_y_continuous(labels = scales::label_percent()) +
-  labs(x = NULL, y = "ECM C allocation\n(% NPP)") + pub_theme
+  labs(x = NULL, y = "ECM C allocation\n(% NPP)", tag = "(a)") + pub_theme
 
 p_tg_rn <- ggplot(traj_gpp, aes(x = year, y = root_no, colour = N_label, group = N_label)) +
   geom_line(linewidth = 0.8) +
   traj_colour_gpp + scale_y_log10(labels = scales::label_scientific()) +
-  labs(x = NULL, y = "Root number\nper crown area (no m⁻²)") + pub_theme
+  labs(x = NULL, y = "Root number\nper crown area (no m⁻²)", tag = "(b)") + pub_theme
 
 p_tg_rl <- ggplot(traj_gpp, aes(x = year, y = root_length, colour = N_label, group = N_label)) +
   geom_line(linewidth = 0.8) +
   traj_colour_gpp +
-  labs(x = NULL, y = "Root length (m)") + pub_theme
+  labs(x = NULL, y = "Root length (m)", tag = "(c)") + pub_theme
 
-p_tg_ngpp <- ggplot(traj_gpp, aes(x = year, y = net_gpp_ca, colour = N_label, group = N_label)) +
+p_tg_myco <- ggplot(traj_gpp, aes(x = year, y = mycorrhized, colour = N_label, group = N_label)) +
   geom_line(linewidth = 0.8) +
   traj_colour_gpp +
-  labs(x = NULL, y = "Net GPP per crown area\n(kg C m⁻² yr⁻¹)") + pub_theme
+  scale_y_continuous(labels = scales::label_percent(), limits = c(0, 1)) +
+  labs(x = NULL, y = "ECM colonisation\n(% roots covered)", tag = "(d)") + pub_theme
 
 # Row 2: mycorrhizal outputs at the yearly optimum
 p_tg_ecm <- ggplot(traj_gpp,
     aes(x = year, y = ectomycorrhiza_mass, colour = N_label, group = N_label)) +
   geom_line(linewidth = 0.8) +
   traj_colour_gpp + scale_y_continuous(labels = scales::label_scientific()) +
-  labs(x = NULL, y = "Ectomycorrhizal\nbiomass (kg)") + pub_theme
+  labs(x = NULL, y = "Ectomycorrhizal\nbiomass (kg)", tag = "(e)") + pub_theme
 
 p_tg_ecm_area <- ggplot(traj_gpp,
     aes(x = year, y = ectomycorrhiza_mass / crown_area, colour = N_label, group = N_label)) +
   geom_line(linewidth = 0.8) +
   traj_colour_gpp + scale_y_continuous(labels = scales::label_scientific()) +
-  labs(x = NULL, y = "Ectomycorrhizal biomass\nper crown area (kg m⁻²)") + pub_theme
+  labs(x = NULL, y = "Ectomycorrhizal biomass\nper crown area (kg m⁻²)", tag = "(f)") + pub_theme
 
 p_tg_nbar <- ggplot(traj_gpp, aes(x = year, y = N_bar_roots, colour = N_label, group = N_label)) +
   geom_line(linewidth = 0.8) +
   traj_colour_gpp +
-  labs(x = NULL, y = expression(bar(N)[roots]~"(kg N m"^{-3}*")")) + pub_theme
+  labs(x = NULL, y = expression(bar(N)[roots]~"(kg N m"^{-3}*")"), tag = "(g)") + pub_theme
 
 p_tg_cn <- ggplot(traj_gpp, aes(x = year, y = CN, colour = N_label, group = N_label)) +
   geom_line(linewidth = 0.8) +
   traj_colour_gpp +
-  labs(x = NULL, y = "Mycorrhizal C:N ratio\n(kg C kg⁻¹ N)") + pub_theme
+  labs(x = NULL, y = "Mycorrhizal C:N ratio\n(kg C kg⁻¹ N)", tag = "(h)") + pub_theme
 
 # Row 3: tree status at the yearly optimum
 p_tg_height <- ggplot(traj_gpp, aes(x = year, y = height, colour = N_label, group = N_label)) +
   geom_line(linewidth = 0.8) +
   traj_colour_gpp +
-  labs(x = NULL, y = "Height (m)") + pub_theme
+  labs(x = NULL, y = "Height (m)", tag = "(i)") + pub_theme
 
 p_tg_gpp <- ggplot(traj_gpp, aes(x = year, y = gpp_per_ca, colour = N_label, group = N_label)) +
   geom_line(linewidth = 0.8) +
   traj_colour_gpp +
-  labs(x = NULL, y = "GPP per crown area\n(kg C m⁻² yr⁻¹)") + pub_theme
+  labs(x = NULL, y = "GPP per crown area\n(kg C m⁻² yr⁻¹)", tag = "(j)") + pub_theme
 
 p_tg_nlim <- ggplot(traj_gpp, aes(x = year, colour = N_label, group = N_label)) +
   geom_line(aes(y = leaf_nitrogen_concentration), linetype = "dashed", linewidth = 0.8) +
   geom_line(aes(y = optimal_leaf_nitrogen),       linetype = "solid",  linewidth = 0.8) +
   traj_colour_gpp +
-  labs(x = NULL, y = "Leaf N concentration\n(kg N kg⁻¹ leaf)") + pub_theme
+  labs(x = NULL, y = "Leaf N concentration\n(kg N kg⁻¹ leaf)", tag = "(k)") + pub_theme
 
 p_tg_nfree <- ggplot(traj_gpp, aes(x = year, y = tree_nitrogen, colour = N_label, group = N_label)) +
   geom_line(linewidth = 0.8) +
   traj_colour_gpp +
-  labs(x = NULL, y = "Free N pool\n(kg N tree⁻¹)") + pub_theme
+  labs(x = NULL, y = "Free N pool\n(kg N tree⁻¹)", tag = "(l)") + pub_theme
 
-joint_gpp_traj <-
-  make_row_title("Lifetime-optimal parameters (max mean net GPP/crown across all years)") /
-  (p_tg_ecto | p_tg_rn | p_tg_rl | p_tg_ngpp) /
+# Phantom for colour legend
+p_leg_col_gpp <- ggplot(traj_gpp, aes(x = year, y = ecto_allo, colour = N_label)) +
+  geom_line(linewidth = 0.8) +
+  traj_colour_gpp +
+  coord_cartesian(xlim = c(3000, 4000), ylim = c(100, 200)) +
+  theme_void() +
+  theme(legend.position  = "bottom",
+        legend.direction = "horizontal",
+        legend.text      = element_text(size = 22),
+        legend.title     = element_text(size = 22, face = "bold"),
+        legend.key.size  = unit(1.2, "lines"))
+
+# Phantom for linetype legend (panel k: dashed = actual leaf N, solid = optimal leaf N)
+p_leg_lty_gpp <- ggplot(
+  data.frame(x = 1:2, y = 1:2,
+             type = factor(c("Actual leaf N", "Optimal leaf N"),
+                           levels = c("Actual leaf N", "Optimal leaf N"))),
+  aes(x = x, y = y, linetype = type)) +
+  geom_line(linewidth = 0.8) +
+  scale_linetype_manual(name = NULL,
+                        values = c("Actual leaf N" = "dashed", "Optimal leaf N" = "solid")) +
+  coord_cartesian(xlim = c(100, 200), ylim = c(100, 200)) +
+  theme_void() +
+  theme(legend.position  = "bottom",
+        legend.direction = "horizontal",
+        legend.text      = element_text(size = 22),
+        legend.key.size  = unit(1.2, "lines"))
+
+inner_gpp_traj <-
+  make_row_title("Lifetime-optimal parameters (max mean GPP minus root costs across all years)") /
+  (p_tg_ecto | p_tg_rn | p_tg_rl | p_tg_myco) /
   make_row_title("Model results: Mycorrhizal dynamics & N depletion") /
   (p_tg_ecm | p_tg_ecm_area | p_tg_nbar | p_tg_cn) /
   make_row_title("Model results: Tree Status") /
   (p_tg_height | p_tg_gpp | p_tg_nlim | p_tg_nfree) +
-  plot_layout(heights = c(0.07, 1, 0.07, 1, 0.07, 1), guides = "collect") &
+  plot_layout(heights = c(0.07, 1, 0.07, 1, 0.07, 1)) &
   theme(plot.tag        = element_text(size = 22, face = "bold"),
-        legend.text     = element_text(size = 18),
+        legend.text     = element_text(size = 22),
         legend.key.size = unit(1.2, "lines"),
-        legend.position = "right")
+        legend.position = "none",
+        axis.text.x     = element_text(angle = 45, hjust = 1))
+
+joint_gpp_traj <- wrap_plots(
+  inner_gpp_traj,
+  (p_leg_col_gpp | p_leg_lty_gpp),
+  nrow    = 2,
+  heights = c(17, 1)
+)
 joint_gpp_traj
 
-ggsave(file.path(plot_dir, "16c_annual_gpp_traj.png"),
-       plot = joint_gpp_traj, width = 20, height = 18, dpi = 300)
 ggsave(file.path(pub_fig_dir, "16c_annual_gpp_traj.png"),
        plot = joint_gpp_traj, width = 20, height = 18, dpi = 300)
 ```
@@ -1611,7 +1698,8 @@ stab_metrics <- annual_gs_all %>%
     # Parameter IQR among 5%-near-optimal combos — wide IQR = insensitive parameter
     iqr_ecto     = IQR(ecto_allo[net_gpp_ca >= 0.95 * max(net_gpp_ca, na.rm = TRUE)],   na.rm = TRUE),
     iqr_rn       = IQR(root_no[net_gpp_ca >= 0.95 * max(net_gpp_ca, na.rm = TRUE)],     na.rm = TRUE),
-    iqr_rl       = IQR(root_length[net_gpp_ca >= 0.95 * max(net_gpp_ca, na.rm = TRUE)], na.rm = TRUE),
+    iqr_rl           = IQR(root_length[net_gpp_ca >= 0.95 * max(net_gpp_ca, na.rm = TRUE)], na.rm = TRUE),
+    iqr_mycorrhized  = 0,
     .groups = "drop"
   ) %>%
   mutate(
@@ -1630,68 +1718,79 @@ pt_n  <- geom_point(size = 1.8, shape = 16, alpha = 0.7, na.rm = TRUE)
 # --- Row 1: Flatness ---
 pStabA <- ggplot(stab_metrics, aes(x = year, y = stab_frac_5, colour = soil_nitrogen)) +
   pt_n + n_col + expand_limits(y = 0) +
-  labs(tag = "A", x = "Year",
+  labs(tag = "(a)", x = "Year",
        y = "Flatness (5% threshold)\nfraction of combos near-optimal") + pub_theme
 
 pStabB <- ggplot(stab_metrics, aes(x = year, y = stab_frac_1, colour = soil_nitrogen)) +
   pt_n + n_col + expand_limits(y = 0) +
-  labs(tag = "B", x = "Year",
+  labs(tag = "(b)", x = "Year",
        y = "Flatness (1% threshold)\nfraction of combos near-optimal") + pub_theme
 
 # --- Row 2: Curvature (sharpness of the optimum) ---
 pStabC <- ggplot(stab_metrics, aes(x = year, y = cv_obj, colour = soil_nitrogen)) +
   pt_n + n_col + expand_limits(y = 0) +
-  labs(tag = "C", x = "Year",
-       y = "Curvature: CV of net GPP/CA\nacross full parameter grid") + pub_theme
+  labs(tag = "(c)", x = "Year",
+       y = "Curvature: CV of GPP − root costs\nacross full parameter grid") + pub_theme
 
 pStabD <- ggplot(stab_metrics, aes(x = year, y = obj_range, colour = soil_nitrogen)) +
   pt_n + n_col + expand_limits(y = 0) +
-  labs(tag = "D", x = "Year",
+  labs(tag = "(d)", x = "Year",
        y = "Objective range\n(max − min) / max") + pub_theme
 
 # --- Row 3: Parameter spread among near-optimal (5%) combos ---
 pStabE <- ggplot(stab_metrics, aes(x = year, y = iqr_ecto, colour = soil_nitrogen)) +
   pt_n + n_col + expand_limits(y = 0) +
-  labs(tag = "E", x = "Year",
+  labs(tag = "(e)", x = "Year",
        y = "IQR ECM C allocation\namong 5%-near-optimal") + pub_theme
 
 pStabF <- ggplot(stab_metrics, aes(x = year, y = iqr_rn, colour = soil_nitrogen)) +
   pt_n + n_col + expand_limits(y = 0) +
   scale_y_continuous(labels = scales::label_scientific()) +
-  labs(tag = "F", x = "Year",
+  labs(tag = "(f)", x = "Year",
        y = "IQR root number\namong 5%-near-optimal") + pub_theme
 
 pStabG <- ggplot(stab_metrics, aes(x = year, y = iqr_rl, colour = soil_nitrogen)) +
   pt_n + n_col + expand_limits(y = 0) +
-  labs(tag = "G", x = "Year",
+  labs(tag = "(g)", x = "Year",
        y = "IQR root length (m)\namong 5%-near-optimal") + pub_theme
+
+pStabG2 <- ggplot(stab_metrics, aes(x = year, y = iqr_mycorrhized, colour = soil_nitrogen)) +
+  pt_n + n_col + expand_limits(y = 0) +
+  labs(tag = "(h)", x = "Year",
+       y = "IQR ECM colonisation (%)\namong 5%-near-optimal") + pub_theme
 
 # --- Row 4: Year-to-year consistency of optimal parameters ---
 pStabH <- ggplot(yy_opt, aes(x = year, y = ecto_allo, colour = soil_nitrogen)) +
   pt_n + n_col + expand_limits(y = 0) +
-  labs(tag = "H", x = "Year",
+  labs(tag = "(i)", x = "Year",
        y = "Optimal ECM C allocation\n(year-to-year consistency)") + pub_theme
 
 pStabI <- ggplot(yy_opt, aes(x = year, y = root_no, colour = soil_nitrogen)) +
   pt_n + n_col + expand_limits(y = 0) +
   scale_y_continuous(labels = scales::label_scientific()) +
-  labs(tag = "I", x = "Year",
+  labs(tag = "(j)", x = "Year",
        y = "Optimal root number\n(year-to-year consistency)") + pub_theme
 
 pStabJ <- ggplot(yy_opt, aes(x = year, y = root_length, colour = soil_nitrogen)) +
   pt_n + n_col + expand_limits(y = 0) +
-  labs(tag = "J", x = "Year",
+  labs(tag = "(k)", x = "Year",
        y = "Optimal root length (m)\n(year-to-year consistency)") + pub_theme
+
+pStabJ2 <- ggplot(yy_opt, aes(x = year, y = mycorrhized, colour = soil_nitrogen)) +
+  pt_n + n_col +
+  scale_y_continuous(labels = scales::label_percent(), limits = c(0, 1)) +
+  labs(tag = "(l)", x = "Year",
+       y = "ECM colonisation (%)\n(year-to-year consistency)") + pub_theme
 
 fig_stability <-
   make_row_title("Flatness: fraction of parameter grid within X% of maximum") /
   (pStabA | pStabB) /
-  make_row_title("Curvature: how sharply net GPP/CA drops away from the optimum") /
+  make_row_title("Curvature: how sharply GPP minus root costs drops away from the optimum") /
   (pStabC | pStabD) /
   make_row_title("Parameter spread: IQR of each parameter among 5%-near-optimal combos") /
-  (pStabE | pStabF | pStabG) /
+  (pStabE | pStabF | pStabG | pStabG2) /
   make_row_title("Year-to-year consistency: which parameter combo wins each year") /
-  (pStabH | pStabI | pStabJ) +
+  (pStabH | pStabI | pStabJ | pStabJ2) +
   plot_layout(
     heights = c(0.06, 1, 0.06, 1, 0.06, 1, 0.06, 1),
     guides  = "collect"
@@ -1704,9 +1803,100 @@ fig_stability <-
   )
 fig_stability
 
-ggsave(file.path(plot_dir, "16e_stability_metrics.png"), plot = fig_stability,
-       width = 20, height = 28, dpi = 300)
 ggsave(file.path(pub_fig_dir, "16e_stability_metrics.png"), plot = fig_stability,
+       width = 20, height = 28, dpi = 300)
+```
+
+## Stability metrics: N axis
+
+```{r stability_metrics_N}
+yr_col <- scale_colour_viridis_c(name = "Year", option = "viridis")
+
+pStabNA <- ggplot(stab_metrics, aes(x = soil_nitrogen, y = stab_frac_5, colour = year)) +
+  pt_n + yr_col + expand_limits(y = 0) +
+  labs(tag = "(a)", x = "Soil N (g m⁻³)",
+       y = "Flatness (5% threshold)\nfraction of combos near-optimal") + pub_theme
+
+pStabNB <- ggplot(stab_metrics, aes(x = soil_nitrogen, y = stab_frac_1, colour = year)) +
+  pt_n + yr_col + expand_limits(y = 0) +
+  labs(tag = "(b)", x = "Soil N (g m⁻³)",
+       y = "Flatness (1% threshold)\nfraction of combos near-optimal") + pub_theme
+
+pStabNC <- ggplot(stab_metrics, aes(x = soil_nitrogen, y = cv_obj, colour = year)) +
+  pt_n + yr_col + expand_limits(y = 0) +
+  labs(tag = "(c)", x = "Soil N (g m⁻³)",
+       y = "Curvature: CV of GPP − root costs\nacross full parameter grid") + pub_theme
+
+pStabND <- ggplot(stab_metrics, aes(x = soil_nitrogen, y = obj_range, colour = year)) +
+  pt_n + yr_col + expand_limits(y = 0) +
+  labs(tag = "(d)", x = "Soil N (g m⁻³)",
+       y = "Objective range\n(max − min) / max") + pub_theme
+
+pStabNE <- ggplot(stab_metrics, aes(x = soil_nitrogen, y = iqr_ecto, colour = year)) +
+  pt_n + yr_col + expand_limits(y = 0) +
+  labs(tag = "(e)", x = "Soil N (g m⁻³)",
+       y = "IQR ECM C allocation\namong 5%-near-optimal") + pub_theme
+
+pStabNF <- ggplot(stab_metrics, aes(x = soil_nitrogen, y = iqr_rn, colour = year)) +
+  pt_n + yr_col + expand_limits(y = 0) +
+  scale_y_continuous(labels = scales::label_scientific()) +
+  labs(tag = "(f)", x = "Soil N (g m⁻³)",
+       y = "IQR root number\namong 5%-near-optimal") + pub_theme
+
+pStabNG <- ggplot(stab_metrics, aes(x = soil_nitrogen, y = iqr_rl, colour = year)) +
+  pt_n + yr_col + expand_limits(y = 0) +
+  labs(tag = "(g)", x = "Soil N (g m⁻³)",
+       y = "IQR root length (m)\namong 5%-near-optimal") + pub_theme
+
+pStabNG2 <- ggplot(stab_metrics, aes(x = soil_nitrogen, y = iqr_mycorrhized, colour = year)) +
+  pt_n + yr_col + expand_limits(y = 0) +
+  labs(tag = "(h)", x = "Soil N (g m⁻³)",
+       y = "IQR ECM colonisation (%)\namong 5%-near-optimal") + pub_theme
+
+pStabNH <- ggplot(yy_opt, aes(x = soil_nitrogen, y = ecto_allo, colour = year)) +
+  pt_n + yr_col + expand_limits(y = 0) +
+  labs(tag = "(i)", x = "Soil N (g m⁻³)",
+       y = "Optimal ECM C allocation\n(year-to-year consistency)") + pub_theme
+
+pStabNI <- ggplot(yy_opt, aes(x = soil_nitrogen, y = root_no, colour = year)) +
+  pt_n + yr_col + expand_limits(y = 0) +
+  scale_y_continuous(labels = scales::label_scientific()) +
+  labs(tag = "(j)", x = "Soil N (g m⁻³)",
+       y = "Optimal root number\n(year-to-year consistency)") + pub_theme
+
+pStabNJ <- ggplot(yy_opt, aes(x = soil_nitrogen, y = root_length, colour = year)) +
+  pt_n + yr_col + expand_limits(y = 0) +
+  labs(tag = "(k)", x = "Soil N (g m⁻³)",
+       y = "Optimal root length (m)\n(year-to-year consistency)") + pub_theme
+
+pStabNJ2 <- ggplot(yy_opt, aes(x = soil_nitrogen, y = mycorrhized, colour = year)) +
+  pt_n + yr_col +
+  scale_y_continuous(labels = scales::label_percent(), limits = c(0, 1)) +
+  labs(tag = "(l)", x = "Soil N (g m⁻³)",
+       y = "ECM colonisation (%)\n(year-to-year consistency)") + pub_theme
+
+fig_stability_N <-
+  make_row_title("Flatness: fraction of parameter grid within X% of maximum") /
+  (pStabNA | pStabNB) /
+  make_row_title("Curvature: how sharply GPP minus root costs drops away from the optimum") /
+  (pStabNC | pStabND) /
+  make_row_title("Parameter spread: IQR of each parameter among 5%-near-optimal combos") /
+  (pStabNE | pStabNF | pStabNG | pStabNG2) /
+  make_row_title("Year-to-year consistency: which parameter combo wins each year") /
+  (pStabNH | pStabNI | pStabNJ | pStabNJ2) +
+  plot_layout(
+    heights = c(0.06, 1, 0.06, 1, 0.06, 1, 0.06, 1),
+    guides  = "collect"
+  ) &
+  theme(
+    plot.tag        = element_text(size = 18, face = "bold"),
+    legend.text     = element_text(size = 14),
+    legend.key.size = unit(1.2, "lines"),
+    legend.position = "right"
+  )
+fig_stability_N
+
+ggsave(file.path(pub_fig_dir, "16f_stability_metrics_N.png"), plot = fig_stability_N,
        width = 20, height = 28, dpi = 300)
 ```
 
@@ -1715,7 +1905,8 @@ ggsave(file.path(pub_fig_dir, "16e_stability_metrics.png"), plot = fig_stability
 ```{r plot17_optimal_state}
 dat17 <- annual_opt_gpp %>%
   mutate(
-    bga = (C_export_to_myco + rr * 0.44 + tr * 0.44) / pmax(assim_gross, 1e-12)
+    bga         = (C_export_to_myco + rr * 0.44 + tr * 0.44) / pmax(assim_gross, 1e-12),
+    mycorrhized = 0.9
   )
 
 yr_scale17 <- scale_colour_viridis_c(
@@ -1731,79 +1922,73 @@ jit_cross <- geom_jitter(aes(colour = year), height = 0.2, size = 1.5, shape = 3
 p17A <- ggplot(dat17, aes(x = accessible_N, y = factor(ecto_allo))) +
   viol17 + jit_cross + yr_scale17 +
   scale_y_discrete(labels = function(x) scales::percent(as.numeric(x))) +
-  labs(tag = "A", x = "Accessible N\n(kg N m⁻³)", y = "Optimal ECM C allocation\n(% NPP)") + pub_theme
+  labs(tag = "(a)", x = "Accessible N\n(kg N m⁻³)", y = "Optimal ECM C allocation\n(% NPP)") + pub_theme
 
 p17B <- ggplot(dat17, aes(x = accessible_N, y = factor(root_no))) +
   viol17 + jit_cross + yr_scale17 +
   scale_y_discrete(labels = function(x) scales::scientific(as.numeric(x))) +
-  labs(tag = "B", x = "Accessible N\n(kg N m⁻³)", y = "Optimal root number\n(no m⁻² crown)") + pub_theme
+  labs(tag = "(b)", x = "Accessible N\n(kg N m⁻³)", y = "Optimal root number\n(no m⁻² crown)") + pub_theme
 
 p17C <- ggplot(dat17, aes(x = accessible_N, y = factor(root_length))) +
   viol17 + jit_cross + yr_scale17 +
-  labs(tag = "C", x = "Accessible N\n(kg N m⁻³)", y = "Optimal root length (m)") + pub_theme
+  labs(tag = "(c)", x = "Accessible N\n(kg N m⁻³)", y = "Optimal root length\n(m)") + pub_theme
 
-p17D <- ggplot(dat17, aes(x = accessible_N, y = bga)) +
-  pt17 + yr_scale17 +
-  scale_y_continuous(labels = scales::label_percent()) + expand_limits(y = 0) +
-  labs(tag = "D", x = "Accessible N\n(kg N m⁻³)", y = "N-related belowground C\nallocation (% GPP)") + pub_theme
+p17C2 <- ggplot(dat17, aes(x = accessible_N, y = factor(mycorrhized))) +
+  viol17 + jit_cross + yr_scale17 +
+  scale_y_discrete(labels = function(x) scales::percent(as.numeric(x))) +
+  labs(tag = "(d)", x = "Accessible N\n(kg N m⁻³)", y = "ECM colonisation\n(% roots covered)") + pub_theme
 
 # Row 2: ECM dynamics and N uptake
 p17E <- ggplot(dat17, aes(x = accessible_N, y = ectomycorrhiza_mass)) +
   pt17 + yr_scale17 +
   scale_y_continuous(labels = scales::label_scientific()) + expand_limits(y = 0) +
-  labs(tag = "E", x = "Accessible N\n(kg N m⁻³)", y = "ECM biomass (kg)") + pub_theme
+  labs(tag = "(e)", x = "Accessible N\n(kg N m⁻³)", y = "ECM biomass\n(kg)") + pub_theme
 
 p17F <- ggplot(dat17, aes(x = accessible_N, y = ectomycorrhiza_mass / crown_area)) +
   pt17 + yr_scale17 +
   scale_y_continuous(labels = scales::label_scientific()) + expand_limits(y = 0) +
-  labs(tag = "F", x = "Accessible N\n(kg N m⁻³)", y = "ECM biomass per crown\n(kg m⁻²)") + pub_theme
+  labs(tag = "(f)", x = "Accessible N\n(kg N m⁻³)", y = "ECM biomass per crown\n(kg m⁻²)") + pub_theme
 
-p17O <- ggplot(dat17, aes(x = accessible_N, y = root_uptake)) +
+p17O <- ggplot(dat17, aes(x = accessible_N, y = root_uptake_actual)) +
   pt17 + yr_scale17 + expand_limits(y = 0) +
-  labs(tag = "G", x = "Accessible N\n(kg N m⁻³)", y = "Root N uptake\n(kg N yr⁻¹)") + pub_theme
+  labs(tag = "(g)", x = "Accessible N\n(kg N m⁻³)", y = "Root N uptake\n(kg N yr⁻¹)") + pub_theme
 
 p17O_myco <- ggplot(dat17, aes(x = accessible_N, y = myco_uptake)) +
   pt17 + yr_scale17 + expand_limits(y = 0) +
-  labs(tag = "H", x = "Accessible N\n(kg N m⁻³)", y = "ECM N uptake\n(kg N yr⁻¹)") + pub_theme
+  labs(tag = "(h)", x = "Accessible N\n(kg N m⁻³)", y = "ECM N uptake\n(kg N yr⁻¹)") + pub_theme
 
 # Row 3: tree status
 p17I <- ggplot(dat17, aes(x = accessible_N, y = height_increment)) +
   pt17 + yr_scale17 + expand_limits(y = 0) +
-  labs(tag = "I", x = "Accessible N\n(kg N m⁻³)", y = "Height increment (m yr⁻¹)") + pub_theme
+  labs(tag = "(i)", x = "Accessible N\n(kg N m⁻³)", y = "Height increment\n(m yr⁻¹)") + pub_theme
 
 p17J <- ggplot(dat17, aes(x = accessible_N, y = assim_gross / crown_area)) +
   pt17 + yr_scale17 + expand_limits(y = 0) +
-  labs(tag = "J", x = "Accessible N\n(kg N m⁻³)", y = "GPP per crown area\n(kg C m⁻² yr⁻¹)") + pub_theme
+  labs(tag = "(j)", x = "Accessible N\n(kg N m⁻³)", y = "GPP per crown area\n(kg C m⁻² yr⁻¹)") + pub_theme
 
 p17K <- ggplot(dat17, aes(x = leaf_nitrogen_concentration, y = optimal_leaf_nitrogen)) +
   geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
   pt17 + yr_scale17 + expand_limits(y = 0, x = 0) +
-  labs(tag = "L", x = "Actual leaf N\n(kg N kg⁻¹ leaf)", y = "Optimal leaf N\n(kg N kg⁻¹ leaf)") + pub_theme +
-  theme(axis.title.x = element_text(colour = "red"),
-        axis.text.x  = element_text(colour = "red"))
+  labs(tag = "(l)", x = "Actual leaf N\n(kg N kg⁻¹ leaf)", y = "Optimal leaf N\n(kg N kg⁻¹ leaf)") + pub_theme +
+  theme(plot.background = element_rect(fill = "grey92", colour = NA))
 
 p17BB <- ggplot(dat17, aes(x = accessible_N, y = ectomycorrhiza_N_free / pmax(ectomycorrhiza_mass, 1e-12))) +
   pt17 + yr_scale17 + expand_limits(y = 0) +
-  labs(tag = "K", x = "Accessible N\n(kg N m⁻³)", y = "ECM free N\nper biomass\n(kg N kg⁻¹)") + pub_theme
+  labs(tag = "(k)", x = "Accessible N\n(kg N m⁻³)", y = "ECM free N per biomass\n(kg N kg⁻¹)") + pub_theme
 
 fig17 <- make_row_title("Parameters to be Optimised") /
-  (p17A | p17B | p17C | p17D) /
+  (p17A | p17B | p17C | p17C2) /
   make_row_title("ECM Dynamics & N Uptake") /
   (p17E | p17F | p17O | p17O_myco) /
   make_row_title("Tree Status") /
   (p17I | p17J | p17BB | p17K) +
-  plot_layout(heights = c(0.07, 1, 0.07, 1, 0.07, 1), guides = "collect") +
-  plot_annotation(
-    subtitle = "x = accessible N (N mineral soil + N mycorrhiza)",
-    theme    = theme(plot.subtitle = element_text(size = 13, colour = "grey30"))
-  ) &
-  theme(plot.tag         = element_text(size = 18, face = "bold"),
-        legend.text      = element_text(size = 14),
+  plot_layout(heights = c(0.07, 1, 0.07, 1, 0.07, 1), guides = "collect") &
+  theme(plot.tag         = element_text(size = 22, face = "bold"),
+        legend.text      = element_text(size = 22),
         legend.key.size  = unit(0.9, "lines"),
         legend.position  = "bottom",
         legend.direction = "horizontal",
         legend.box       = "horizontal")
-ggsave(file.path(plot_dir, "17_optimal_state.png"), plot = fig17, width = 22, height = 24, dpi = 300)
 ggsave(file.path(pub_fig_dir, "17_optimal_state.png"), plot = fig17, width = 22, height = 24, dpi = 300)
 ```
 
@@ -1823,20 +2008,20 @@ p17b_G1 <- ggplot(ann17b, aes(x = soil_nitrogen, y = N_bar_roots)) +
   geom_point(aes(colour = year), size = 1.8, shape = 16, na.rm = TRUE) +
   scale_colour_viridis_c(name = "Year", option = "viridis") +
   expand_limits(y = 0) +
-  labs(tag = "A", x = "Soil nitrogen (kg N m⁻³)", y = "N mineral soil\n(kg N m⁻³)") + pub_theme
+  labs(tag = "(a)", x = "Soil nitrogen (kg N m⁻³)", y = "N mineral soil\n(kg N m⁻³)") + pub_theme
 
 p17b_G2 <- ggplot(ann17b, aes(x = soil_nitrogen, y = N_static)) +
   geom_point(aes(colour = year), size = 1.8, shape = 16, na.rm = TRUE) +
   scale_colour_viridis_c(name = "Year", option = "viridis") +
   expand_limits(y = 0) +
-  labs(tag = "B", x = "Soil nitrogen (kg N m⁻³)",
+  labs(tag = "(b)", x = "Soil nitrogen (kg N m⁻³)",
        y = "N organic pool\n(kg N m⁻³)") + pub_theme
 
 p17b_accN <- ggplot(ann17b, aes(x = soil_nitrogen, y = accessible_N)) +
   geom_point(aes(colour = year), size = 1.8, shape = 16, na.rm = TRUE) +
   scale_colour_viridis_c(name = "Year", option = "viridis") +
   expand_limits(y = 0) +
-  labs(tag = "C", x = "Soil nitrogen (kg N m⁻³)",
+  labs(tag = "(c)", x = "Soil nitrogen (kg N m⁻³)",
        y = "Accessible N\n(kg N m⁻³)") + pub_theme
 
 p17b_C <- ggplot(ann17b, aes(x = N_bar_roots, colour = year)) +
@@ -1844,7 +2029,7 @@ p17b_C <- ggplot(ann17b, aes(x = N_bar_roots, colour = year)) +
   geom_point(aes(y = myco_up_per_SA), shape = 2,  size = 1.8, na.rm = TRUE) +
   scale_colour_viridis_c(name = "Year", option = "viridis") +
   expand_limits(y = 0) +
-  labs(tag = "D", x = "N mineral soil (kg N m⁻³)",
+  labs(tag = "(d)", x = "N mineral soil (kg N m⁻³)",
        y = "Uptake per SA\n(kg N m⁻² yr⁻¹)") + pub_theme
 
 p17b_mine <- ggplot(ann17b, aes(x = N_static,
@@ -1852,41 +2037,40 @@ p17b_mine <- ggplot(ann17b, aes(x = N_static,
   geom_point(aes(colour = year), size = 1.8, shape = 16, na.rm = TRUE) +
   scale_colour_viridis_c(name = "Year", option = "viridis") +
   expand_limits(y = 0) +
-  labs(tag = "E", x = "Organic N pool (kg N m⁻³)",
+  labs(tag = "(e)", x = "Organic N pool (kg N m⁻³)",
        y = "N mineralisation by ECM\nper unit biomass\n(kg N yr⁻¹ kg C⁻¹)") + pub_theme
 
 p17b_transfer <- ggplot(ann17b, aes(x = accessible_N,
-                                    y = mycorrhizal_export_to_tree)) +
+                                    y = mycorrhizal_export_to_tree / pmax(ectomycorrhiza_mass, 1e-12))) +
   geom_point(aes(colour = year), size = 1.8, shape = 16, na.rm = TRUE) +
   scale_colour_viridis_c(name = "Year", option = "viridis") +
   expand_limits(y = 0) +
-  labs(tag = "F", x = "Accessible N\n(kg N m⁻³)",
-       y = "Transfer to tree\n(kg N yr⁻¹)") + pub_theme
+  labs(tag = "(f)", x = "Accessible N\n(kg N m⁻³)",
+       y = "Transfer to tree\nper ECM biomass\n(kg N yr⁻¹ kg⁻¹)") + pub_theme
 
 p17b_T3  <- ggplot(ann17b, aes(x = accessible_N, y = tree_nitrogen)) +
   geom_point(aes(colour = year), size = 1.8, shape = 16, na.rm = TRUE) +
   scale_colour_viridis_c(name = "Year", option = "viridis") +
   expand_limits(y = 0) +
-  labs(tag = "H", x = "Accessible N\n(kg N m⁻³)", y = "Tree free N pool\n(kg N)") + pub_theme
+  labs(tag = "(g)", x = "Accessible N\n(kg N m⁻³)", y = "Tree free N pool\n(kg N)") + pub_theme
 
-p17b_BB3 <- ggplot(ann17b, aes(x = accessible_N, y = ectomycorrhiza_N_free)) +
+p17b_BB3 <- ggplot(ann17b, aes(x = accessible_N, y = ectomycorrhiza_N_free / pmax(ectomycorrhiza_mass, 1e-12))) +
   geom_point(aes(colour = year), size = 1.8, shape = 16, na.rm = TRUE) +
   scale_colour_viridis_c(name = "Year", option = "viridis") +
   expand_limits(y = 0) +
-  labs(tag = "K", x = "Accessible N\n(kg N m⁻³)", y = "ECM free N pool\n(kg N)") + pub_theme
+  labs(tag = "(h)", x = "Accessible N\n(kg N m⁻³)", y = "ECM free N\nper biomass\n(kg N kg⁻¹)") + pub_theme
 
 fig17b <- (p17b_G1 | p17b_G2 | p17b_accN) /
   (p17b_C | p17b_mine | p17b_transfer) /
   (p17b_T3 | p17b_BB3 | plot_spacer()) +
   plot_layout(guides = "collect") &
-  theme(plot.tag         = element_text(size = 18, face = "bold"),
-        legend.text      = element_text(size = 16),
+  theme(plot.tag         = element_text(size = 22, face = "bold"),
+        legend.text      = element_text(size = 22),
         legend.key.size  = unit(1.3, "lines"),
         legend.position  = "bottom",
         legend.direction = "horizontal",
         legend.box       = "horizontal") &
   guides(colour = guide_colorbar(barwidth = unit(18, "cm"), barheight = unit(0.7, "cm")))
-ggsave(file.path(plot_dir, "17b_N_pools.png"), plot = fig17b, width = 24, height = 20, dpi = 300)
 ggsave(file.path(pub_fig_dir, "17b_N_pools.png"), plot = fig17b, width = 24, height = 20, dpi = 300)
 ```
 
@@ -1914,27 +2098,26 @@ pt_c <- geom_point(aes(colour = year), size = 1.8, shape = 16, alpha = 0.7, na.r
 p17c_H <- ggplot(dat17c, aes(x = accessible_N, y = CN)) +
   pt_c + yr_scale_c +
   scale_y_continuous(labels = scales::label_scientific(digits = 2)) + expand_limits(y = 0) +
-  labs(tag = "A", x = "Accessible N\n(kg N m⁻³)", y = "Mycorrhizal C:N\n(kg C kg⁻¹ N)") + pub_theme
+  labs(tag = "(a)", x = "Accessible N\n(kg N m⁻³)", y = "Mycorrhizal C:N\n(kg C kg⁻¹ N)") + pub_theme
 
 p17c_L <- ggplot(dat17c, aes(x = accessible_N, y = cn_exchange)) +
   pt_c + yr_scale_c + expand_limits(y = 0) +
-  labs(tag = "B", x = "Accessible N\n(kg N m⁻³)",
+  labs(tag = "(b)", x = "Accessible N\n(kg N m⁻³)",
        y = "C:N exchange cost\n(kg C kg⁻¹ N received)") + pub_theme
 
 p17c_L_zoom <- ggplot(dat17c, aes(x = accessible_N, y = cn_exchange)) +
   pt_c + yr_scale_c + expand_limits(y = 0) +
   coord_cartesian(xlim = c(0, 1), ylim = c(0, quantile(dat17c$cn_exchange, 0.93, na.rm = TRUE))) +
-  labs(tag = "D", x = "Accessible N\n(kg N m⁻³)",
+  labs(tag = "(d)", x = "Accessible N\n(kg N m⁻³)",
        y = "C:N exchange cost\n(kg C kg⁻¹ N received)\n[zoomed]") + pub_theme
 
 p17c_phiB <- ggplot(dat17c, aes(x = eff_rF, y = mycorrhizal_export_to_tree)) +
   pt_c + yr_scale_c + expand_limits(y = 0, x = 0) +
-  labs(tag = "C",
+  labs(tag = "(c)",
        x = "Effective fungal N:C\n(kg N kg C⁻¹)",
        y = "N transferred to tree\n(kg N yr⁻¹)") + pub_theme
 
-fig17c <- (p17c_H | p17c_L) /
-  (p17c_phiB | p17c_L_zoom) +
+fig17c <- (p17c_H | p17c_L | p17c_phiB) +
   plot_layout(guides = "collect") &
   theme(plot.tag         = element_text(size = 18, face = "bold"),
         legend.text      = element_text(size = 14),
@@ -1943,6 +2126,5 @@ fig17c <- (p17c_H | p17c_L) /
         legend.direction = "horizontal",
         legend.box       = "horizontal",
         plot.margin      = margin(8, 8, 8, 8))
-ggsave(file.path(plot_dir, "17c_CN_budgets.png"), plot = fig17c, width = 14, height = 14, dpi = 300)
-ggsave(file.path(pub_fig_dir, "17c_CN_budgets.png"), plot = fig17c, width = 14, height = 14, dpi = 300)
+ggsave(file.path(pub_fig_dir, "17c_CN_budgets.png"), plot = fig17c, width = 21, height = 8, dpi = 300)
 ```
