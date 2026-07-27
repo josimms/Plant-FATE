@@ -201,6 +201,7 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
     , "belowground_infrastructure"
     , "mycorrhizal_export_to_tree"
     , "root_uptake"
+    , "root_uptake_actual"
     , "myco_uptake"
     , "N_bar_roots"
     , "N_static"
@@ -272,6 +273,7 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
     , P.geometry.I_b
     , P.geometry.N_export
     , P.uptake.U_root
+    , P.geometry.nitrogen_uptake_roots
     , P.uptake.U_myco
     , P.uptake.N_bar_roots
     , P.uptake.N_static_val
