@@ -2517,6 +2517,8 @@ original_life_histroy <- function() {
   # ----------------------------
   nbar_lower    <- 0.0012   # Korhonen: A horizon mineral N (kg N m-3)
   nbar_upper    <- 0.003    # A horizon mineral N + amino acids
+  ntrans_lower  <- 0.08     # ECM N transfer lower bound: 50% of Korhonen (2013) total uptake ~0.156 kg N tree-1 yr-1 (Nasholm, Kielland & Ganeteg 2009, New Phytologist 184:31-48)
+  ntrans_upper  <- 0.14     # ECM N transfer upper bound: 90% of Korhonen (2013) total uptake
 
   uptake_1 <- df$mycorrhizal_export_to_tree   + df$root_uptake
   uptake_2 <- df_2$mycorrhizal_export_to_tree + df_2$root_uptake
@@ -2554,56 +2556,70 @@ original_life_histroy <- function() {
       family = "serif", las = 1, tcl = -0.4, mgp = c(4, 1, 0))
 
   # (a) N_bar + Korhonen reference band
-  ylim_nb <- range(df$N_bar, df_3$N_bar, nbar_lower, nbar_upper, na.rm = TRUE)
-  plot(df$date, df$N_bar, type = "n",
-       ylim = ylim_nb, xlab = "",
-       ylab = expression(bar(N)~"(kg N m"^{-3}*")"),
+  nbs_1 <- df$N_bar_static[df$N_bar_static > 0]
+  nbs_3 <- df_3$N_bar_static[df_3$N_bar_static > 0]
+  ylim_nb <- range(df$N_bar_roots, df_3$N_bar_roots, nbs_1, nbs_3,
+                   nbar_lower, nbar_upper, na.rm = TRUE)
+  plot(df$date, df$N_bar_roots, type = "n",
+       ylim = ylim_nb, log = "y", xlab = "",
+       ylab = expression("log "~bar(N)~"(kg N m"^{-3}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
   rect(par("usr")[1], nbar_lower, par("usr")[2], nbar_upper,
        col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
-  lines(df$date,   df$N_bar,   col = cols[1], lwd = lwd_model)
-  lines(df_3$date, df_3$N_bar, col = cols[3], lwd = lwd_model)
+  lines(df_3$date, df_3$N_bar_roots, col = cols[3], lwd = lwd_model)
+  lines(df$date,   df$N_bar_roots,   col = cols[1], lwd = lwd_model)
+  lines(df_3$date, ifelse(df_3$N_bar_static > 0, df_3$N_bar_static, NA), col = cols[3], lwd = lwd_model, lty = 2)
+  lines(df$date,   ifelse(df$N_bar_static   > 0, df$N_bar_static,   NA), col = cols[1], lwd = lwd_model, lty = 2)
   mtext("(a)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   title(sub = "Shading: Korhonen A-horizon mineral N range", col.sub = "grey40")
   box(bty = "l")
 
-  # (b) N internal tree free (free N store, not in biomass)
-  ylim_tn <- range(df$tree_nitrogen, df_3$tree_nitrogen, na.rm = TRUE)
-  plot(df$date, df$tree_nitrogen, type = "l", col = cols[1], lwd = lwd_model,
-       ylim = ylim_tn, xlab = "",
-       ylab = expression("Internal tree N (kg N tree"^{-1}*")"),
+  # (b) Internal tree N per total tree biomass
+  total_mass_1 <- df$stem_mass   + df$leaf_mass   + df$root_mass   + df$coarse_root_mass
+  total_mass_3 <- df_3$stem_mass + df_3$leaf_mass + df_3$root_mass + df_3$coarse_root_mass
+  tn_per_mass_1 <- df$tree_nitrogen   / total_mass_1
+  tn_per_mass_3 <- df_3$tree_nitrogen / total_mass_3
+  ylim_tn <- range(tn_per_mass_1, tn_per_mass_3, na.rm = TRUE)
+  plot(df_3$date, tn_per_mass_3, type = "l", col = cols[3], lwd = lwd_model,
+       ylim = ylim_tn, log = "y", xlab = "",
+       ylab = expression("log Internal tree N / biomass (kg N kg C"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df_3$date, df_3$tree_nitrogen, col = cols[3], lwd = lwd_model)
+  lines(df$date, tn_per_mass_1, col = cols[1], lwd = lwd_model)
   mtext("(b)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
 
   # (c) N uptake per belowground biomass
   ylim_eff <- range(eff_1, eff_3, na.rm = TRUE)
-  plot(df$date, eff_1, type = "l", col = cols[1], lwd = lwd_model,
+  plot(df_3$date, eff_3, type = "l", col = cols[3], lwd = lwd_model,
        ylim = ylim_eff, xlab = "",
        ylab = expression("N uptake / BG mass (kg N kg C"^{-1}*" yr"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df_3$date, eff_3, col = cols[3], lwd = lwd_model)
+  lines(df$date, eff_1, col = cols[1], lwd = lwd_model)
   mtext("(c)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
 
   # (d) N transferred (mycorrhizal export to tree)
-  ylim_tr <- range(df$mycorrhizal_export_to_tree, df_3$mycorrhizal_export_to_tree, na.rm = TRUE)
-  plot(df$date, df$mycorrhizal_export_to_tree, type = "l", col = cols[1], lwd = lwd_model,
+  ylim_tr <- range(df$mycorrhizal_export_to_tree, df_3$mycorrhizal_export_to_tree,
+                   ntrans_lower, ntrans_upper, na.rm = TRUE)
+  plot(df_3$date, df_3$mycorrhizal_export_to_tree, type = "l", col = cols[3], lwd = lwd_model,
        ylim = ylim_tr, xlab = "",
        ylab = expression("N transferred (kg N tree"^{-1}*" yr"^{-1}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
+  rect(par("usr")[1], ntrans_lower, par("usr")[2], ntrans_upper,
+       col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
   lines(df_3$date, df_3$mycorrhizal_export_to_tree, col = cols[3], lwd = lwd_model)
+  lines(df$date,   df$mycorrhizal_export_to_tree,   col = cols[1], lwd = lwd_model)
   mtext("(d)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
+  title(sub = "Shading: 50-90% of Korhonen (2013) total N uptake (Nasholm et al. 2009)", col.sub = "grey40")
   box(bty = "l")
 
   # (e) SA_active / V_zone — root + ECM density in soil zone
   ylim_sad <- range(sa1$density, sa3$density, na.rm = TRUE)
-  plot(df$date, sa1$density, type = "l", col = cols[1], lwd = lwd_model,
+  plot(df_3$date, sa3$density, type = "l", col = cols[3], lwd = lwd_model,
        ylim = ylim_sad, xlab = "",
        ylab = expression("SA"["active"]*" / V"["zone"]~"(m"^2~"m"^{-3}*")"),
        cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df_3$date, sa3$density, col = cols[3], lwd = lwd_model)
+  lines(df$date, sa1$density, col = cols[1], lwd = lwd_model)
   rect(par("usr")[1], 10, par("usr")[2], 80,
        col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
   mtext("(e)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
@@ -2615,11 +2631,11 @@ original_life_histroy <- function() {
   ratio_1 <- df$myco_uptake   / df$root_uptake
   ratio_3 <- df_3$myco_uptake / df_3$root_uptake
   ylim_rat <- range(ratio_1, ratio_3, na.rm = TRUE)
-  plot(df$date, ratio_1, type = "l", col = cols[1], lwd = lwd_model,
+  plot(df_3$date, ratio_3, type = "l", col = cols[3], lwd = lwd_model,
        ylim = ylim_rat, xlab = "",
-       ylab = "Myco uptake / root uptake (–)",
+       ylab = "Myco uptake / potential root uptake (–)",
        cex.axis = cex_axis, cex.lab = cex_lab)
-  lines(df_3$date, ratio_3, col = cols[3], lwd = lwd_model)
+  lines(df$date, ratio_1, col = cols[1], lwd = lwd_model)
   abline(h = 1, lty = 2, col = "grey50")
   mtext("(f)", side = 3, adj = 0, line = 0.2, font = 2, cex = cex_main)
   box(bty = "l")
