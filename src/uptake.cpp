@@ -13,9 +13,9 @@ namespace plant {
     myco_diameter = I.get<double>("myco_diameter");
     rho_myco    = I.get<double>("rho_myco");
     D           = I.get<double>("D");
+    D_static    = I.get<double>("D_static");
     N_s         = I.get<double>("N_s");
     f_static    = I.get<double>("f_static");
-    k_mine      = I.get<double>("k_mine");
     depth       = I.get<double>("depth");
     k_8         = I.get<double>("k_8");
     k_13        = I.get<double>("k_13");
@@ -33,9 +33,9 @@ namespace plant {
   //   N_bar^2 + (k_15 + alpha - N_s)*N_bar - k_15*N_s = 0
   // Uses the standard/conjugate form depending on sign of b to avoid
   // catastrophic cancellation when alpha >> N_s (diffusion-limited regime).
-  double Uptake::compute_N_bar(double SA_active, double A_zone, double r_zone, double N_s_eff) const {
+  double Uptake::compute_N_bar(double SA_active, double A_zone, double r_zone, double N_s_eff, double D_eff) const {
     if (SA_active <= 0.0 || A_zone <= 0.0) return N_s_eff;
-    double alpha = u_max * SA_active * r_zone / (D * A_zone);
+    double alpha = u_max * SA_active * r_zone / (D_eff * A_zone);
     double b     = N_s_eff - k_15 - alpha;
     double disc  = std::sqrt(b * b + 4.0 * k_15 * N_s_eff);
     return (b >= 0.0) ? 0.5 * (b + disc) : 2.0 * k_15 * N_s_eff / (disc - b);
@@ -69,19 +69,22 @@ namespace plant {
         ? u_max * SA_active_val * R / (D * A_zone)
         : 0.0;
 
-    N_bar_roots        = compute_N_bar(SA_active_val, A_zone, R, N_diffused);
+    N_bar_roots        = compute_N_bar(SA_active_val, A_zone, R, N_diffused, D);
     double mm_near     = N_bar_roots / (N_bar_roots + k_15);
 
     U_root             = SA_fr * u_max * mm_near * par.years_per_tunit_avg;
     double U_myco_near = SA_m  * u_max * mm_near * par.years_per_tunit_avg;
 
-    // --- Static (organic) pool: mycorrhiza mine directly, no diffusion step ---
-    // Access scales with fungal biomass (enzymatic activity + network reach).
-    // N is acquired immediately on mining; completely inaccessible without mycorrhiza.
+    // --- Static (organic) pool: mycorrhiza mine via enzymatic depolymerisation ---
+    // Saturation with ECM biomass: the same depletion quadratic as the mineral pool,
+    // but using D_static (enzymatic supply rate) instead of D (diffusivity).
+    // Roots cannot access this pool (SA_m only, not SA_active).
     double N_static      = f_static * N_s;
     N_static_val         = N_static;
-    double mm_static     = N_static / (N_static + k_15);
-    U_myco_static = k_mine * std::max(0.0, G.ectomycorrhiza_mass) * mm_static * par.years_per_tunit_avg;
+    double N_bar_static  = compute_N_bar(SA_m, A_zone, R, N_static, D_static);
+    N_bar_static_val     = N_bar_static;
+    double mm_static     = N_bar_static / (N_bar_static + k_15);
+    U_myco_static = SA_m * u_max * mm_static * par.years_per_tunit_avg;
 
     U_myco = U_myco_near + U_myco_static;
   }
