@@ -31,7 +31,7 @@ void PlantArchitecture::init(PlantParameters& par, PlantTraits& traits){
 
 void PlantArchitecture::init_nitrogen(double _nu, double _nt, PlantTraits& traits){
   nitrogen_uptake_roots = _nu;
-  ectomycorrhiza_N_free = ectomycorrhiza_mass * 0.44 * traits.nc_myco;
+  ectomycorrhiza_N_free = 0.0;
   ectomycorrhiza_C_free = 0.0;
   set_nitrogen(_nt, traits);
 }
