@@ -204,6 +204,7 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
     , "root_uptake_actual"
     , "myco_uptake"
     , "N_bar_roots"
+    , "N_bar_static"
     , "N_static"
     , "r_zone"
     , "alpha"
@@ -276,6 +277,7 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
     , P.geometry.nitrogen_uptake_roots
     , P.uptake.U_myco
     , P.uptake.N_bar_roots
+    , P.uptake.N_bar_static_val
     , P.uptake.N_static_val
     , P.uptake.r_zone_val
     , P.uptake.alpha_val

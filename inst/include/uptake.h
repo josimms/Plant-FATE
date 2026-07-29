@@ -17,7 +17,8 @@ public:
   bool   using_Ib = true; ///< Toggle: if false, I_b is fixed at 1 (no infrastructure cost)
 
   // Diagnostics (set by uptake_core, readable for logging)
-  double N_bar_roots = 0.0;  ///< Mean N concentration at root absorbing surface (mineral pool, roots + myco) [kg N m^-3]
+  double N_bar_roots = 0.0;       ///< Mean N concentration at root absorbing surface (mineral pool, roots + myco) [kg N m^-3]
+  double N_bar_static_val = 0.0; ///< Depleted organic N concentration at ECM surface after enzymatic mining [kg N m^-3]
   double N_static_val = 0.0;  ///< Organic (static) N pool concentration available for mycorrhizal mining [kg N m^-3]
   double r_zone_val   = 0.0;  ///< Root zone radius [m]
   double alpha_val    = 0.0;  ///< Diffusion-demand ratio alpha_tip [-]
@@ -28,9 +29,9 @@ public:
   double myco_diameter;
   double rho_myco;
   double D;
+  double D_static; ///< Effective organic-N accessibility parameter [m^2 yr^-1]: governs how fast enzymatic decomposition supplies N to ECM surface (analogous to diffusivity for the mineral pool)
   double N_s;
   double f_static;    ///< Fraction of N_s in the static (organic) pool, accessible only by mycorrhizal mining [-]
-  double k_mine;      ///< Mycorrhizal mining rate per unit fungal biomass [kg N kg_C^-1 yr^-1]
   double u_max;
   double depth;
 
@@ -48,7 +49,7 @@ public:
   /// @{brief Uptake Functions
   double uptake_age(const PlantArchitecture& G, PlantTraits& T);
 
-  double compute_N_bar(double SA_active, double A_zone, double r_zone, double N_s_eff) const;
+  double compute_N_bar(double SA_active, double A_zone, double r_zone, double N_s_eff, double D_eff) const;
 
   void uptake_core(const PlantArchitecture& G, PlantTraits& traits, PlantParameters& par);
 
