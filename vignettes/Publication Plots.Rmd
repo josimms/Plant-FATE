@@ -71,10 +71,12 @@ nitrogen_values <- seq(0.01, 5, length.out = n_pts_main)
 
 # Joint co-optimisation grid (coarser to keep run count tractable)
 joint_ecto_allo_values    <- seq(0.0,  0.3, length.out = n_pts_joint)
-joint_root_no_values      <- 3*10^seq(3, 6, length.out = n_pts_joint)
+joint_root_no_values      <- 3*10^5 #3*10^seq(3, 6, length.out = n_pts_joint)
 joint_root_length_values  <- seq(0.05, 6,   length.out = n_pts_joint)
 param_file <- "/home/josimms/Documents/Austria/Plant-FATE/tests/params/p_test_boreal.ini"
 weather_file <- "/home/josimms/Documents/Austria/Plant-FATE/data/ERAS_Monthly.csv"
+start_year <- 1960
+end_year   <- 2022
 k_mob_N <- new(LifeHistoryOptimizer, param_file)$traits0$k_mob_N
 k_mine_default  <- as.numeric(sub("^k_mine\\s*=\\s*([0-9.e+\\-]+).*", "\\1",
                                    grep("^k_mine\\s*=", readLines(param_file), value = TRUE)[1]))
@@ -84,6 +86,9 @@ f_static_default <- as.numeric(sub("^f_static\\s*=\\s*([0-9.e+\\-]+).*", "\\1",
 n_pts_sens <- if (testing_mode) 3 else 5
 f_static_values <- seq(0.05, 0.5,              length.out = n_pts_sens)
 k_mine_values   <- 10^seq(log10(0.3), log10(9), length.out = n_pts_sens)
+
+start_year <- 1960
+end_year   <- 2022
 
 # -------------------------------
 # Core simulation function with safe error handling
@@ -370,7 +375,7 @@ p_joint_ecm <- ggplot(opt_joint, aes(x = soil_nitrogen, y = ectomycorrhiza_mass)
   shared_scales +
   scale_y_continuous(labels = scales::label_scientific()) +
   expand_limits(y = 0) + soil_n_expand +
-  labs(tag = "E", x = "Soil nitrogen (g N m⁻³)", y = "Ectomycorrhizal\nbiomass (kg)") +
+  labs(tag = "E", x = "Soil nitrogen (g N m⁻³)", y = "Ectomycorrhizal\nbiomass (kg DM)") +
   pub_theme
 
 p_joint_ecm_area <- ggplot(opt_joint, aes(x = soil_nitrogen, y = ectomycorrhiza_mass / crown_area)) +
@@ -380,7 +385,7 @@ p_joint_ecm_area <- ggplot(opt_joint, aes(x = soil_nitrogen, y = ectomycorrhiza_
   shared_scales +
   scale_y_continuous(labels = scales::label_scientific()) +
   expand_limits(y = 0) + soil_n_expand +
-  labs(tag = "F", x = "Soil nitrogen (g N m⁻³)", y = "Ectomycorrhizal biomass\nper crown area (kg m⁻²)") +
+  labs(tag = "F", x = "Soil nitrogen (g N m⁻³)", y = "Ectomycorrhizal biomass\nper crown area (kg DM m⁻²)") +
   pub_theme
 
 p_joint_height <- ggplot(opt_joint, aes(x = soil_nitrogen, y = height)) +
@@ -539,41 +544,6 @@ add_net_gpp_ca <- function(df) {
 # Last-year snapshot: 2021 growing-season mean (joint_gs already computed above)
 joint_gs_lastyear <- joint_gs %>% add_net_gpp_ca()
 
-# Multi-year mean: all growing seasons Jun-Aug across the full simulation
-# joint_gs_allyears <- all_joint_df %>%
-#   mutate(year  = as.integer(format(as.Date(date), "%Y")),
-#          month = as.integer(format(as.Date(date), "%m"))) %>%
-#   filter(month %in% 6:8) %>%
-#   group_by(soil_nitrogen, ecto_allo, root_no, root_length) %>%
-#   summarise(
-#     height                      = mean(height,                      na.rm = TRUE),
-#     ectomycorrhiza_mass         = mean(ectomycorrhiza_mass,         na.rm = TRUE),
-#     ectomycorrhiza_N_biomass    = mean(ectomycorrhiza_N_biomass,    na.rm = TRUE),
-#     ectomycorrhiza_C_free       = mean(ectomycorrhiza_C_free,       na.rm = TRUE),
-#     ectomycorrhiza_N_free       = mean(ectomycorrhiza_N_free,       na.rm = TRUE),
-#     crown_area                  = mean(crown_area,                  na.rm = TRUE),
-#     lai                         = mean(lai,                         na.rm = TRUE),
-#     N_bar_roots                 = mean(N_bar_roots,                 na.rm = TRUE),
-#     N_static                  = mean(N_static,                  na.rm = TRUE),
-#     C_export_to_myco            = mean(C_export_to_myco,            na.rm = TRUE),
-#     mycorrhizal_export_to_tree  = mean(mycorrhizal_export_to_tree,  na.rm = TRUE),
-#     root_uptake                 = mean(root_uptake,                 na.rm = TRUE),
-#     myco_uptake                 = mean(myco_uptake,                 na.rm = TRUE),
-#     assim_gross                 = mean(assim_gross,                 na.rm = TRUE),
-#     optimal_leaf_nitrogen       = mean(optimal_leaf_nitrogen,       na.rm = TRUE),
-#     leaf_nitrogen_concentration = mean(leaf_nitrogen_concentration, na.rm = TRUE),
-#     tree_nitrogen               = mean(tree_nitrogen,               na.rm = TRUE),
-#     root_mass                   = mean(root_mass,                   na.rm = TRUE),
-#     coarse_root_mass            = mean(coarse_root_mass,            na.rm = TRUE),
-#     total_mass                  = mean(total_mass,                  na.rm = TRUE),
-#     fineroot_lifespan           = mean(fineroot_lifespan,           na.rm = TRUE),
-#     total_prod                  = mean(total_prod,                  na.rm = TRUE),
-#     rr                          = mean(rr,                          na.rm = TRUE),
-#     tr                          = mean(tr,                          na.rm = TRUE),
-#     ecm_frac_gpp                = mean(C_export_to_myco / assim_gross, na.rm = TRUE),
-#     .groups = "drop"
-#   ) %>%
-#   add_net_gpp_ca()
 
 # Full 12-panel joint-optima figure for any objective column.
 # gs_data must contain all columns from joint_gs plus tr.
@@ -759,7 +729,7 @@ allocation (% GPP)") +
     geom_point(aes(shape = "Model output"), colour = "black", size = 3, stroke = 1.2) +
     fn_scales + scale_y_continuous(labels = scales::label_scientific()) +
     expand_limits(y = c(0, 1e-6)) +
-    labs(tag = "E", x = "Soil nitrogen (kg N / m3)", y = "ECM biomass (kg)") + pub_theme
+    labs(tag = "E", x = "Soil nitrogen (kg N / m3)", y = "ECM biomass (kg DM)") + pub_theme
 
   pF <- ggplot(opt, aes(x = soil_nitrogen, y = ectomycorrhiza_mass / crown_area)) +
     geom_ribbon(data = stab_out, aes(x = soil_nitrogen, ymin = ecm_area_lo, ymax = ecm_area_hi),
@@ -767,8 +737,7 @@ allocation (% GPP)") +
     geom_point(aes(shape = "Model output"), colour = "black", size = 3, stroke = 1.2) +
     fn_scales + scale_y_continuous(labels = scales::label_scientific()) +
     expand_limits(y = c(0, 1e-6)) +
-    labs(tag = "F", x = "Soil nitrogen (kg N / m3)", y = "ECM biomass per crown
-(kg / m2)") + pub_theme
+    labs(tag = "F", x = "Soil nitrogen (kg N / m3)", y = "ECM biomass per crown\n(kg DM m⁻²)") + pub_theme
 
   nr_rng    <- range(opt$N_bar_roots, na.rm = TRUE)
   nm_rng    <- range(opt$N_static,  na.rm = TRUE)
@@ -963,17 +932,6 @@ allocation (% GPP)") +
     sn_expand
 }
 
-# fig_lastyear <- make_optima_figure(
-#   joint_gs_lastyear, "net_gpp_ca",
-#   "Objective: net GPP / crown area  (summer 2021)"
-# )
-# ggsave(file.path(plot_dir, "11_obj_lastyear.png"), plot = fig_lastyear, width = 22, height = 42, dpi = 300)
-
-# fig_allyears <- make_optima_figure(
-#   joint_gs_allyears, "net_gpp_ca",
-#   "Objective: net GPP / crown area  (multi-year summer mean)"
-# )
-# ggsave(file.path(plot_dir, "11_obj_allyears.png"), plot = fig_allyears, width = 22, height = 42, dpi = 300)
 
 ```
 
@@ -1020,7 +978,7 @@ annual_gs_all <- all_joint_df %>%
   mutate(
     net_gpp_ca    = (assim_gross - C_export_to_myco - rr * 0.44 - tr * 0.44) / (crown_area * lai),
     ecm_frac_gpp  = C_export_to_myco / assim_gross,
-    myco_N_access = k_mine * ectomycorrhiza_mass * N_static,
+    myco_N_access = k_mine_default * ectomycorrhiza_mass * N_static,
     accessible_N  = N_bar_roots + N_static,
     mycorrhized   = 0.9
   ) %>%
@@ -1467,7 +1425,7 @@ gpp_diag <- annual_opt_gpp %>%
     root_up_per_SA = root_uptake  / pmax(root_SA_m2,  1e-12),
     myco_up_per_SA = myco_uptake  / pmax(myco_SA_m2,  1e-12),
     total_n_uptake = root_uptake_actual + myco_uptake,
-    myco_N_access  = k_mine * ectomycorrhiza_mass * N_static,
+    myco_N_access  = k_mine_default * ectomycorrhiza_mass * N_static,
     accessible_N   = N_bar_roots + N_static
   )
 
@@ -1918,53 +1876,61 @@ viol17    <- geom_violin(fill = "grey85", colour = "grey50", linewidth = 0.4, sc
 jit_cross <- geom_jitter(aes(colour = year), height = 0.2, size = 1.5, shape = 3,
                          stroke = 1.2, alpha = 0.8, na.rm = TRUE)
 
+dat17_mean <- dat17 %>%
+  group_by(soil_nitrogen) %>%
+  summarise(across(where(is.numeric), \(x) mean(x, na.rm = TRUE)), .groups = "drop")
+ln17 <- geom_line(data = dat17_mean, aes(linetype = "last", group = 1),
+                  colour = "black", linewidth = 0.5, na.rm = TRUE)
+lt17 <- scale_linetype_manual(values = c(last = "solid"),
+                               labels = c(last = "Mean across years"), name = NULL)
+
 # Row 1: optimised parameters (cross shape)
-p17A <- ggplot(dat17, aes(x = accessible_N, y = factor(ecto_allo))) +
+p17A <- ggplot(dat17, aes(x = soil_nitrogen, y = factor(ecto_allo))) +
   viol17 + jit_cross + yr_scale17 +
   scale_y_discrete(labels = function(x) scales::percent(as.numeric(x))) +
-  labs(tag = "(a)", x = "Accessible N\n(kg N m⁻³)", y = "Optimal ECM C allocation\n(% NPP)") + pub_theme
+  labs(tag = "(a)", x = "Soil N\n(kg N m⁻³)", y = "Optimal ECM C allocation\n(% NPP)") + pub_theme
 
-p17B <- ggplot(dat17, aes(x = accessible_N, y = factor(root_no))) +
+p17B <- ggplot(dat17, aes(x = soil_nitrogen, y = factor(root_no))) +
   viol17 + jit_cross + yr_scale17 +
   scale_y_discrete(labels = function(x) scales::scientific(as.numeric(x))) +
-  labs(tag = "(b)", x = "Accessible N\n(kg N m⁻³)", y = "Optimal root number\n(no m⁻² crown)") + pub_theme
+  labs(tag = "(b)", x = "Soil N\n(kg N m⁻³)", y = "Optimal root number\n(no m⁻² crown)") + pub_theme
 
-p17C <- ggplot(dat17, aes(x = accessible_N, y = factor(root_length))) +
+p17C <- ggplot(dat17, aes(x = soil_nitrogen, y = factor(root_length))) +
   viol17 + jit_cross + yr_scale17 +
-  labs(tag = "(c)", x = "Accessible N\n(kg N m⁻³)", y = "Optimal root length\n(m)") + pub_theme
+  labs(tag = "(c)", x = "Soil N\n(kg N m⁻³)", y = "Optimal root length\n(m)") + pub_theme
 
-p17C2 <- ggplot(dat17, aes(x = accessible_N, y = factor(mycorrhized))) +
+p17C2 <- ggplot(dat17, aes(x = soil_nitrogen, y = factor(mycorrhized))) +
   viol17 + jit_cross + yr_scale17 +
   scale_y_discrete(labels = function(x) scales::percent(as.numeric(x))) +
-  labs(tag = "(d)", x = "Accessible N\n(kg N m⁻³)", y = "ECM colonisation\n(% roots covered)") + pub_theme
+  labs(tag = "(d)", x = "Soil N\n(kg N m⁻³)", y = "ECM colonisation\n(% roots covered)") + pub_theme
 
 # Row 2: ECM dynamics and N uptake
-p17E <- ggplot(dat17, aes(x = accessible_N, y = ectomycorrhiza_mass)) +
-  pt17 + yr_scale17 +
+p17E <- ggplot(dat17, aes(x = soil_nitrogen, y = ectomycorrhiza_mass)) +
+  pt17 + yr_scale17 + ln17 + lt17 +
   scale_y_continuous(labels = scales::label_scientific()) + expand_limits(y = 0) +
-  labs(tag = "(e)", x = "Accessible N\n(kg N m⁻³)", y = "ECM biomass\n(kg)") + pub_theme
+  labs(tag = "(e)", x = "Soil N\n(kg N m⁻³)", y = "ECM biomass\n(kg)") + pub_theme
 
-p17F <- ggplot(dat17, aes(x = accessible_N, y = ectomycorrhiza_mass / crown_area)) +
-  pt17 + yr_scale17 +
+p17F <- ggplot(dat17, aes(x = soil_nitrogen, y = ectomycorrhiza_mass / crown_area)) +
+  pt17 + yr_scale17 + ln17 + lt17 +
   scale_y_continuous(labels = scales::label_scientific()) + expand_limits(y = 0) +
-  labs(tag = "(f)", x = "Accessible N\n(kg N m⁻³)", y = "ECM biomass per crown\n(kg m⁻²)") + pub_theme
+  labs(tag = "(f)", x = "Soil N\n(kg N m⁻³)", y = "ECM biomass per crown\n(kg m⁻²)") + pub_theme
 
-p17O <- ggplot(dat17, aes(x = accessible_N, y = root_uptake_actual)) +
-  pt17 + yr_scale17 + expand_limits(y = 0) +
-  labs(tag = "(g)", x = "Accessible N\n(kg N m⁻³)", y = "Root N uptake\n(kg N yr⁻¹)") + pub_theme
+p17O <- ggplot(dat17, aes(x = soil_nitrogen, y = root_uptake_actual)) +
+  pt17 + yr_scale17 + ln17 + lt17 + expand_limits(y = 0) +
+  labs(tag = "(g)", x = "Soil N\n(kg N m⁻³)", y = "Root N uptake\n(kg N yr⁻¹)") + pub_theme
 
-p17O_myco <- ggplot(dat17, aes(x = accessible_N, y = myco_uptake)) +
-  pt17 + yr_scale17 + expand_limits(y = 0) +
-  labs(tag = "(h)", x = "Accessible N\n(kg N m⁻³)", y = "ECM N uptake\n(kg N yr⁻¹)") + pub_theme
+p17O_myco <- ggplot(dat17, aes(x = soil_nitrogen, y = myco_uptake)) +
+  pt17 + yr_scale17 + ln17 + lt17 + expand_limits(y = 0) +
+  labs(tag = "(h)", x = "Soil N\n(kg N m⁻³)", y = "ECM N uptake\n(kg N yr⁻¹)") + pub_theme
 
 # Row 3: tree status
-p17I <- ggplot(dat17, aes(x = accessible_N, y = height_increment)) +
-  pt17 + yr_scale17 + expand_limits(y = 0) +
-  labs(tag = "(i)", x = "Accessible N\n(kg N m⁻³)", y = "Height increment\n(m yr⁻¹)") + pub_theme
+p17I <- ggplot(dat17, aes(x = soil_nitrogen, y = height_increment)) +
+  pt17 + yr_scale17 + ln17 + lt17 + expand_limits(y = 0) +
+  labs(tag = "(i)", x = "Soil N\n(kg N m⁻³)", y = "Height increment\n(m yr⁻¹)") + pub_theme
 
-p17J <- ggplot(dat17, aes(x = accessible_N, y = assim_gross / crown_area)) +
-  pt17 + yr_scale17 + expand_limits(y = 0) +
-  labs(tag = "(j)", x = "Accessible N\n(kg N m⁻³)", y = "GPP per crown area\n(kg C m⁻² yr⁻¹)") + pub_theme
+p17J <- ggplot(dat17, aes(x = soil_nitrogen, y = assim_gross / crown_area)) +
+  pt17 + yr_scale17 + ln17 + lt17 + expand_limits(y = 0) +
+  labs(tag = "(j)", x = "Soil N\n(kg N m⁻³)", y = "GPP per crown area\n(kg C m⁻² yr⁻¹)") + pub_theme
 
 p17K <- ggplot(dat17, aes(x = leaf_nitrogen_concentration, y = optimal_leaf_nitrogen)) +
   geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
@@ -1972,9 +1938,9 @@ p17K <- ggplot(dat17, aes(x = leaf_nitrogen_concentration, y = optimal_leaf_nitr
   labs(tag = "(l)", x = "Actual leaf N\n(kg N kg⁻¹ leaf)", y = "Optimal leaf N\n(kg N kg⁻¹ leaf)") + pub_theme +
   theme(plot.background = element_rect(fill = "grey92", colour = NA))
 
-p17BB <- ggplot(dat17, aes(x = accessible_N, y = ectomycorrhiza_N_free / pmax(ectomycorrhiza_mass, 1e-12))) +
-  pt17 + yr_scale17 + expand_limits(y = 0) +
-  labs(tag = "(k)", x = "Accessible N\n(kg N m⁻³)", y = "ECM free N per biomass\n(kg N kg⁻¹)") + pub_theme
+p17BB <- ggplot(dat17, aes(x = soil_nitrogen, y = ectomycorrhiza_N_free / pmax(ectomycorrhiza_mass, 1e-12))) +
+  pt17 + yr_scale17 + ln17 + lt17 + expand_limits(y = 0) +
+  labs(tag = "(k)", x = "Soil N\n(kg N m⁻³)", y = "ECM free N per biomass\n(kg N kg⁻¹)") + pub_theme
 
 fig17 <- make_row_title("Parameters to be Optimised") /
   (p17A | p17B | p17C | p17C2) /
@@ -1990,6 +1956,211 @@ fig17 <- make_row_title("Parameters to be Optimised") /
         legend.direction = "horizontal",
         legend.box       = "horizontal")
 ggsave(file.path(pub_fig_dir, "17_optimal_state.png"), plot = fig17, width = 22, height = 24, dpi = 300)
+```
+
+## Alternative figure 4: lifetime optimal and last 10 years
+
+```{r plot17_alternatives}
+# ── Lifetime optimal ──────────────────────────────────────────────────────────
+# For each soil_N the single (ecto_allo, root_no, root_length) combo that
+# maximises mean net_gpp_ca across all years (best_combo_lifetime, already
+# computed).  State variables are shown year-by-year for that fixed combo.
+dat17_lifetime <- annual_gs_all %>%
+  semi_join(best_combo_lifetime,
+            by = c("soil_nitrogen", "ecto_allo", "root_no", "root_length")) %>%
+  mutate(
+    bga         = (C_export_to_myco + rr * 0.44 + tr * 0.44) / pmax(assim_gross, 1e-12),
+    mycorrhized = 0.9
+  )
+
+dat17_lt_mean <- dat17_lifetime %>%
+  group_by(soil_nitrogen) %>%
+  summarise(across(where(is.numeric), \(x) mean(x, na.rm = TRUE)), .groups = "drop")
+
+ln17_lt <- geom_line(data = dat17_lt_mean,
+                     aes(linetype = "last", group = 1),
+                     colour = "black", linewidth = 0.5, na.rm = TRUE)
+
+# Row 1: parameters are fixed per soil_N — show as single points, no violin
+p17A_lt <- ggplot(best_combo_lifetime,
+                  aes(x = soil_nitrogen, y = factor(ecto_allo))) +
+  geom_point(size = 3, shape = 16) +
+  scale_y_discrete(labels = function(x) scales::percent(as.numeric(x))) +
+  labs(tag = "(a)", x = "Soil N\n(kg N m⁻³)", y = "Optimal ECM C allocation\n(% NPP)") + pub_theme
+
+p17B_lt <- ggplot(best_combo_lifetime,
+                  aes(x = soil_nitrogen, y = factor(root_no))) +
+  geom_point(size = 3, shape = 16) +
+  scale_y_discrete(labels = function(x) scales::scientific(as.numeric(x))) +
+  labs(tag = "(b)", x = "Soil N\n(kg N m⁻³)", y = "Optimal root number\n(no m⁻² crown)") + pub_theme
+
+p17C_lt <- ggplot(best_combo_lifetime,
+                  aes(x = soil_nitrogen, y = factor(root_length))) +
+  geom_point(size = 3, shape = 16) +
+  labs(tag = "(c)", x = "Soil N\n(kg N m⁻³)", y = "Optimal root length\n(mm)") + pub_theme
+
+p17C2_lt <- ggplot(best_combo_lifetime,
+                   aes(x = soil_nitrogen, y = factor(0.9))) +
+  geom_point(size = 3, shape = 16) +
+  scale_y_discrete(labels = function(x) scales::percent(as.numeric(x))) +
+  labs(tag = "(d)", x = "Soil N\n(kg N m⁻³)", y = "ECM colonisation\n(% roots covered)") + pub_theme
+
+# Rows 2–3: state variables for the fixed combo, coloured by year
+p17E_lt <- ggplot(dat17_lifetime,
+                  aes(x = soil_nitrogen, y = ectomycorrhiza_mass)) +
+  pt17 + yr_scale17 + ln17_lt + lt17 +
+  scale_y_continuous(labels = scales::label_scientific()) + expand_limits(y = 0) +
+  labs(tag = "(e)", x = "Soil N\n(kg N m⁻³)", y = "ECM biomass\n(kg)") + pub_theme
+
+p17F_lt <- ggplot(dat17_lifetime,
+                  aes(x = soil_nitrogen, y = ectomycorrhiza_mass / crown_area)) +
+  pt17 + yr_scale17 + ln17_lt + lt17 +
+  scale_y_continuous(labels = scales::label_scientific()) + expand_limits(y = 0) +
+  labs(tag = "(f)", x = "Soil N\n(kg N m⁻³)", y = "ECM biomass per crown\n(kg m⁻²)") + pub_theme
+
+p17O_lt <- ggplot(dat17_lifetime,
+                  aes(x = soil_nitrogen, y = root_uptake_actual)) +
+  pt17 + yr_scale17 + ln17_lt + lt17 + expand_limits(y = 0) +
+  labs(tag = "(g)", x = "Soil N\n(kg N m⁻³)", y = "Root N uptake\n(kg N yr⁻¹)") + pub_theme
+
+p17O_myco_lt <- ggplot(dat17_lifetime,
+                       aes(x = soil_nitrogen, y = myco_uptake)) +
+  pt17 + yr_scale17 + ln17_lt + lt17 + expand_limits(y = 0) +
+  labs(tag = "(h)", x = "Soil N\n(kg N m⁻³)", y = "ECM N uptake\n(kg N yr⁻¹)") + pub_theme
+
+p17I_lt <- ggplot(dat17_lifetime,
+                  aes(x = soil_nitrogen, y = height_increment)) +
+  pt17 + yr_scale17 + ln17_lt + lt17 + expand_limits(y = 0) +
+  labs(tag = "(i)", x = "Soil N\n(kg N m⁻³)", y = "Height increment\n(m yr⁻¹)") + pub_theme
+
+p17J_lt <- ggplot(dat17_lifetime,
+                  aes(x = soil_nitrogen, y = assim_gross / crown_area)) +
+  pt17 + yr_scale17 + ln17_lt + lt17 + expand_limits(y = 0) +
+  labs(tag = "(j)", x = "Soil N\n(kg N m⁻³)", y = "GPP per crown area\n(kg C m⁻² yr⁻¹)") + pub_theme
+
+p17BB_lt <- ggplot(dat17_lifetime,
+                   aes(x = soil_nitrogen,
+                       y = ectomycorrhiza_N_free / pmax(ectomycorrhiza_mass, 1e-12))) +
+  pt17 + yr_scale17 + ln17_lt + lt17 + expand_limits(y = 0) +
+  labs(tag = "(k)", x = "Soil N\n(kg N m⁻³)", y = "ECM free N per biomass\n(kg N kg⁻¹)") + pub_theme
+
+p17K_lt <- ggplot(dat17_lifetime,
+                  aes(x = leaf_nitrogen_concentration, y = optimal_leaf_nitrogen)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
+  pt17 + yr_scale17 + expand_limits(y = 0, x = 0) +
+  labs(tag = "(l)", x = "Actual leaf N\n(kg N kg⁻¹ leaf)",
+       y = "Optimal leaf N\n(kg N kg⁻¹ leaf)") +
+  pub_theme + theme(plot.background = element_rect(fill = "grey92", colour = NA))
+
+fig17_lifetime <- make_row_title("Parameters to be Optimised") /
+  (p17A_lt | p17B_lt | p17C_lt | p17C2_lt) /
+  make_row_title("ECM Dynamics & N Uptake") /
+  (p17E_lt | p17F_lt | p17O_lt | p17O_myco_lt) /
+  make_row_title("Tree Status") /
+  (p17I_lt | p17J_lt | p17BB_lt | p17K_lt) +
+  plot_layout(heights = c(0.07, 1, 0.07, 1, 0.07, 1), guides = "collect") &
+  theme(plot.tag         = element_text(size = 22, face = "bold"),
+        legend.text      = element_text(size = 22),
+        legend.key.size  = unit(0.9, "lines"),
+        legend.position  = "bottom",
+        legend.direction = "horizontal",
+        legend.box       = "horizontal")
+ggsave(file.path(pub_fig_dir, "17_lifetime_optimals.png"),
+       plot = fig17_lifetime, width = 22, height = 24, dpi = 300)
+
+# ── Last 10 years ─────────────────────────────────────────────────────────────
+# Same structure as fig17 but restricted to the final 10 years (2013--2022),
+# so the violin distributions and scatter reflect mature-tree behaviour only.
+dat17_last10 <- annual_opt_gpp %>%
+  filter(year >= max(year, na.rm = TRUE) - 9) %>%
+  mutate(
+    bga         = (C_export_to_myco + rr * 0.44 + tr * 0.44) / pmax(assim_gross, 1e-12),
+    mycorrhized = 0.9
+  )
+
+dat17_l10_mean <- dat17_last10 %>%
+  group_by(soil_nitrogen) %>%
+  summarise(across(where(is.numeric), \(x) mean(x, na.rm = TRUE)), .groups = "drop")
+
+ln17_l10 <- geom_line(data = dat17_l10_mean,
+                      aes(linetype = "last", group = 1),
+                      colour = "black", linewidth = 0.5, na.rm = TRUE)
+
+p17A_l10 <- ggplot(dat17_last10, aes(x = soil_nitrogen, y = factor(ecto_allo))) +
+  viol17 + jit_cross + yr_scale17 +
+  scale_y_discrete(labels = function(x) scales::percent(as.numeric(x))) +
+  labs(tag = "(a)", x = "Soil N\n(kg N m⁻³)", y = "Optimal ECM C allocation\n(% NPP)") + pub_theme
+
+p17B_l10 <- ggplot(dat17_last10, aes(x = soil_nitrogen, y = factor(root_no))) +
+  viol17 + jit_cross + yr_scale17 +
+  scale_y_discrete(labels = function(x) scales::scientific(as.numeric(x))) +
+  labs(tag = "(b)", x = "Soil N\n(kg N m⁻³)", y = "Optimal root number\n(no m⁻² crown)") + pub_theme
+
+p17C_l10 <- ggplot(dat17_last10, aes(x = soil_nitrogen, y = factor(root_length))) +
+  viol17 + jit_cross + yr_scale17 +
+  labs(tag = "(c)", x = "Soil N\n(kg N m⁻³)", y = "Optimal root length\n(mm)") + pub_theme
+
+p17C2_l10 <- ggplot(dat17_last10, aes(x = soil_nitrogen, y = factor(mycorrhized))) +
+  viol17 + jit_cross + yr_scale17 +
+  scale_y_discrete(labels = function(x) scales::percent(as.numeric(x))) +
+  labs(tag = "(d)", x = "Soil N\n(kg N m⁻³)", y = "ECM colonisation\n(% roots covered)") + pub_theme
+
+p17E_l10 <- ggplot(dat17_last10, aes(x = soil_nitrogen, y = ectomycorrhiza_mass)) +
+  pt17 + yr_scale17 + ln17_l10 + lt17 +
+  scale_y_continuous(labels = scales::label_scientific()) + expand_limits(y = 0) +
+  labs(tag = "(e)", x = "Soil N\n(kg N m⁻³)", y = "ECM biomass\n(kg)") + pub_theme
+
+p17F_l10 <- ggplot(dat17_last10,
+                   aes(x = soil_nitrogen, y = ectomycorrhiza_mass / crown_area)) +
+  pt17 + yr_scale17 + ln17_l10 + lt17 +
+  scale_y_continuous(labels = scales::label_scientific()) + expand_limits(y = 0) +
+  labs(tag = "(f)", x = "Soil N\n(kg N m⁻³)", y = "ECM biomass per crown\n(kg m⁻²)") + pub_theme
+
+p17O_l10 <- ggplot(dat17_last10, aes(x = soil_nitrogen, y = root_uptake_actual)) +
+  pt17 + yr_scale17 + ln17_l10 + lt17 + expand_limits(y = 0) +
+  labs(tag = "(g)", x = "Soil N\n(kg N m⁻³)", y = "Root N uptake\n(kg N yr⁻¹)") + pub_theme
+
+p17O_myco_l10 <- ggplot(dat17_last10, aes(x = soil_nitrogen, y = myco_uptake)) +
+  pt17 + yr_scale17 + ln17_l10 + lt17 + expand_limits(y = 0) +
+  labs(tag = "(h)", x = "Soil N\n(kg N m⁻³)", y = "ECM N uptake\n(kg N yr⁻¹)") + pub_theme
+
+p17I_l10 <- ggplot(dat17_last10, aes(x = soil_nitrogen, y = height_increment)) +
+  pt17 + yr_scale17 + ln17_l10 + lt17 + expand_limits(y = 0) +
+  labs(tag = "(i)", x = "Soil N\n(kg N m⁻³)", y = "Height increment\n(m yr⁻¹)") + pub_theme
+
+p17J_l10 <- ggplot(dat17_last10, aes(x = soil_nitrogen, y = assim_gross / crown_area)) +
+  pt17 + yr_scale17 + ln17_l10 + lt17 + expand_limits(y = 0) +
+  labs(tag = "(j)", x = "Soil N\n(kg N m⁻³)", y = "GPP per crown area\n(kg C m⁻² yr⁻¹)") + pub_theme
+
+p17BB_l10 <- ggplot(dat17_last10,
+                    aes(x = soil_nitrogen,
+                        y = ectomycorrhiza_N_free / pmax(ectomycorrhiza_mass, 1e-12))) +
+  pt17 + yr_scale17 + ln17_l10 + lt17 + expand_limits(y = 0) +
+  labs(tag = "(k)", x = "Soil N\n(kg N m⁻³)", y = "ECM free N per biomass\n(kg N kg⁻¹)") + pub_theme
+
+p17K_l10 <- ggplot(dat17_last10,
+                   aes(x = leaf_nitrogen_concentration, y = optimal_leaf_nitrogen)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
+  pt17 + yr_scale17 + expand_limits(y = 0, x = 0) +
+  labs(tag = "(l)", x = "Actual leaf N\n(kg N kg⁻¹ leaf)",
+       y = "Optimal leaf N\n(kg N kg⁻¹ leaf)") +
+  pub_theme + theme(plot.background = element_rect(fill = "grey92", colour = NA))
+
+fig17_last10 <- make_row_title("Parameters to be Optimised") /
+  (p17A_l10 | p17B_l10 | p17C_l10 | p17C2_l10) /
+  make_row_title("ECM Dynamics & N Uptake") /
+  (p17E_l10 | p17F_l10 | p17O_l10 | p17O_myco_l10) /
+  make_row_title("Tree Status") /
+  (p17I_l10 | p17J_l10 | p17BB_l10 | p17K_l10) +
+  plot_layout(heights = c(0.07, 1, 0.07, 1, 0.07, 1), guides = "collect") &
+  theme(plot.tag         = element_text(size = 22, face = "bold"),
+        legend.text      = element_text(size = 22),
+        legend.key.size  = unit(0.9, "lines"),
+        legend.position  = "bottom",
+        legend.direction = "horizontal",
+        legend.box       = "horizontal")
+ggsave(file.path(pub_fig_dir, "17_last10_years.png"),
+       plot = fig17_last10, width = 22, height = 24, dpi = 300)
 ```
 
 ## N pools vs soil N
@@ -2040,25 +2211,25 @@ p17b_mine <- ggplot(ann17b, aes(x = N_static,
   labs(tag = "(e)", x = "Organic N pool (kg N m⁻³)",
        y = "N mineralisation by ECM\nper unit biomass\n(kg N yr⁻¹ kg C⁻¹)") + pub_theme
 
-p17b_transfer <- ggplot(ann17b, aes(x = accessible_N,
+p17b_transfer <- ggplot(ann17b, aes(x = soil_nitrogen,
                                     y = mycorrhizal_export_to_tree / pmax(ectomycorrhiza_mass, 1e-12))) +
   geom_point(aes(colour = year), size = 1.8, shape = 16, na.rm = TRUE) +
   scale_colour_viridis_c(name = "Year", option = "viridis") +
   expand_limits(y = 0) +
-  labs(tag = "(f)", x = "Accessible N\n(kg N m⁻³)",
+  labs(tag = "(f)", x = "Soil N\n(kg N m⁻³)",
        y = "Transfer to tree\nper ECM biomass\n(kg N yr⁻¹ kg⁻¹)") + pub_theme
 
-p17b_T3  <- ggplot(ann17b, aes(x = accessible_N, y = tree_nitrogen)) +
+p17b_T3  <- ggplot(ann17b, aes(x = soil_nitrogen, y = tree_nitrogen)) +
   geom_point(aes(colour = year), size = 1.8, shape = 16, na.rm = TRUE) +
   scale_colour_viridis_c(name = "Year", option = "viridis") +
   expand_limits(y = 0) +
-  labs(tag = "(g)", x = "Accessible N\n(kg N m⁻³)", y = "Tree free N pool\n(kg N)") + pub_theme
+  labs(tag = "(g)", x = "Soil N\n(kg N m⁻³)", y = "Tree free N pool\n(kg N)") + pub_theme
 
-p17b_BB3 <- ggplot(ann17b, aes(x = accessible_N, y = ectomycorrhiza_N_free / pmax(ectomycorrhiza_mass, 1e-12))) +
+p17b_BB3 <- ggplot(ann17b, aes(x = soil_nitrogen, y = ectomycorrhiza_N_free / pmax(ectomycorrhiza_mass, 1e-12))) +
   geom_point(aes(colour = year), size = 1.8, shape = 16, na.rm = TRUE) +
   scale_colour_viridis_c(name = "Year", option = "viridis") +
   expand_limits(y = 0) +
-  labs(tag = "(h)", x = "Accessible N\n(kg N m⁻³)", y = "ECM free N\nper biomass\n(kg N kg⁻¹)") + pub_theme
+  labs(tag = "(h)", x = "Soil N\n(kg N m⁻³)", y = "ECM free N\nper biomass\n(kg N kg⁻¹)") + pub_theme
 
 fig17b <- (p17b_G1 | p17b_G2 | p17b_accN) /
   (p17b_C | p17b_mine | p17b_transfer) /
@@ -2095,20 +2266,22 @@ yr_scale_c <- scale_colour_viridis_c(
 )
 pt_c <- geom_point(aes(colour = year), size = 1.8, shape = 16, alpha = 0.7, na.rm = TRUE)
 
-p17c_H <- ggplot(dat17c, aes(x = accessible_N, y = CN)) +
+p17c_H <- ggplot(dat17c, aes(x = myco_uptake, y = CN)) +
   pt_c + yr_scale_c +
-  scale_y_continuous(labels = scales::label_scientific(digits = 2)) + expand_limits(y = 0) +
-  labs(tag = "(a)", x = "Accessible N\n(kg N m⁻³)", y = "Mycorrhizal C:N\n(kg C kg⁻¹ N)") + pub_theme
+  scale_x_continuous(labels = scales::label_number(accuracy = 1)) +
+  scale_y_continuous(labels = scales::label_number(accuracy = 1)) + expand_limits(y = 0) +
+  labs(tag = "(a)", x = "Fungal N uptake\n(kg N yr⁻¹)", y = "Mycorrhizal C:N\n(kg C kg⁻¹ N)") + pub_theme
 
-p17c_L <- ggplot(dat17c, aes(x = accessible_N, y = cn_exchange)) +
-  pt_c + yr_scale_c + expand_limits(y = 0) +
-  labs(tag = "(b)", x = "Accessible N\n(kg N m⁻³)",
-       y = "C:N exchange cost\n(kg C kg⁻¹ N received)") + pub_theme
+p17c_L <- ggplot(dat17c, aes(x = soil_nitrogen, y = cn_exchange)) +
+  pt_c + yr_scale_c +
+  scale_y_log10() +
+  labs(tag = "(b)", x = "Soil N\n(kg N m⁻³)",
+       y = "C:N exchange cost\n(kg C kg⁻¹ N transferred)") + pub_theme
 
-p17c_L_zoom <- ggplot(dat17c, aes(x = accessible_N, y = cn_exchange)) +
+p17c_L_zoom <- ggplot(dat17c, aes(x = soil_nitrogen, y = cn_exchange)) +
   pt_c + yr_scale_c + expand_limits(y = 0) +
-  coord_cartesian(xlim = c(0, 1), ylim = c(0, quantile(dat17c$cn_exchange, 0.93, na.rm = TRUE))) +
-  labs(tag = "(d)", x = "Accessible N\n(kg N m⁻³)",
+  coord_cartesian(ylim = c(0, quantile(dat17c$cn_exchange, 0.93, na.rm = TRUE))) +
+  labs(tag = "(d)", x = "Soil N\n(kg N m⁻³)",
        y = "C:N exchange cost\n(kg C kg⁻¹ N received)\n[zoomed]") + pub_theme
 
 p17c_phiB <- ggplot(dat17c, aes(x = eff_rF, y = mycorrhizal_export_to_tree)) +
@@ -2117,7 +2290,16 @@ p17c_phiB <- ggplot(dat17c, aes(x = eff_rF, y = mycorrhizal_export_to_tree)) +
        x = "Effective fungal N:C\n(kg N kg C⁻¹)",
        y = "N transferred to tree\n(kg N yr⁻¹)") + pub_theme
 
-fig17c <- (p17c_H | p17c_L | p17c_phiB) +
+p17c_freeN <- ggplot(dat17c, aes(x = myco_uptake, y = ectomycorrhiza_N_free)) +
+  pt_c + yr_scale_c + expand_limits(y = 0) +
+  labs(tag = "(d)", x = "Fungal N uptake\n(kg N yr⁻¹)", y = "ECM free N\n(kg N)") + pub_theme
+
+p17c_freeC <- ggplot(dat17c, aes(x = myco_uptake, y = ectomycorrhiza_C_free)) +
+  pt_c + yr_scale_c + expand_limits(y = 0) +
+  labs(tag = "(e)", x = "Fungal N uptake\n(kg N yr⁻¹)", y = "ECM free C\n(kg C)") + pub_theme
+
+fig17c <- (p17c_H | p17c_L | p17c_phiB) /
+  (p17c_freeN | p17c_freeC | plot_spacer()) +
   plot_layout(guides = "collect") &
   theme(plot.tag         = element_text(size = 18, face = "bold"),
         legend.text      = element_text(size = 14),
@@ -2126,5 +2308,426 @@ fig17c <- (p17c_H | p17c_L | p17c_phiB) +
         legend.direction = "horizontal",
         legend.box       = "horizontal",
         plot.margin      = margin(8, 8, 8, 8))
-ggsave(file.path(pub_fig_dir, "17c_CN_budgets.png"), plot = fig17c, width = 21, height = 8, dpi = 300)
+ggsave(file.path(pub_fig_dir, "17c_CN_budgets.png"), plot = fig17c, width = 21, height = 16, dpi = 300)
+```
+
+#################################################################################
+
+## Life History Simulations (lh_09 / lh_10)
+
+```{r lh_validation_data}
+# Halme et al. 2022: field measurements boreal
+halme_et_al_2022 <- data.frame(matrix(nrow = 9, ncol = 2))
+halme_et_al_2022$height         <- c(17.1, 21.0, 20.5, 18.3, 13.2, 20.7, 16.8, 23.6, 13.6)
+halme_et_al_2022$crown_diameter <- c(3.4,  4.0,  4.1,  3.3,  2.9,  3.7,  3.4,  4.2,  2.8)
+
+# SMEAR II processed data
+data_directory <- "~/Documents/CASSIA_Calibration/Processed_Data/"
+loaded_data <- CASSIA::load_data(data_directory)
+
+# Eddy covariance (Hyytiälä)
+raw.directory <- "/home/josimms/Documents/CASSIA_Calibration/Raw_Data/hyytiala_weather/"
+environmental.variable.list <- list()
+count <- 1
+for (variable in c("GPP", "NEE", "F_CO2_leaf", "F_H2O_leaf", "ET_gapf")) {
+  environmental.variable.list[[count]] <- data.table::rbindlist(
+    lapply(paste0(raw.directory, list.files(raw.directory, variable)), data.table::fread))
+  environmental.variable.list[[count]]$Date <- paste(
+    environmental.variable.list[[count]]$Year,
+    environmental.variable.list[[count]]$Month,
+    environmental.variable.list[[count]]$Day, sep = "-")
+  environmental.variable.list[[count]]$Monthly <- paste(
+    environmental.variable.list[[count]]$Year,
+    environmental.variable.list[[count]]$Month, sep = "-")
+  count <- count + 1
+}
+names(environmental.variable.list) <- c("GPP", "NEE", "F_CO2_leaf", "F_H2O_leaf", "ET")
+
+DT  <- copy(environmental.variable.list[["GPP"]])
+DT2 <- copy(environmental.variable.list[["NEE"]])
+DT5 <- copy(environmental.variable.list[["ET"]])
+
+GPP_out <- DT[,  .(GPP_mean = mean(HYY_EDDY233.GPP,    na.rm = TRUE)), by = Monthly]
+NEE_out <- DT2[, .(NEE_mean = mean(HYY_EDDY233.NEE,    na.rm = TRUE)), by = Monthly]
+ET_out  <- DT5[, .(ET_mean  = mean(HYY_EDDY233.ET_gapf, na.rm = TRUE)), by = Monthly]
+
+GPP_out <- GPP_out[, Monthly := zoo::as.yearmon(Monthly, "%Y-%m")]
+NEE_out <- NEE_out[, Monthly := zoo::as.yearmon(Monthly, "%Y-%m")]
+ET_out  <- ET_out[,  Monthly := zoo::as.yearmon(Monthly, "%Y-%m")]
+setorder(GPP_out, Monthly); setorder(NEE_out, Monthly); setorder(ET_out, Monthly)
+
+area_per_tree        <- 1
+GPP_out$GPP_mean_kg  <- GPP_out$GPP_mean * 12.011 * 1e-9 * 60 * 60 * 24 * 365.25 * area_per_tree
+NEE_out$NEE_mean_kg  <- NEE_out$NEE_mean * 12.011 * 1e-9 * 60 * 60 * 24 * 365.25 * area_per_tree
+GPP_out$NEE_mean     <- NEE_out$NEE_mean
+GPP_out$NEE_mean_kg  <- NEE_out$NEE_mean_kg
+GPP_out$ET           <- ET_out$ET_mean
+Eddy_covariance      <- GPP_out
+Eddy_covariance[, MonthlyDate := as.Date(paste0("01 ", Monthly), format = "%d %b %Y")]
+Eddy_covariance[, Month       := as.integer(format(MonthlyDate, "%m"))]
+
+```
+
+```{r lh_simulations}
+lh_dt         <- 1/12
+lh_start_year <- 1960
+lh_end_year   <- 2022
+lh_years_seq  <- seq(lh_start_year, lh_end_year, lh_dt)
+
+run_lh_sim <- function(n_val) {
+  lho <- new(LifeHistoryOptimizer, param_file)
+  lho$set_i_metFile(weather_file)
+  lho$set_a_metFile(weather_file)
+  lho$set_co2File("")
+  lho$set_soil_nitrogen(n_val)
+  lho$init()
+  col_names <- lho$get_header()
+  results <- lapply(lh_years_seq, function(t) {
+    tryCatch({
+      lho$grow_for_dt(t, lh_dt)
+      state <- lho$get_state(t + lh_dt)
+      df_row <- as.data.frame(t(state))
+      names(df_row) <- col_names
+      df_row
+    }, error = function(e) {
+      setNames(as.data.frame(as.list(rep(NA, length(col_names)))), col_names)
+    })
+  })
+  df <- do.call(rbind, results)
+  names(df) <- col_names
+  df$date <- seq(as.Date(paste0(lh_start_year, "-01-01")),
+                 as.Date(paste0(lh_end_year,   "-01-01")),
+                 by = "month")[1:nrow(df)]
+  df
+}
+
+df   <- run_lh_sim(0.2)   # N = Low
+df_2 <- run_lh_sim(0.4)   # N = Medium
+df_3 <- run_lh_sim(1.0)   # N = High
+
+lh_cols     <- c("#0072B2", "#E69F00", "#D55E00")
+lh_N_labels <- c("N = Low", "N = Medium", "N = High")
+col_obs      <- "lightblue"
+col_range    <- "lightblue"
+
+lh_cex_axis   <- 2.0
+lh_cex_lab    <- 2.2
+lh_cex_main   <- 2.4
+lh_cex_legend <- 1.8
+lh_lwd_model  <- 3
+lh_lwd_obs    <- 2
+lh_pch_obs    <- 16
+
+add_range <- function(x, y_min, y_max,
+                      col = adjustcolor(col_range, alpha.f = 0.5),
+                      lwd = lh_lwd_obs, cap = 0.015) {
+  arrows(x, y_min, x, y_max, code = 3, angle = 90, length = cap, col = col, lwd = lwd)
+}
+```
+
+```{r lh_09_main_panel}
+png(file.path(pub_fig_dir, "lh_09_publication_main.png"),
+    width = 16, height = 12, units = "in", res = 300)
+par(mfrow = c(4, 2), mar = c(4, 6, 3, 1), oma = c(4, 0, 2, 0),
+    family = "serif", las = 1, tcl = -0.4, mgp = c(4, 1, 0))
+
+# (a) GPP
+ylim_gpp <- range(df$assim_gross/df$crown_area/2.04,
+                  df_3$assim_gross/df_3$crown_area/2.04,
+                  Eddy_covariance$GPP_mean_kg, na.rm = TRUE)
+plot(df$date, df$assim_gross/df$crown_area/2.04, type = "l", col = lh_cols[1], lwd = lh_lwd_model,
+     ylim = ylim_gpp, xlab = "",
+     ylab = expression("GPP (kg C m"^{-2}*" year"^{-1}*")"),
+     cex.axis = lh_cex_axis, cex.lab = lh_cex_lab)
+lines(df_3$date, df_3$assim_gross/df_3$crown_area/2.04, col = lh_cols[3], lwd = lh_lwd_model)
+lines(df$date,   df$assim_gross/df$crown_area/2.04,     col = lh_cols[1], lwd = lh_lwd_model)
+points(Eddy_covariance$MonthlyDate, Eddy_covariance$GPP_mean_kg,
+       col = col_obs, pch = lh_pch_obs, cex = 0.8)
+mtext("(a)", side = 3, adj = 0, line = 0.2, font = 2, cex = lh_cex_main)
+box(bty = "l")
+
+# (b) NPP
+ylim_npp <- range(df$assim_net/df$crown_area/2.04,
+                  df_3$assim_net/df_3$crown_area/2.04,
+                  -Eddy_covariance$NEE_mean_kg, na.rm = TRUE)
+plot(df$date, df$assim_net/df$crown_area/2.04, type = "n",
+     ylim = ylim_npp, xlab = "",
+     ylab = expression("NPP (kg C m"^{-2}*" year"^{-1}*")"),
+     cex.axis = lh_cex_axis, cex.lab = lh_cex_lab)
+lines(df_3$date, df_3$assim_net/df_3$crown_area/2.04, col = lh_cols[3], lwd = lh_lwd_model)
+lines(df$date,   df$assim_net/df$crown_area/2.04,     col = lh_cols[1], lwd = lh_lwd_model)
+points(Eddy_covariance$MonthlyDate, -Eddy_covariance$NEE_mean_kg,
+       col = col_obs, pch = lh_pch_obs, cex = 0.8)
+mtext("(b)", side = 3, adj = 0, line = 0.2, font = 2, cex = lh_cex_main)
+box(bty = "l")
+
+# (c) Height
+smear_h_idx  <- loaded_data$smearII_data$variable == "pine height BA weighted mean"
+smear_h_val  <- loaded_data$smearII_data$amount[smear_h_idx]
+smear_h_date <- as.Date(paste0(loaded_data$smearII_data$date[smear_h_idx], "-01-01"))
+ylim_h <- range(df$height, df_3$height, smear_h_val,
+                halme_et_al_2022$height, useful_data$averageTreeHeight, na.rm = TRUE)
+plot(df$date, df$height, type = "l", col = lh_cols[1], lwd = lh_lwd_model,
+     ylim = ylim_h, xlab = "", ylab = "Height (m)",
+     cex.axis = lh_cex_axis, cex.lab = lh_cex_lab)
+points(smear_h_date, smear_h_val,
+       col = adjustcolor(col_range, alpha.f = 0.15), pch = 4, cex = 1.5, lwd = lh_lwd_obs)
+add_range(as.Date("2017-06-01"),
+          min(halme_et_al_2022$height, na.rm = TRUE),
+          max(halme_et_al_2022$height, na.rm = TRUE))
+for (id in unique(useful_data$plotID)) {
+  sub <- useful_data[useful_data$plotID == id & !is.na(useful_data$averageTreeHeight), ]
+  sub <- sub[order(sub$eventYear), ]
+  if (nrow(sub) < 1) next
+  x <- as.Date(as.character(sub$eventYear), format = "%Y")
+  y <- sub$averageTreeHeight
+  x_plot <- x[1]; y_plot <- y[1]
+  for (j in seq_len(nrow(sub) - 1)) {
+    if (y[j + 1] < y[j]) {
+      x_plot <- c(x_plot, NA, x[j + 1])
+      y_plot <- c(y_plot, NA, y[j + 1])
+    } else {
+      x_plot <- c(x_plot, x[j + 1])
+      y_plot <- c(y_plot, y[j + 1])
+    }
+  }
+  points(x, y, col = adjustcolor(col_range, alpha.f = 0.15), pch = 16, cex = 0.4)
+  lines(x_plot, y_plot, col = adjustcolor(col_range, alpha.f = 0.15), lwd = lh_lwd_obs)
+}
+mtext("(c)", side = 3, adj = 0, line = 0.2, font = 2, cex = lh_cex_main)
+box(bty = "l")
+lines(df_3$date, df_3$height, col = lh_cols[3], lwd = lh_lwd_model)
+lines(df$date,   df$height,   col = lh_cols[1], lwd = lh_lwd_model)
+
+# (d) Diameter
+smear_d_idx  <- loaded_data$smearII_data$variable == "pine diameter BA weighted mean"
+smear_d_val  <- 0.01 * loaded_data$smearII_data$amount[smear_d_idx]
+smear_d_date <- as.Date(paste0(loaded_data$smearII_data$date[smear_d_idx], "-01-01"))
+ylim_d <- range(df$diameter, df_3$diameter, smear_d_val,
+                0.01 * useful_data$averageTreeDiameter, na.rm = TRUE)
+plot(df_3$date, df_3$diameter, type = "l", col = lh_cols[3], lwd = lh_lwd_model,
+     ylim = ylim_d, xlab = "", ylab = "Diameter (m)",
+     cex.axis = lh_cex_axis, cex.lab = lh_cex_lab)
+lines(df$date, df$diameter, col = lh_cols[1], lwd = lh_lwd_model)
+points(smear_d_date, smear_d_val,
+       col = adjustcolor(col_range, alpha.f = 0.15), pch = 4, cex = 1.5, lwd = lh_lwd_obs)
+for (id in unique(useful_data$plotID)) {
+  sub <- useful_data[useful_data$plotID == id & !is.na(useful_data$averageTreeDiameter), ]
+  sub <- sub[order(sub$eventYear), ]
+  if (nrow(sub) < 1) next
+  x <- as.Date(as.character(sub$eventYear), format = "%Y")
+  y <- 0.01 * sub$averageTreeDiameter
+  x_plot <- x[1]; y_plot <- y[1]
+  for (j in seq_len(nrow(sub) - 1)) {
+    if (y[j + 1] < y[j]) {
+      x_plot <- c(x_plot, NA, x[j + 1])
+      y_plot <- c(y_plot, NA, y[j + 1])
+    } else {
+      x_plot <- c(x_plot, x[j + 1])
+      y_plot <- c(y_plot, y[j + 1])
+    }
+  }
+  points(x, y, col = adjustcolor(col_range, alpha.f = 0.15), pch = 16, cex = 0.4)
+  lines(x_plot, y_plot, col = adjustcolor(col_range, alpha.f = 0.15), lwd = lh_lwd_obs)
+}
+mtext("(d)", side = 3, adj = 0, line = 0.2, font = 2, cex = lh_cex_main)
+box(bty = "l")
+lines(df_3$date, df_3$diameter, col = lh_cols[3], lwd = lh_lwd_model)
+lines(df$date,   df$diameter,   col = lh_cols[1], lwd = lh_lwd_model)
+
+# (e) Vcmax
+ylim_vc <- range(df$vcmax/df$lai, df_3$vcmax/df_3$lai, 30, na.rm = TRUE)
+plot(df$date, df$vcmax/df$lai, type = "n",
+     ylim = ylim_vc, xlab = "",
+     ylab = expression("V"[cmax]*" ("*mu*"mol m"^{-2}*" s"^{-1}*")"),
+     cex.axis = lh_cex_axis, cex.lab = lh_cex_lab)
+rect(par("usr")[1], 0, par("usr")[2], 30,
+     col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
+lines(df_3$date, df_3$vcmax/df_3$lai, col = lh_cols[3], lwd = lh_lwd_model)
+lines(df$date,   df$vcmax/df$lai,     col = lh_cols[1], lwd = lh_lwd_model)
+mtext("(e)", side = 3, adj = 0, line = 0.2, font = 2, cex = lh_cex_main)
+box(bty = "l")
+
+# (f) Optimal leaf nitrogen
+korhonen_needle_n_lo <- 0.0121
+korhonen_needle_n_hi <- 0.0151
+ylim_oln <- range(0, df$optimal_leaf_nitrogen * 1.1, df_3$optimal_leaf_nitrogen * 1.1,
+                  korhonen_needle_n_hi, na.rm = TRUE)
+plot(df$date, df$optimal_leaf_nitrogen, type = "n",
+     ylim = ylim_oln, xlab = "",
+     ylab = expression("Optimal leaf N (g g"^{-1}*")"),
+     cex.axis = lh_cex_axis, cex.lab = lh_cex_lab)
+rect(par("usr")[1], korhonen_needle_n_lo, par("usr")[2], korhonen_needle_n_hi,
+     col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
+for (i in c(3, 1)) {
+  d_i <- list(df, df_2, df_3)[[i]]
+  idx <- !is.na(d_i$leaf_nitrogen_concentration)
+  polygon(c(d_i$date[idx], rev(d_i$date[idx])),
+          c(d_i$leaf_nitrogen_concentration[idx], rep(0, sum(idx))),
+          col = adjustcolor(lh_cols[i], alpha.f = 0.5), border = NA)
+}
+points(df_3$date, df_3$optimal_leaf_nitrogen, col = lh_cols[3], pch = 20, cex = 1)
+points(df$date,   df$optimal_leaf_nitrogen,   col = lh_cols[1], pch = 20, cex = 1)
+mtext("(f)", side = 3, adj = 0, line = 0.2, font = 2, cex = lh_cex_main)
+box(bty = "l")
+
+# (g) N uptake
+uptake_1 <- df$mycorrhizal_export_to_tree   + df$root_uptake_actual
+uptake_3 <- df_3$mycorrhizal_export_to_tree + df_3$root_uptake_actual
+nuptake_obs_val  <- 0.013
+nbar_obs_val     <- 1/13
+nbar_obs_date    <- as.Date("2008-08-01")
+ylim_nu <- range(uptake_1, uptake_3, nuptake_obs_val, na.rm = TRUE)
+plot(df$date, uptake_1, type = "l", col = lh_cols[1], lwd = lh_lwd_model,
+     ylim = ylim_nu, xlab = "",
+     ylab = expression("N uptake (kg N tree"^{-1}*" year"^{-1}*")"),
+     cex.axis = lh_cex_axis, cex.lab = lh_cex_lab)
+lines(df_3$date, uptake_3, col = lh_cols[3], lwd = lh_lwd_model)
+lines(df$date,   uptake_1, col = lh_cols[1], lwd = lh_lwd_model)
+points(nbar_obs_date, nbar_obs_val, col = col_range, pch = lh_pch_obs, cex = 0.8)
+mtext("(g)", side = 3, adj = 0, line = 0.2, font = 2, cex = lh_cex_main)
+box(bty = "l")
+
+# (h) ECM / fine root biomass ratio
+ratio_1 <- df$ectomycorrhiza_mass   / df$root_mass
+ratio_3 <- df_3$ectomycorrhiza_mass / df_3$root_mass
+ylim_nb <- range(ratio_1, ratio_3, na.rm = TRUE)
+plot(df$date, ratio_1, type = "l", col = lh_cols[1], lwd = lh_lwd_model,
+     ylim = ylim_nb, xlab = "",
+     ylab = "ECM / fine root biomass (kg kg⁻¹)",
+     cex.axis = lh_cex_axis, cex.lab = lh_cex_lab)
+lines(df_3$date, ratio_3, col = lh_cols[3], lwd = lh_lwd_model)
+lines(df$date,   ratio_1, col = lh_cols[1], lwd = lh_lwd_model)
+mtext("(h)", side = 3, adj = 0, line = 0.2, font = 2, cex = lh_cex_main)
+box(bty = "l")
+
+# Shared legend
+par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
+plot(0, 0, type = "n", bty = "n", xaxt = "n", yaxt = "n")
+legend("bottom", horiz = FALSE, bty = "n", cex = lh_cex_legend, ncol = 3,
+       legend = c(lh_N_labels[c(1, 3)], "Eddy covariance",
+                  "Range of realistic boreal observations"),
+       col  = c(lh_cols[c(1, 3)], col_obs, col_range),
+       lty  = c(1, 1, NA, 1),
+       pch  = c(NA, NA, lh_pch_obs, NA),
+       lwd  = c(rep(lh_lwd_model, 2), NA, lh_lwd_obs))
+dev.off()
+```
+
+```{r lh_10_belowground}
+nbar_lower <- 0.0012
+nbar_upper <- 0.003
+
+uptake_1  <- df$mycorrhizal_export_to_tree   + df$root_uptake_actual
+uptake_3  <- df_3$mycorrhizal_export_to_tree + df_3$root_uptake_actual
+bg_mass_1 <- df$root_mass   + df$ectomycorrhiza_mass
+bg_mass_3 <- df_3$root_mass + df_3$ectomycorrhiza_mass
+eff_1     <- uptake_1 / bg_mass_1
+eff_3     <- uptake_3 / bg_mass_3
+
+k_1_par         <- 0.35
+k_13_par        <- 2.5
+depth_par       <- 1.1
+rho_myco_par    <- 330
+myco_d_par      <- 1e-5
+mycorrhized_par <- 0.9
+compute_sa_density <- function(d) {
+  root_d_mm <- k_1_par / sqrt(d$root_length)
+  SA_fr     <- pi * (root_d_mm/1000) * (d$root_length/1000) * d$root_no * d$crown_area * d$lai
+  SA_m      <- 4 * d$ectomycorrhiza_mass / (rho_myco_par * myco_d_par)
+  SA_active <- (1 - mycorrhized_par) * SA_fr + SA_m
+  crown_r   <- sqrt(d$crown_area / pi)
+  R         <- k_13_par * crown_r
+  V_zone    <- (2/3) * pi * R^2 * depth_par
+  list(SA_active = SA_active, V_zone = V_zone,
+       density = SA_active / V_zone, SA_fr = SA_fr, SA_m = SA_m)
+}
+sa1 <- compute_sa_density(df)
+sa3 <- compute_sa_density(df_3)
+
+png(file.path(pub_fig_dir, "lh_10_publication_belowground.png"),
+    width = 14, height = 12, units = "in", res = 300)
+par(mfrow = c(3, 2), mar = c(4, 6, 3, 1), oma = c(4, 0, 2, 0),
+    family = "serif", las = 1, tcl = -0.4, mgp = c(4, 1, 0))
+
+# (a) N_bar + Korhonen reference band
+ylim_nb <- range(df$N_bar, df_3$N_bar, nbar_lower, nbar_upper, na.rm = TRUE)
+plot(df$date, df$N_bar, type = "n",
+     ylim = ylim_nb, xlab = "",
+     ylab = expression(bar(N)~"(kg N m"^{-3}*")"),
+     cex.axis = lh_cex_axis, cex.lab = lh_cex_lab)
+rect(par("usr")[1], nbar_lower, par("usr")[2], nbar_upper,
+     col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
+lines(df$date,   df$N_bar,   col = lh_cols[1], lwd = lh_lwd_model)
+lines(df_3$date, df_3$N_bar, col = lh_cols[3], lwd = lh_lwd_model)
+mtext("(a)", side = 3, adj = 0, line = 0.2, font = 2, cex = lh_cex_main)
+title(sub = "Shading: Korhonen A-horizon mineral N range", col.sub = "grey40")
+box(bty = "l")
+
+# (b) Internal tree free N
+ylim_tn <- range(df$tree_nitrogen, df_3$tree_nitrogen, na.rm = TRUE)
+plot(df$date, df$tree_nitrogen, type = "l", col = lh_cols[1], lwd = lh_lwd_model,
+     ylim = ylim_tn, xlab = "",
+     ylab = expression("Internal tree N (kg N tree"^{-1}*")"),
+     cex.axis = lh_cex_axis, cex.lab = lh_cex_lab)
+lines(df_3$date, df_3$tree_nitrogen, col = lh_cols[3], lwd = lh_lwd_model)
+mtext("(b)", side = 3, adj = 0, line = 0.2, font = 2, cex = lh_cex_main)
+box(bty = "l")
+
+# (c) N uptake per belowground biomass
+ylim_eff <- range(eff_1, eff_3, na.rm = TRUE)
+plot(df$date, eff_1, type = "l", col = lh_cols[1], lwd = lh_lwd_model,
+     ylim = ylim_eff, xlab = "",
+     ylab = expression("N uptake / BG mass (kg N kg C"^{-1}*" yr"^{-1}*")"),
+     cex.axis = lh_cex_axis, cex.lab = lh_cex_lab)
+lines(df_3$date, eff_3, col = lh_cols[3], lwd = lh_lwd_model)
+mtext("(c)", side = 3, adj = 0, line = 0.2, font = 2, cex = lh_cex_main)
+box(bty = "l")
+
+# (d) N transferred (mycorrhizal export to tree)
+ylim_tr <- range(df$mycorrhizal_export_to_tree, df_3$mycorrhizal_export_to_tree, na.rm = TRUE)
+plot(df$date, df$mycorrhizal_export_to_tree, type = "l", col = lh_cols[1], lwd = lh_lwd_model,
+     ylim = ylim_tr, xlab = "",
+     ylab = expression("N transferred (kg N tree"^{-1}*" yr"^{-1}*")"),
+     cex.axis = lh_cex_axis, cex.lab = lh_cex_lab)
+lines(df_3$date, df_3$mycorrhizal_export_to_tree, col = lh_cols[3], lwd = lh_lwd_model)
+mtext("(d)", side = 3, adj = 0, line = 0.2, font = 2, cex = lh_cex_main)
+box(bty = "l")
+
+# (e) SA_active / V_zone
+ylim_sad <- range(sa1$density, sa3$density, na.rm = TRUE)
+plot(df$date, sa1$density, type = "l", col = lh_cols[1], lwd = lh_lwd_model,
+     ylim = ylim_sad, xlab = "",
+     ylab = expression("SA"["active"]*" / V"["zone"]~"(m"^2~"m"^{-3}*")"),
+     cex.axis = lh_cex_axis, cex.lab = lh_cex_lab)
+lines(df_3$date, sa3$density, col = lh_cols[3], lwd = lh_lwd_model)
+rect(par("usr")[1], 10, par("usr")[2], 80,
+     col = adjustcolor(col_range, alpha.f = 0.15), border = NA)
+mtext("(e)", side = 3, adj = 0, line = 0.2, font = 2, cex = lh_cex_main)
+title(sub = "Shading: ~10–80 m² m⁻³ typical boreal fine root + ECM density",
+      col.sub = "grey40")
+box(bty = "l")
+
+# (f) Myco uptake / realised root uptake ratio
+ratio_1 <- df$myco_uptake   / pmax(df$root_uptake_actual,   1e-12)
+ratio_3 <- df_3$myco_uptake / pmax(df_3$root_uptake_actual, 1e-12)
+ylim_rat <- range(ratio_1, ratio_3, na.rm = TRUE)
+plot(df$date, ratio_1, type = "l", col = lh_cols[1], lwd = lh_lwd_model,
+     ylim = ylim_rat, xlab = "",
+     ylab = "Myco uptake / realised root uptake (–)",
+     cex.axis = lh_cex_axis, cex.lab = lh_cex_lab)
+lines(df_3$date, ratio_3, col = lh_cols[3], lwd = lh_lwd_model)
+abline(h = 1, lty = 2, col = "grey50")
+mtext("(f)", side = 3, adj = 0, line = 0.2, font = 2, cex = lh_cex_main)
+box(bty = "l")
+
+# Shared legend
+par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
+plot(0, 0, type = "n", bty = "n", xaxt = "n", yaxt = "n")
+legend("bottom", horiz = TRUE, bty = "n", cex = lh_cex_legend,
+       legend = c(lh_N_labels[c(1, 3)], "Range of realistic boreal observations"),
+       col  = c(lh_cols[c(1, 3)], col_range),
+       lty  = 1,
+       lwd  = c(rep(lh_lwd_model, 2), lh_lwd_obs))
+dev.off()
 ```
