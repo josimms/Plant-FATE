@@ -39,7 +39,7 @@ class PlantArchitecture{
 	double diameter;             ///< basal diameter (diameter at ground level)
 	double root_no;              ///< Number of root tips [no]
 	double root_length;          ///< Root length, [mm]
-	double ectomycorrhiza_mass;    ///< Mycorrhizal biomass [kg C equivalent]
+	double ectomycorrhiza_mass;    ///< Mycorrhizal biomass [kg DM]; multiply by 0.44 to get kg C
 	double ectomycorrhiza_N_free;  ///< Mycorrhizal labile N pool [kg N]
 	double ectomycorrhiza_C_free;  ///< Mycorrhizal labile C pool [kg C] — accumulates when N limits growth
 	
