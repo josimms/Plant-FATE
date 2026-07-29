@@ -40,6 +40,7 @@ public:
   double u_transfer; ///< Max N transfer rate at root-fungus interface per colonised tip [kg N tip^-1 yr^-1]
   double max_N_transfer = 0.0; ///< Computed max mycorrhizal N transfer per timestep [kg N]
   double investment_from_mycorrhiza = 0.1; ///< Fraction of mycorrhizal N uptake guaranteed to transfer to tree, independent of C saturation [-]
+  double nc_ecm_min = 1.0/60.0; ///< Minimum ECM N:C ratio (C:N = 60) below which no uptake downregulation occurs [-]
   double U_myco_static = 0.0;  ///< Mycorrhizal N uptake from the static (organic) pool only [kg N per time unit]
 
 

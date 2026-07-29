@@ -33,26 +33,21 @@ void Uptake::nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& p
   U_root *= f_temp;
   U_myco *= f_temp;
 
-  // C:N uptake limitation commented out — does not work correctly
-  // if (G.ectomycorrhiza_mass >= G.root_mass(T) &&
-  //     G.ectomycorrhiza_C_free > 1e-12 &&
-  //     G.ectomycorrhiza_N_free / G.ectomycorrhiza_C_free > T.nc_myco) {
-  //     U_myco = 0.0;
-  // }
-
-  // Cap: if fungal N:C exceeds structural ratio by 10%, stop soil N acquisition.
-  // Commented out: structural_N is ~1e-57 at init so the ratio immediately explodes
-  // and the cap fires permanently, keeping U_myco = 0 throughout the run.
-  // {
-  //   double structural_N = G.ectomycorrhiza_mass * 0.44 * T.nc_myco;
-  //   if (structural_N > 0.0 && G.ectomycorrhiza_N_free / structural_N > 0.1) {
-  //     U_myco        = 0.0;
-  //     SA_active_val = (1.0 - mycorrhized) * G.root_surface_area(T);
-  //     N_bar_roots   = (1.0 - f_static) * N_s;
-  //     N_static_val  = f_static * N_s;
-  //     alpha_val     = 0.0;
-  //   }
-  // }
+  // Downregulate ECM uptake when fungal N pool is replete.
+  // Mirrors the transfer ramp: same two thresholds (nc_ecm_min, nc_myco) control both
+  // input (uptake) and output (transfer), so only one new parameter is needed.
+  // f_uptake = 1 when N-poor (nc_ecm <= nc_ecm_min, C:N >= 60): full uptake rate.
+  // f_uptake = 0 when N-replete (nc_ecm >= nc_myco, C:N <= 10): uptake shuts off.
+  {
+    // Both numerator and denominator use free (labile) pools only.
+    // When both are zero: nc_ecm = 0 → f_uptake = 1 (allow uptake to start).
+    // When N_free > 0 but C_free ≈ 0: ratio >> nc_myco → f_uptake = 0
+    // (fungus has excess N relative to C, don't acquire more).
+    double nc_ecm   = G.ectomycorrhiza_N_free / std::max(G.ectomycorrhiza_C_free, 1e-12);
+    double f_uptake = 1.0 - std::max(0.0, std::min(1.0,
+        (nc_ecm - nc_ecm_min) / (T.nc_myco - nc_ecm_min)));
+    U_myco *= f_uptake;
+  }
 
   // Maximum N transfer capacity at the root-fungus interface.
   // root_interface [m² yr tunit⁻¹]: colonised root surface area × time scaling.
