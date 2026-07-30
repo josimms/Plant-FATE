@@ -76,15 +76,29 @@ namespace plant {
     double U_myco_near = SA_m  * u_max * mm_near * par.years_per_tunit_avg;
 
     // --- Static (organic) pool: mycorrhiza mine via enzymatic depolymerisation ---
-    // Saturation with ECM biomass: the same depletion quadratic as the mineral pool,
-    // but using D_static (enzymatic supply rate) instead of D (diffusivity).
-    // Roots cannot access this pool (SA_m only, not SA_active).
-    double N_static      = f_static * N_s;
-    N_static_val         = N_static;
-    double N_bar_static  = compute_N_bar(SA_m, A_zone, R, N_static, D_static);
-    N_bar_static_val     = N_bar_static;
-    double mm_static     = N_bar_static / (N_bar_static + k_15);
-    U_myco_static = SA_m * u_max * mm_static * par.years_per_tunit_avg;
+    // Supply is decomposition: D_static * A_zone * N_org / R  (proportional to N_org, no gradient).
+    // Demand is Michaelis-Menten: SA_m * u_max * N_bar_org / (N_bar_org + k_15).
+    // At steady state supply == demand, giving N_bar_org = S*k_15 / (SA_m*u_max - S) when supply-limited,
+    // or N_bar_org = N_org (no depletion) when demand-limited. Roots cannot access this pool.
+    double N_static = f_static * N_s;
+    N_static_val    = N_static;
+    double N_bar_static;
+    if (SA_m <= 0.0 || A_zone <= 0.0 || N_static <= 0.0) {
+      N_bar_static  = N_static;
+      U_myco_static = 0.0;
+    } else {
+      double supply = D_static * A_zone * N_static / R;
+      if (supply < SA_m * u_max) {
+        // supply-limited: all decomposed N is taken up, U_mine == supply
+        N_bar_static  = supply * k_15 / (SA_m * u_max - supply);
+        U_myco_static = supply * par.years_per_tunit_avg;
+      } else {
+        // demand-limited: ECM is fully saturated at bulk organic N concentration
+        N_bar_static  = N_static;
+        U_myco_static = SA_m * u_max * N_static / (N_static + k_15) * par.years_per_tunit_avg;
+      }
+    }
+    N_bar_static_val = N_bar_static;
 
     U_myco = U_myco_near + U_myco_static;
   }
