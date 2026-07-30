@@ -61,7 +61,7 @@ class PlantArchitecture{
 	double C_export_to_myco = 0.0;       ///< Carbon exported from tree to mycorrhiza (NPP exudates) [kg C per time unit]
 	double I_b = 1.0;                    ///< Belowground infrastructure index [m] (Eq. belowground_infra)
 	bool using_Ib = false;               ///< Mirror of Uptake::using_Ib; set each timestep before assimilation
-	double dmass_myco_dt;                ///< Mycorrhizal mass difference [kg C per time unit]
+	double dmass_myco_dt;                ///< Mycorrhizal mass difference [kg DM per time unit]
 	double dN_myco_dt_free;              ///< Rate of change of labile N in mycorrhiza [kg N per time unit]
 	double dC_myco_dt_free;              ///< Rate of change of labile C in mycorrhiza [kg C per time unit]
 	
