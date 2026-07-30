@@ -36,16 +36,18 @@ void Uptake::nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& p
   // Downregulate ECM uptake when fungal N pool is replete.
   // Mirrors the transfer ramp: same two thresholds (nc_ecm_min, nc_myco) control both
   // input (uptake) and output (transfer), so only one new parameter is needed.
-  // f_uptake = 1 when N-poor (nc_ecm <= nc_ecm_min, C:N >= 60): full uptake rate.
-  // f_uptake = 0 when N-replete (nc_ecm >= nc_myco, C:N <= 10): uptake shuts off.
+  // f_uptake ≈ 1 when N-poor (nc_ecm << nc_ecm_min): full uptake rate.
+  // f_uptake = 0.5 at the midpoint of [nc_ecm_min, nc_myco].
+  // f_uptake ≈ 0 when N-replete (nc_ecm >> nc_myco): uptake shuts off.
+  // Sigmoid shape (steepness 6) avoids the sharp threshold of the linear ramp.
   {
     // Both numerator and denominator use free (labile) pools only.
     // When both are zero: nc_ecm = 0 → f_uptake = 1 (allow uptake to start).
     // When N_free > 0 but C_free ≈ 0: ratio >> nc_myco → f_uptake = 0
     // (fungus has excess N relative to C, don't acquire more).
     double nc_ecm   = G.ectomycorrhiza_N_free / std::max(G.ectomycorrhiza_C_free, 1e-12);
-    double f_uptake = 1.0 - std::max(0.0, std::min(1.0,
-        (nc_ecm - nc_ecm_min) / (T.nc_myco - nc_ecm_min)));
+    double x        = (nc_ecm - nc_ecm_min) / (T.nc_myco - nc_ecm_min);
+    double f_uptake = 1.0 / (1.0 + std::exp(6.0 * (x - 0.5)));
     U_myco *= f_uptake;
   }
 
