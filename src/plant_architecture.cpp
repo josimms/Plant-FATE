@@ -205,24 +205,27 @@ void PlantArchitecture::dmyco_dt(
   double N_pool_rate = std::max(0.0, ectomycorrhiza_N_free) * traits.k_mob_N * par.years_per_tunit_avg;
   double N_available = N_pool_rate + U_myco + turnover_N;
 
-  // Baseline N guaranteed to tree regardless of C saturation (obligate symbiotic exchange)
-  double N_base = investment_from_mycorrhiza * U_myco;
-  double N_for_growth = std::max(0.0, N_available - N_base);
+  // 1. Obligate allocation to tree — floor on what the ECM must transfer
+  double N_obligate = investment_from_mycorrhiza * (U_myco + turnover_N);
 
-  // Co-limited growth: whichever resource is scarcer limits ECM biomass production
+  // 2. Potential overflow: how much N remains if ECM grows using all available N (no obligate reservation)
+  double C_for_growth_pot  = std::min(C_available, N_available / traits.nc_myco);
+  double N_incorporated_pot = C_for_growth_pot * traits.nc_myco;
+  double N_overflow_pot     = std::max(0.0, N_available - N_incorporated_pot);
+
+  // 3. Transfer: obligate is the minimum; if overflow exceeds it, overflow wins
+  N_export = std::min(std::max(N_obligate, N_overflow_pot), max_N_transfer);
+
+  // 4. Actual growth uses N remaining after transfer
+  double N_for_growth  = std::max(0.0, N_available - N_export);
   double C_for_growth  = std::min(C_available, N_for_growth / traits.nc_myco);
   double N_incorporated = C_for_growth * traits.nc_myco;
 
-  // Surplus N exported to tree (baseline already committed)
-  double N_remaining = std::max(0.0, N_for_growth - N_incorporated);
-  N_export = N_base + std::min(N_remaining * mycorrhizal_root_reduction, max_N_transfer);
-
-  dmass_myco_dt   = C_for_growth - ectomycorrhiza_mass * traits.mycorrhizal_turnover * par.years_per_tunit_avg;
+  dmass_myco_dt   = C_for_growth / 0.44 - ectomycorrhiza_mass * traits.mycorrhizal_turnover * par.years_per_tunit_avg;
 
   // Labile C pool: accumulates surplus when N limits growth; respired at r_myco to prevent unbounded growth
-  dC_myco_dt_free = gross_C_net - C_for_growth
-                  - par.r_myco * std::max(0.0, ectomycorrhiza_C_free) * par.years_per_tunit_avg;
-
+  dC_myco_dt_free = gross_C_net - C_for_growth - par.r_myco * std::max(0.0, ectomycorrhiza_C_free) * par.years_per_tunit_avg;
+  
   dN_myco_dt_free = U_myco + turnover_N - N_incorporated - N_export;
 }
 
