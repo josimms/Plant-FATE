@@ -69,6 +69,7 @@ params <- list(
   # --- Photosynthesis ---
   list(struct = "par0",    field = "kphio",               label = "Quantum yield (kphio)",          group = "Photosynthesis", baseline = 0.08),
   list(struct = "par0",    field = "alpha",               label = "Photo. capacity cost (α)",       group = "Photosynthesis", baseline = 0.1008),
+  list(struct = "par0",    field = "alpha_ib",            label = "I_b scale param (alpha_ib)",     group = "Photosynthesis", baseline = 0.05),
   list(struct = "par0",    field = "gamma",               label = "Hydraulic path cost (γ)",        group = "Photosynthesis", baseline = 0.1805),
   list(struct = "par0",    field = "a_jmax",              label = "Jmax:Vcmax scaling (a_jmax)",    group = "Photosynthesis", baseline = 3600),
   # --- Plant traits ---
@@ -76,27 +77,33 @@ params <- list(
   list(struct = "traits0", field = "hmat",                label = "Max height (hmat, m)",           group = "Plant traits",   baseline = 35),
   list(struct = "traits0", field = "wood_density",        label = "Wood density (kg m⁻³)",          group = "Plant traits",   baseline = 412),
   list(struct = "traits0", field = "p50_xylem",           label = "Xylem P50 (MPa)",                group = "Plant traits",   baseline = -7),
+  list(struct = "par0",    field = "nc_leaf",             label = "Leaf N:C ratio (nc_leaf)",       group = "Plant traits",   baseline = 0.009615385),
+  list(struct = "par0",    field = "nc_root",             label = "Root N:C ratio (nc_root)",       group = "Plant traits",   baseline = 0.02),
+  list(struct = "par0",    field = "les_u",               label = "LES efficiency (les_u)",         group = "Plant traits",   baseline = 35.28),
   # --- ECM / mycorrhiza ---
-  list(struct = "traits0", field = "investment_from_tree",          label = "ECM C allocation fraction",         group = "ECM", baseline = 0.15),
-  list(struct = "traits0", field = "mycorrhizal_turnover",          label = "ECM turnover rate (yr⁻¹)",         group = "ECM", baseline = 2.0),
-  list(struct = "traits0", field = "nc_myco",                       label = "ECM N:C ratio (nc_myco)",           group = "ECM", baseline = 0.1),
+  list(struct = "traits0", field = "investment_from_tree",          label = "ECM C allocation fraction",         group = "ECM", baseline = 0.2),
+  list(struct = "traits0", field = "mycorrhizal_turnover",          label = "ECM turnover rate (yr⁻¹)",         group = "ECM", baseline = 0.5),
+  list(struct = "traits0", field = "nc_myco",                       label = "ECM N:C ratio (nc_myco)",           group = "ECM", baseline = 0.085),
   list(struct = "traits0", field = "mycorrhizal_biomass_conversion",label = "ECM biomass conversion (kg kg⁻¹)", group = "ECM", baseline = 2.27),
-  list(struct = "uptake0", field = "rho_myco",                      label = "ECM tissue density (kg m⁻³)",      group = "ECM", baseline = 1200),
+  list(struct = "uptake0", field = "rho_myco",                      label = "ECM tissue density (kg m⁻³)",      group = "ECM", baseline = 300),
   list(struct = "uptake0", field = "myco_diameter",                  label = "Hyphal diameter (m)",              group = "ECM", baseline = 2e-5),
-  list(struct = "uptake0", field = "investment_from_mycorrhiza",     label = "ECM N return fraction",            group = "ECM", baseline = 0.1),
+  list(struct = "uptake0", field = "investment_from_mycorrhiza",     label = "ECM N return fraction",            group = "ECM", baseline = 0.2),
   # --- Respiration ---
-  list(struct = "par0",    field = "rr",                  label = "Fine root resp. rate (rr)",      group = "Respiration",    baseline = 0.4),
-  list(struct = "par0",    field = "r_myco",              label = "ECM maint. resp. rate (r_myco)", group = "Respiration",    baseline = 0.3),
-  list(struct = "par0",    field = "rs",                  label = "Sapwood resp. rate (rs)",        group = "Respiration",    baseline = 0.04),
+  list(struct = "par0",    field = "rr",                  label = "Fine root resp. rate (rr)",      group = "Respiration",    baseline = 0.8),
+  list(struct = "par0",    field = "r_myco",              label = "ECM maint. resp. rate (r_myco)", group = "Respiration",    baseline = 0.5),
+  list(struct = "par0",    field = "rs",                  label = "Sapwood resp. rate (rs)",        group = "Respiration",    baseline = 0.02),
   # --- N uptake ---
-  list(struct = "uptake0", field = "u_max",               label = "Max area-based uptake (u_max)",  group = "N uptake",       baseline = 0.0088),
-  list(struct = "uptake0", field = "k_15",                label = "MM half-saturation (k_15)",      group = "N uptake",       baseline = 0.7),
+  list(struct = "uptake0", field = "u_max",               label = "Max area-based uptake (u_max)",  group = "N uptake",       baseline = 0.88),
+  list(struct = "uptake0", field = "k_15",                label = "MM half-saturation (k_15)",      group = "N uptake",       baseline = 0.01),
   list(struct = "uptake0", field = "D",                   label = "Soil N diffusion (D)",           group = "N uptake",       baseline = 0.025),
-  list(struct = "uptake0", field = "mycorrhized",         label = "Colonisation fraction",          group = "N uptake",       baseline = 1.0),
-  list(struct = "uptake0", field = "u_transfer",          label = "N transfer rate (u_transfer)",   group = "N uptake",       baseline = 3.8e-3),
-  list(struct = "par0",    field = "nitrogen_start0",     label = "Initial tree N (nitrogen_start0)", group = "N uptake",     baseline = 0.0039),
-  list(struct = "uptake0", field = "f_static",            label = "Organic N fraction (f_static)",  group = "N uptake",       baseline = 0.2),
-  list(struct = "uptake0", field = "k_mine",              label = "ECM mining rate (k_mine)",        group = "ECM",            baseline = 1.5)
+  list(struct = "uptake0", field = "D_static",            label = "Enzymatic depolymerisation (D_static)", group = "N uptake", baseline = 0.025),
+  list(struct = "uptake0", field = "depth",               label = "Rooting depth (m)",              group = "N uptake",       baseline = 1.5),
+  list(struct = "uptake0", field = "k_8",                 label = "Root age threshold (k_8, yr)",   group = "N uptake",       baseline = 2.7),
+  list(struct = "uptake0", field = "k_13",                label = "Zone radius factor (k_13)",      group = "N uptake",       baseline = 2.5),
+  list(struct = "uptake0", field = "mycorrhized",         label = "Colonisation fraction",          group = "N uptake",       baseline = 0.9),
+  list(struct = "uptake0", field = "u_transfer",          label = "N transfer rate (u_transfer)",   group = "N uptake",       baseline = 0.026),
+  list(struct = "par0",    field = "nitrogen_start0",     label = "Initial tree N (nitrogen_start0)", group = "N uptake",     baseline = 0.039),
+  list(struct = "uptake0", field = "f_static",            label = "Organic N fraction (f_static)",  group = "N uptake",       baseline = 0.97)
 )
 
 # Ordered factor levels for plots (group order preserved)

@@ -388,6 +388,7 @@ p_Nbar_D <- ggplot(df_D, aes(N_s, Nbar, colour = D_label)) +
   scale_colour_manual(values = cb_D,
                       name = expression(D~"(m"^2~"yr"^{-1}*")")) +
   labs(title = expression(bar(N)~"vs"~N[s]~"by D"),
+       subtitle = bquote(n == .(signif(n, 2)) ~ "tips m"^{-2} * ", " ~ l == .(l) ~ "mm"),
        x = expression(N[s]~"(kg N m"^{-3}*")"),
        y = expression(bar(N)~"(kg N m"^{-3}*")")) +
   theme_bw(base_size = 14)
@@ -415,14 +416,30 @@ p_U_Ns <- ggplot(df_diag, aes(N_s, U_fr, colour = n_label)) +
        y = expression(U[fr]~"(kg N yr"^{-1}*")")) +
   theme_bw(base_size = 14)
 
-p_U_B <- ggplot(df_diag, aes(B_fr, U_per_B, colour = n_label)) +
-  geom_line(linewidth = 1.1) +
-  scale_colour_viridis_d(name = "n (tips/m\u00b2)") +
+# Continuous B_fr sweep: max uptake (at highest N_s) as a function of biomass
+n_cont   <- 10^seq(3, 7, length.out = 300)
+N_s_max  <- max(N_s_vals)
+
+df_diag_cont <- tibble(n_tip = n_cont) %>%
+  rowwise() %>%
+  mutate(
+    B_fr    = root_mass(l, n_tip, crown_area_fixed, traits),
+    SA_fr   = root_surface_area(l, n_tip, traits) * crown_area_fixed,
+    SA_act  = active_surface_area(SA_fr, 0, mycorrhized),
+    Nbar    = N_bar(N_s_max, D_default, u_Amax, k_15,
+                    SA_act, geom_fixed$A_zone, geom_fixed$r_zone),
+    U_fr    = uptake_root(SA_fr, mycorrhized, u_Amax, k_15, Nbar),
+    U_per_B = U_fr / B_fr
+  ) %>%
+  ungroup()
+
+p_U_B <- ggplot(df_diag_cont, aes(B_fr, U_per_B)) +
+  geom_line(linewidth = 1.1, colour = "steelblue") +
   scale_x_log10(labels = scales::scientific) +
-  scale_y_continuous(labels = scales::scientific) +
-  labs(title = "Uptake per biomass vs B_fr",
+  scale_y_log10(labels = scales::scientific) +
+  labs(title = bquote("Max"~U[fr]/B[fr]~"vs"~B[fr]~"("*N[s]==.(N_s_max)*")"),
        x = expression(B[fr]~"(kg)"),
-       y = expression(U[fr]~B[fr]^{-1}~"(kg N kg"^{-1}~"yr"^{-1}*")")) +
+       y = expression(max~U[fr]~B[fr]^{-1}~"(kg N kg"^{-1}~"yr"^{-1}*")")) +
   theme_bw(base_size = 14)
 
 fig_diagnostics <- (p_Nbar_D | p_Nbar_n) / (p_U_Ns | p_U_B) +
@@ -692,7 +709,7 @@ theme_pub_lg <- theme_pub + theme(
   axis.title     = element_text(size = 22),
   axis.text      = element_text(size = 20),
   axis.text.x    = element_text(size = 20, angle = 45, hjust = 1),
-  strip.text     = element_text(size = 20),
+  strip.text     = element_text(size = 14),
   legend.text    = element_text(size = 18),
   legend.title   = element_text(size = 20),
   legend.key.size = unit(0.7, "cm")

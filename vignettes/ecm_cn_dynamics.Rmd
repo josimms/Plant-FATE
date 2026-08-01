@@ -1,0 +1,394 @@
+---
+title: "ECM C:N Transfer Dynamics — Proposed Model"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE,
+                      fig.width = 10, fig.height = 4)
+library(tidyverse)
+library(patchwork)
+
+theme_set(theme_classic(base_size = 14) +
+  theme(axis.title = element_text(face = "bold"),
+        panel.grid.major = element_line(colour = "grey92")))
+```
+
+## Parameters
+
+Two parameters govern the dynamics:
+
+- **`nc_myco`** (= 1/`cn_structural`) — N:C of N-replete ECM tissue; controls growth stoichiometry. Literature: C:N ≈ 10 → `nc_myco = 0.10`.
+- **`nc_ecm_min`** (= 1/`cn_max`) — minimum N:C ECM can sustain; below this no N is transferred to the tree. Literature: C:N ≈ 60 → `nc_ecm_min ≈ 0.017`.
+
+`investment_from_mycorrhiza` (currently 0.1) is replaced by this mechanism.
+
+```{r params}
+nc_myco    <- 0.10          # N:C structural target  (C:N = 10)
+nc_ecm_min <- 1 / 60        # N:C minimum            (C:N = 60)
+
+# Transfer ramp: 0 at cn_max, 1 at cn_structural, linear between
+f_trans <- function(nc, nc_min = nc_ecm_min, nc_opt = nc_myco) {
+  pmax(0, pmin(1, (nc - nc_min) / (nc_opt - nc_min)))
+}
+```
+
+---
+
+## Plot 1 — Transfer ramp shape and parameter sensitivity
+
+```{r plot1}
+cn_seq <- seq(1, 80, by = 0.2)
+
+# Sensitivity: vary cn_max and cn_structural independently
+params <- expand.grid(
+  cn_max        = c(40, 60, 80),
+  cn_structural = c(8, 10, 15)
+) %>%
+  mutate(label_max  = paste0("cn_max = ", cn_max),
+         label_str  = paste0("cn_structural = ", cn_structural))
+
+df1 <- params %>%
+  rowwise() %>%
+  reframe(
+    cn          = cn_seq,
+    f_transfer  = f_trans(1/cn, nc_min = 1/cn_max, nc_opt = 1/cn_structural),
+    label_max   = label_max,
+    label_str   = label_str,
+    cn_max      = cn_max,
+    cn_structural = cn_structural
+  )
+
+# Baseline (cn_max=60, cn_structural=10) highlighted
+baseline <- df1 %>% filter(cn_max == 60, cn_structural == 10)
+
+p1a <- df1 %>%
+  filter(cn_structural == 10) %>%
+  ggplot(aes(cn, f_transfer, colour = factor(cn_max), linetype = factor(cn_max))) +
+  geom_line(linewidth = 1) +
+  geom_vline(xintercept = c(10, 60), linetype = "dashed", colour = "grey60", linewidth = 0.4) +
+  annotate("text", x = 10, y = 0.55, label = "cn_structural\n(= 10)", hjust = 1.1, size = 3.5) +
+  annotate("text", x = 60, y = 0.55, label = "cn_max\n(= 60)",        hjust = -0.05, size = 3.5) +
+  scale_colour_brewer(palette = "Dark2", name = "cn_max") +
+  scale_linetype_manual(values = c("40"="dotted","60"="solid","80"="dashed"), name = "cn_max") +
+  labs(title = "Varying cn_max (cn_structural = 10 fixed)",
+       x = "ECM C:N ratio", y = "Transfer fraction\nto tree (f_transfer)") +
+  coord_cartesian(ylim = c(0, 1.05))
+
+p1b <- df1 %>%
+  filter(cn_max == 60) %>%
+  ggplot(aes(cn, f_transfer, colour = factor(cn_structural), linetype = factor(cn_structural))) +
+  geom_line(linewidth = 1) +
+  geom_vline(xintercept = c(60), linetype = "dashed", colour = "grey60", linewidth = 0.4) +
+  annotate("text", x = 60, y = 0.55, label = "cn_max\n(= 60)", hjust = -0.05, size = 3.5) +
+  scale_colour_brewer(palette = "Set1", name = "cn_structural") +
+  scale_linetype_manual(values = c("8"="dotted","10"="solid","15"="dashed"), name = "cn_structural") +
+  labs(title = "Varying cn_structural (cn_max = 60 fixed)",
+       x = "ECM C:N ratio", y = "Transfer fraction\nto tree (f_transfer)") +
+  coord_cartesian(ylim = c(0, 1.05))
+
+p1a | p1b
+```
+
+*Left*: moving `cn_max` shifts where the ramp starts (the zero-transfer threshold).
+*Right*: moving `cn_structural` shifts where transfer saturates at 1.
+The two parameters are independently observable and do not trade off.
+
+---
+
+## Plot 2 — N budget split at each ECM state
+
+For a fixed N uptake (`U_myco`), the split between tree transfer, ECM structural growth, and retention
+depends on the ECM's current C:N status. The dashed line shows total uptake as a reference.
+
+```{r plot2}
+# Fix inputs
+U_myco      <- 1.0    # normalised N uptake = 1 unit
+C_available <- 6.0    # units of C supplied by tree exudates
+
+cn_state <- seq(5, 80, by = 0.5)
+nc_state <- 1 / cn_state
+
+# Co-limited growth (same as current model)
+N_for_growth  <- pmin(U_myco, C_available * nc_myco)
+N_surplus     <- pmax(0, U_myco - N_for_growth)
+
+# New model: surplus split by f_transfer
+f             <- f_trans(nc_state)
+N_to_tree_new <- f * N_surplus
+N_retained    <- (1 - f) * N_surplus
+
+# Old model: fixed 10% base + all surplus
+invest        <- 0.1
+N_to_tree_old <- pmin(U_myco, invest * U_myco + pmax(0, U_myco - N_for_growth))
+
+df2_new <- tibble(
+  cn_state,
+  `ECM growth`    = N_for_growth,
+  `To tree`       = N_to_tree_new,
+  `Retained`      = N_retained
+) %>% pivot_longer(-cn_state, names_to = "pool", values_to = "N")
+
+df2_old <- tibble(
+  cn_state,
+  `ECM growth`    = N_for_growth,
+  `To tree`       = N_to_tree_old,
+  `Retained`      = pmax(0, U_myco - N_for_growth - N_to_tree_old)
+) %>% pivot_longer(-cn_state, names_to = "pool", values_to = "N")
+
+cols2 <- c("ECM growth" = "#4dac26", "To tree" = "#2166ac", "Retained" = "#d6604d")
+
+make_p2 <- function(df, title) {
+  ggplot(df, aes(cn_state, N, fill = pool)) +
+    geom_area(position = "stack", alpha = 0.8) +
+    geom_hline(yintercept = U_myco, linetype = "dashed", colour = "black", linewidth = 0.6) +
+    annotate("text", x = 78, y = U_myco, label = "Total\nuptake",
+             vjust = -0.2, hjust = 1, size = 3) +
+    geom_vline(xintercept = c(10, 60), linetype = "dashed", colour = "grey30", linewidth = 0.4) +
+    annotate("text", x = 10, y = 1.12, label = "C:N=10", hjust = 1.05, size = 3) +
+    annotate("text", x = 60, y = 1.12, label = "C:N=60", hjust = -0.05, size = 3) +
+    scale_fill_manual(values = cols2, name = NULL) +
+    labs(title = title, x = "ECM C:N (current state)", y = "N per unit uptake") +
+    coord_cartesian(ylim = c(0, 1.2))
+}
+
+make_p2(df2_new, "New model (ramp)") | make_p2(df2_old, "Old model (fixed 10% base)")
+```
+
+- **Green**: ECM structural growth (C co-limited, same in both models)
+- **Blue**: N transferred to tree — new model gives zero at C:N ≥ 60, old model always gives ≥10%
+- **Red**: N retained in ECM free pool
+- **Dashed horizontal**: total N uptake (U_myco) — all three pools must sum to this
+
+---
+
+## Plot 3 — Old model vs new model: N to tree across a soil N gradient
+
+Sweep soil N availability as a proxy for increasing U_myco. At each soil N level, compute the
+steady-state ECM C:N (simple saturating function) and then the N transferred to tree.
+
+```{r plot3}
+# Soil N gradient → drives U_myco
+soil_N  <- seq(0.01, 0.5, by = 0.002)
+
+# Saturating ECM N uptake with soil N
+U_half  <- 0.1
+U_myco_vec <- soil_N / (soil_N + U_half)   # normalised, max = 1
+
+# Steady-state ECM N:C: rises (C:N falls) as soil N increases
+# Simple Michaelis-Menten approach to nc_current
+nc_steady <- nc_ecm_min + (nc_myco - nc_ecm_min) * U_myco_vec / (U_myco_vec + 0.3)
+
+# Co-limited growth (C not limiting here)
+N_growth <- pmin(U_myco_vec, 0.6 * U_myco_vec)  # assume ~60% goes to growth
+
+# New model
+f_new         <- f_trans(nc_steady)
+N_surplus_vec <- pmax(0, U_myco_vec - N_growth)
+N_tree_new    <- f_new * N_surplus_vec
+
+# Old model: 10% base always + all surplus
+N_base_old_v  <- 0.1 * U_myco_vec
+N_tree_old    <- N_base_old_v + N_surplus_vec   # base + surplus (simplified)
+# Cap at uptake
+N_tree_old    <- pmin(N_tree_old, U_myco_vec)
+
+df3 <- tibble(
+  soil_N,
+  `New model (ramp)` = N_tree_new,
+  `Old model (fixed 10% base)` = N_tree_old,
+  `ECM N uptake (U_myco)` = U_myco_vec
+) %>%
+  pivot_longer(-soil_N, names_to = "model", values_to = "N_to_tree")
+
+p3a <- ggplot(df3, aes(soil_N, N_to_tree, colour = model, linetype = model)) +
+  geom_line(linewidth = 1.1) +
+  scale_colour_manual(values = c("New model (ramp)" = "#2166ac",
+                                  "Old model (fixed 10% base)" = "#d6604d",
+                                  "ECM N uptake (U_myco)" = "grey40"), name = NULL) +
+  scale_linetype_manual(values = c("New model (ramp)" = "solid",
+                                    "Old model (fixed 10% base)" = "dashed",
+                                    "ECM N uptake (U_myco)" = "dotted"), name = NULL) +
+  labs(title = "N transferred to tree (vs total uptake)",
+       x = "Soil N availability", y = "N\n(relative units)") +
+  theme(legend.position = "bottom")
+
+# Show the implied C:N along the gradient
+df3b <- tibble(soil_N, cn_ecm = 1 / nc_steady)
+
+p3b <- ggplot(df3b, aes(soil_N, cn_ecm)) +
+  geom_line(colour = "#4dac26", linewidth = 1.1) +
+  geom_hline(yintercept = c(10, 60), linetype = "dashed", colour = "grey50") +
+  annotate("text", x = 0.01, y = 10, label = "cn_structural = 10", vjust = -0.4, hjust = 0, size = 3.2) +
+  annotate("text", x = 0.01, y = 60, label = "cn_max = 60",         vjust = -0.4, hjust = 0, size = 3.2) +
+  labs(title = "Implied ECM C:N along soil N gradient",
+       x = "Soil N availability", y = "ECM C:N ratio") +
+  coord_cartesian(ylim = c(0, 70))
+
+p3b | p3a
+```
+
+*Left*: as soil N increases, ECM C:N falls from the maximum (60) toward the structural target (10).
+*Right*: the new model shows no transfer until ECM C:N drops below 60, then a smooth ramp. The dotted line
+shows total ECM uptake (U_myco) — the gap between it and the coloured lines is what ECM retains for its
+own growth. The old model always transfers a fixed 10% base regardless of ECM N status.
+
+---
+
+## Plot 4 — Mutualism feedback: does the symbiosis hold at low soil N?
+
+**The problem**: at very low soil N, ECM C:N > cn_max → pure ramp gives zero N to tree. If the tree's
+C investment is proportional to N received, zero N → zero C → ECM collapses. A minimum transfer
+floor preserves the mutualism by guaranteeing the tree always gets *something* back.
+
+```{r plot4, fig.height = 5}
+floor_frac <- 0.08  # guaranteed minimum fraction of N surplus always transferred
+
+f_trans_floor <- function(nc, floor = floor_frac) {
+  floor + (1 - floor) * f_trans(nc)
+}
+
+# Both variants use the same U_myco_vec / nc_steady / N_surplus_vec from plot 3
+N_tree_pure  <- f_trans(nc_steady)       * N_surplus_vec
+N_tree_floor <- f_trans_floor(nc_steady) * N_surplus_vec
+
+# Tree C investment: reward function proportional to N received
+# Tree always gives some minimum C (it invested in colonisation), but scales up with N benefit
+C_min  <- 0.10
+C_max  <- 1.00
+ref_N  <- max(N_tree_floor)  # normalise to floor scenario maximum
+
+C_pure  <- C_min + (C_max - C_min) * N_tree_pure  / ref_N
+C_floor <- C_min + (C_max - C_min) * N_tree_floor / ref_N
+
+# Identify the zero-transfer zone (where pure ramp gives near-zero N to tree)
+zero_zone <- soil_N[N_tree_pure < 0.001]
+zone_xmax <- if (length(zero_zone)) max(zero_zone) else 0
+
+# — Panel A: N to tree (and total uptake) along soil N gradient
+df4a <- tibble(
+  soil_N,
+  `No floor (pure ramp)` = N_tree_pure,
+  `With floor (8%)`      = N_tree_floor,
+  `ECM uptake (U_myco)`  = U_myco_vec
+) %>% pivot_longer(-soil_N, names_to = "line", values_to = "N")
+
+p4a <- ggplot(df4a, aes(soil_N, N, colour = line, linetype = line)) +
+  annotate("rect", xmin = 0, xmax = zone_xmax, ymin = -Inf, ymax = Inf,
+           fill = "#fee0d2", alpha = 0.5) +
+  annotate("text", x = zone_xmax / 2, y = max(U_myco_vec) * 0.9,
+           label = "zero-transfer\nzone", colour = "#a50f15", size = 3.2, hjust = 0.5) +
+  geom_line(linewidth = 1.1) +
+  scale_colour_manual(
+    values = c("No floor (pure ramp)" = "#2166ac",
+               "With floor (8%)"      = "#d6604d",
+               "ECM uptake (U_myco)"  = "grey40"),
+    name = NULL) +
+  scale_linetype_manual(
+    values = c("No floor (pure ramp)" = "solid",
+               "With floor (8%)"      = "solid",
+               "ECM uptake (U_myco)"  = "dotted"),
+    name = NULL) +
+  labs(title = "N transferred to tree",
+       x = "Soil N availability", y = "N (relative units)") +
+  theme(legend.position = "bottom")
+
+# — Panel B: tree C investment implied by each scenario
+df4b <- tibble(
+  soil_N,
+  `No floor (pure ramp)` = C_pure,
+  `With floor (8%)`      = C_floor
+) %>% pivot_longer(-soil_N, names_to = "scenario", values_to = "C_invest")
+
+p4b <- ggplot(df4b, aes(soil_N, C_invest, colour = scenario, linetype = scenario)) +
+  annotate("rect", xmin = 0, xmax = zone_xmax, ymin = -Inf, ymax = Inf,
+           fill = "#fee0d2", alpha = 0.5) +
+  geom_hline(yintercept = C_min, linetype = "dashed", colour = "grey60", linewidth = 0.5) +
+  annotate("text", x = max(soil_N) * 0.95, y = C_min,
+           label = "min C investment", vjust = -0.4, hjust = 1, colour = "grey40", size = 3) +
+  geom_line(linewidth = 1.1) +
+  scale_colour_manual(
+    values = c("No floor (pure ramp)" = "#2166ac",
+               "With floor (8%)"      = "#d6604d"),
+    name = NULL) +
+  scale_linetype_manual(
+    values = c("No floor (pure ramp)" = "solid",
+               "With floor (8%)"      = "solid"),
+    name = NULL) +
+  labs(title = "Tree C investment in ECM\n(implied by N received)",
+       x = "Soil N availability", y = "C supply (relative units)") +
+  coord_cartesian(ylim = c(0, C_max * 1.05)) +
+  theme(legend.position = "bottom")
+
+p4a | p4b
+```
+
+**Reading the plot**: the pink zone is where ECM C:N exceeds `cn_max = 60`, so the pure ramp gives
+zero N to the tree (left panel, blue line flat at zero). If the tree withdraws C when it gets nothing back
+(right panel, blue line drops to the minimum), ECM starves and collapses — a positive feedback spiral.
+
+The floor (red lines) breaks this: even in the pink zone, ECM still transfers a small fraction of its
+N surplus (8%) to the tree. The tree perceives a benefit, maintains C supply, ECM survives the low-N
+period, and the mutualism remains stable.
+
+---
+
+## Plot 5 — Actual ECM free pools from simulation
+
+Actual `ectomycorrhiza_N_free` and `ectomycorrhiza_C_free` from the parameter-scan runs, plotted against
+`myco_uptake`. Each point is one year from the optimal-parameter run at a given soil N level (summer mean,
+same selection criterion as figure 17: highest `net_gpp_ca`).
+
+```{r plot5_load, cache=TRUE}
+cache_path <- "plots/pub_plots_all_joint.csv"
+raw <- read_csv(cache_path, show_col_types = FALSE) %>%
+  mutate(date = as.Date(date))
+
+annual_gs <- raw %>%
+  mutate(
+    year  = as.integer(format(date, "%Y")),
+    month = as.integer(format(date, "%m"))
+  ) %>%
+  filter(month %in% 6:8) %>%
+  group_by(soil_nitrogen, year, ecto_allo, root_no, root_length) %>%
+  summarise(
+    ectomycorrhiza_N_free = mean(ectomycorrhiza_N_free, na.rm = TRUE),
+    ectomycorrhiza_C_free = mean(ectomycorrhiza_C_free, na.rm = TRUE),
+    myco_uptake           = mean(myco_uptake,           na.rm = TRUE),
+    assim_gross           = mean(assim_gross,           na.rm = TRUE),
+    C_export_to_myco      = mean(C_export_to_myco,      na.rm = TRUE),
+    rr                    = mean(rr,                    na.rm = TRUE),
+    tr                    = mean(tr,                    na.rm = TRUE),
+    crown_area            = mean(crown_area,            na.rm = TRUE),
+    lai                   = mean(lai,                   na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(net_gpp_ca = (assim_gross - C_export_to_myco - rr * 0.44 - tr * 0.44) /
+                       (crown_area * lai)) %>%
+  filter(year >= min(year, na.rm = TRUE) + 5)
+
+dat5 <- annual_gs %>%
+  group_by(soil_nitrogen, year) %>%
+  slice_max(net_gpp_ca, n = 1, with_ties = FALSE) %>%
+  ungroup()
+```
+
+```{r plot5}
+n_pal <- scale_colour_viridis_c(name = "Soil N\n(kg m⁻³)", option = "plasma")
+
+p5a <- ggplot(dat5, aes(myco_uptake, ectomycorrhiza_N_free, colour = soil_nitrogen)) +
+  geom_point(alpha = 0.5, size = 1.2) +
+  n_pal +
+  labs(title = "ECM free nitrogen",
+       x = "ECM N uptake (myco_uptake)",
+       y = "ECM free N")
+
+p5b <- ggplot(dat5, aes(myco_uptake, ectomycorrhiza_C_free, colour = soil_nitrogen)) +
+  geom_point(alpha = 0.5, size = 1.2) +
+  n_pal +
+  labs(title = "ECM free carbon",
+       x = "ECM N uptake (myco_uptake)",
+       y = "ECM free C")
+
+p5a | p5b
+```
