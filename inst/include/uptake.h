@@ -29,7 +29,7 @@ public:
   double myco_diameter;
   double rho_myco;
   double D;
-  double D_static; ///< Effective organic-N accessibility parameter [m^2 yr^-1]: governs how fast enzymatic decomposition supplies N to ECM surface (analogous to diffusivity for the mineral pool)
+  double D_static; ///< Enzymatic depolymerisation rate constant [yr^-1]: D_static * N_org gives the unperturbed enzymatic N flux per unit fungal area; sets k_SA = D_static * N_org * V_zone / u_max
   double N_s;
   double f_static;    ///< Fraction of N_s in the static (organic) pool, accessible only by mycorrhizal mining [-]
   double u_max;
@@ -51,7 +51,7 @@ public:
 
   double compute_N_bar(double SA_active, double A_zone, double r_zone, double N_s_eff, double D_eff) const;
 
-  void uptake_core(const PlantArchitecture& G, PlantTraits& traits, PlantParameters& par);
+  void uptake_core(const PlantArchitecture& G, PlantTraits& traits, PlantParameters& par, double f_temp = 1.0);
 
   template<class _Climate>
   void nitrogen_plant(_Climate C, PlantArchitecture& G, PlantParameters& par, PlantTraits& T);
