@@ -95,7 +95,9 @@ double PlantArchitecture::n_demand_per_lai_biomass(const PlantTraits& traits, do
   double l2m_total = traits.lma + fine_root_per_unit_lai;
   double leaf_fraction = traits.lma / l2m_total;
   double root_fraction = 1.0 - leaf_fraction;
-  return 0.5 * (leaf_fraction * nc_leaf_actual + root_fraction * traits.nc_root);
+  // nc_leaf_actual (res.nitrogen_avg) is N per kg biomass -- no conversion needed.
+  // traits.nc_root is N per kg carbon -- needs the 0.5 biomass->carbon conversion (see plant.tpp).
+  return leaf_fraction * nc_leaf_actual + root_fraction * 0.5 * traits.nc_root;
 }
 
 // **

@@ -204,16 +204,21 @@ void Plant::calc_demographic_rates(Env& env, double t){
     auto growth_rates = size_growth_rate(bp.dmass_dt_growth, env);
     rates.dsize_dt = growth_rates[0];
 
-    // tleaf/troot are carbon costs in the NPP equation; leaf/root mass is allometric (not a state
-    // variable), so replacement tissue is implicit. The nitrogen budget must mirror this: resorption
-    // credits partial N back, but the full demand for replacement tissue must also be debited.
+    // leaf/root mass is allometric (not a state variable), so replacement tissue is implicit.
+    // The nitrogen budget must mirror this: resorption credits partial N back, but the full
+    // demand for replacement tissue must also be debited.
     // Without the demand terms the free pool accumulates indefinitely once height equilibrates.
+    // Unit note: res.nitrogen_avg (leaf) is already N per kg biomass (phydro's dry-mass basis),
+    // so tleaf * nitrogen_avg needs no further conversion. traits.nc_root is N per kg CARBON
+    // (see .ini: "nc_root [1/C:N ratio]"), so troot (kg biomass) must be converted to carbon
+    // mass via the generic 0.5 biomass->carbon fraction before applying nc_root -- applied
+    // consistently to both the resorbed and full-replacement root terms below.
     rates.dnitrogen_dt_free = geometry.nitrogen_uptake_roots
                             + geometry.N_export
-                            + traits.k_14 * (res.tleaf * 0.5 * res.nitrogen_avg
+                            + traits.k_14 * (res.tleaf * res.nitrogen_avg
                                            + res.troot * 0.5 * traits.nc_root)
-                            - res.tleaf * res.nitrogen_avg   // N demand for replacement leaves
-                            - res.troot * traits.nc_root     // N demand for replacement roots
+                            - res.tleaf * res.nitrogen_avg         // N demand for replacement leaves
+                            - res.troot * 0.5 * traits.nc_root     // N demand for replacement roots
                             - growth_rates[1]
                             - N_demand_lai;
     
