@@ -192,18 +192,23 @@ void PlantArchitecture::dmyco_dt(
     double investment_from_mycorrhiza,
     const PlantParameters& par
 ) {
-  // exudates is already carbon (kg C, see PlantArchitecture::C_export_to_myco doc). This line
-  // is meant to apply a growth-efficiency loss during biosynthesis (see traits_params.h TODO on
-  // mycorrhizal_biomass_conversion), but with the current placeholder value it cancels with the
-  // 0.44 here to ~1, i.e. no loss is currently applied. Fix mycorrhizal_biomass_conversion's
-  // value (not this line) once a real growth-efficiency figure is sourced.
-  double gross_C   = exudates * traits.mycorrhizal_biomass_conversion * 0.44;
+  // exudates is already carbon (kg C, see PlantArchitecture::C_export_to_myco doc).
   double resp_myco = par.r_myco * 0.44 * std::max(0.0, ectomycorrhiza_mass) * par.years_per_tunit_avg;
-  double gross_C_net = std::max(0.0, gross_C - resp_myco);
 
-  // C available: current exudates (net of structural respiration) + mobilised labile C
+  // Raw carbon surplus after maintenance respiration, unclipped -- feeds the pool mass balance
+  // below (dC_myco_dt_free) and is allowed to go negative (carbon debt) when exudates don't
+  // cover maintenance respiration, e.g. in winter. See MAIN.tex Equation eq:free_carbon_ecto.
+  double C_surplus = exudates - resp_myco;
+
+  // Growth efficiency: fraction of substrate carbon retained in new biomass after biosynthesis
+  // (growth) respiration. TODO: mis-parameterised -- see traits_params.h TODO on
+  // mycorrhizal_biomass_conversion.
+  double Y_g = traits.mycorrhizal_biomass_conversion * 0.44;
+
+  // C available for growth: unlike C_surplus above, this ceiling cannot be negative, so the
+  // surplus is clipped at zero here before being scaled by Y_g. See MAIN.tex Equation eq:C_avail.
   double C_pool_rate = std::max(0.0, ectomycorrhiza_C_free) * traits.k_mob_N * par.years_per_tunit_avg;
-  double C_available = gross_C_net + C_pool_rate;
+  double C_available = Y_g * std::max(0.0, C_surplus) + C_pool_rate;
 
   // N released from dying hyphae this timestep — available immediately for growth/export
   double turnover_N = ectomycorrhiza_mass * 0.44 * traits.nc_myco * traits.mycorrhizal_turnover * traits.k_14 * par.years_per_tunit_avg;
@@ -230,8 +235,10 @@ void PlantArchitecture::dmyco_dt(
 
   dmass_myco_dt   = C_for_growth / 0.44 - ectomycorrhiza_mass * traits.mycorrhizal_turnover * par.years_per_tunit_avg;
 
-  // Labile C pool: accumulates surplus when N limits growth; respired at r_myco to prevent unbounded growth
-  dC_myco_dt_free = gross_C_net - C_for_growth - par.r_myco * std::max(0.0, ectomycorrhiza_C_free) * par.years_per_tunit_avg;
+  // Labile C pool mass balance: unclipped C_surplus lets this pool run a temporary carbon debt
+  // under supply shortfall; pool-proportional respiration keeps its own zero-floor guard here
+  // for numerical robustness (see MAIN.tex Equation eq:free_carbon_ecto).
+  dC_myco_dt_free = C_surplus - C_for_growth - par.r_myco * std::max(0.0, ectomycorrhiza_C_free) * par.years_per_tunit_avg;
   
   dN_myco_dt_free = U_myco + turnover_N - N_incorporated - N_export;
 }
