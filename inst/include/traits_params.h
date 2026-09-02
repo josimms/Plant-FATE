@@ -55,7 +55,12 @@ class PlantTraits{
 	double nc_myco;         ///< TODO
 	
 	// Ectomycorrhizal parameters
-	double mycorrhizal_biomass_conversion;  ///< The biomass created per carbon unit from photosynthesis
+	double mycorrhizal_biomass_conversion;  ///< TODO: current value (2.27) is just 1/0.44 (xi_C reciprocal), so combined with
+	                                         ///< the 0.44 multiplied alongside it at its use site (plant_architecture.cpp,
+	                                         ///< dmyco_dt) it cancels to ~1, i.e. no real growth-respiration loss is applied.
+	                                         ///< Needs a properly-sourced growth-efficiency value (should be a genuine,
+	                                         ///< independently-derived kg-biomass-C-retained-per-kg-substrate-C figure,
+	                                         ///< not just re-deriving xi_C's reciprocal).
 	double mycorrhizal_turnover;            ///< The ectomycorrhizal turnover
 	double k_mob_N;                         ///< Mobilisation rate of free N pool [yr-1]: controls how quickly ectomycorrhiza_N_free is available for growth/export
 	double investment_from_tree;            ///< Maximum fraction of NPP the tree can invest in ectomycorrhiza

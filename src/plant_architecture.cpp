@@ -192,6 +192,11 @@ void PlantArchitecture::dmyco_dt(
     double investment_from_mycorrhiza,
     const PlantParameters& par
 ) {
+  // exudates is already carbon (kg C, see PlantArchitecture::C_export_to_myco doc). This line
+  // is meant to apply a growth-efficiency loss during biosynthesis (see traits_params.h TODO on
+  // mycorrhizal_biomass_conversion), but with the current placeholder value it cancels with the
+  // 0.44 here to ~1, i.e. no loss is currently applied. Fix mycorrhizal_biomass_conversion's
+  // value (not this line) once a real growth-efficiency figure is sourced.
   double gross_C   = exudates * traits.mycorrhizal_biomass_conversion * 0.44;
   double resp_myco = par.r_myco * 0.44 * std::max(0.0, ectomycorrhiza_mass) * par.years_per_tunit_avg;
   double gross_C_net = std::max(0.0, gross_C - resp_myco);
