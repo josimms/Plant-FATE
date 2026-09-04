@@ -205,10 +205,12 @@ void PlantArchitecture::dmyco_dt(
   // mycorrhizal_biomass_conversion.
   double Y_g = traits.mycorrhizal_biomass_conversion * 0.44;
 
-  // C available for growth: unlike C_surplus above, this ceiling cannot be negative, so the
-  // surplus is clipped at zero here before being scaled by Y_g. See MAIN.tex Equation eq:C_avail.
-  double C_pool_rate = std::max(0.0, ectomycorrhiza_C_free) * traits.k_mob_N * par.years_per_tunit_avg;
-  double C_available = Y_g * std::max(0.0, C_surplus) + C_pool_rate;
+  // C available for growth: fresh surplus (scaled by Y_g) plus mobilised labile carbon, combined
+  // unclipped -- a maintenance deficit can draw down the mobilised reserve -- and only the
+  // combined ceiling is floored at zero, since growth itself cannot be negative.
+  // See MAIN.tex Equation eq:C_avail.
+  double C_pool_rate = ectomycorrhiza_C_free * traits.k_mob_N * par.years_per_tunit_avg;
+  double C_available = std::max(0.0, Y_g * C_surplus + C_pool_rate);
 
   // N released from dying hyphae this timestep — available immediately for growth/export
   double turnover_N = ectomycorrhiza_mass * 0.44 * traits.nc_myco * traits.mycorrhizal_turnover * traits.k_14 * par.years_per_tunit_avg;
@@ -220,10 +222,9 @@ void PlantArchitecture::dmyco_dt(
   // 1. Obligate allocation to tree — floor on what the ECM must transfer
   double N_obligate = investment_from_mycorrhiza * (U_myco + turnover_N);
 
-  // 2. Potential overflow: how much N remains if ECM grows using all available N (no obligate reservation)
-  double C_for_growth_pot  = std::min(C_available, N_available / traits.nc_myco);
-  double N_incorporated_pot = C_for_growth_pot * traits.nc_myco;
-  double N_overflow_pot     = std::max(0.0, N_available - N_incorporated_pot);
+  // 2. Potential overflow: N left over once carbon-limited growth demand is met (see MAIN.tex
+  // Equation eq:N_export -- N_overflow = max(0, N_available - C_available*nc_myco))
+  double N_overflow_pot = std::max(0.0, N_available - C_available * traits.nc_myco);
 
   // 3. Transfer: obligate is the minimum; if overflow exceeds it, overflow wins
   N_export = std::min(std::max(N_obligate, N_overflow_pot), max_N_transfer);
