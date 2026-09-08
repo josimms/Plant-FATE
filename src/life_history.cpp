@@ -159,6 +159,7 @@ vector<std::string> LifeHistoryOptimizer::get_header(){
 		, "rr"
 		, "rs"
 		, "r_myco"
+		, "resp_myco_total"
 		, "tl"
 		, "tr"
 		, "dpsi"
@@ -232,6 +233,7 @@ vector<double> LifeHistoryOptimizer::get_state(double t){
 		, P.assimilator.plant_assim.rroot
 		, P.assimilator.plant_assim.rstem
 		, P.par.r_myco * std::max(0.0, P.geometry.ectomycorrhiza_mass) * P.par.years_per_tunit_avg
+		, P.geometry.resp_myco_total
 		, P.assimilator.plant_assim.tleaf
 		, P.assimilator.plant_assim.troot
 		, P.assimilator.plant_assim.dpsi_avg

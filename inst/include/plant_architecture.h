@@ -59,6 +59,7 @@ class PlantArchitecture{
 	double nitrogen_uptake_roots;        ///< Nitrogen uptake [kgN per time unit]
 	double N_export = 0.0;               ///< Nitrogen transferred from mycorrhiza to tree [kg N per time unit]
 	double C_export_to_myco = 0.0;       ///< Carbon exported from tree to mycorrhiza (NPP exudates) [kg C per time unit]
+	double resp_myco_total = 0.0;        ///< Total ECM carbon lost as respiration: maintenance (capped at availability) + growth (biosynthesis) + labile-pool overflow [kg C per time unit]
 	double I_b = 1.0;                    ///< Belowground infrastructure index [m] (Eq. belowground_infra)
 	bool using_Ib = false;               ///< Mirror of Uptake::using_Ib; set each timestep before assimilation
 	double dmass_myco_dt;                ///< Mycorrhizal mass difference [kg DM per time unit]

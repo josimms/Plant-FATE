@@ -193,11 +193,17 @@ void PlantArchitecture::dmyco_dt(
     const PlantParameters& par
 ) {
   // exudates is already carbon (kg C, see PlantArchitecture::C_export_to_myco doc).
-  double resp_myco = par.r_myco * 0.44 * std::max(0.0, ectomycorrhiza_mass) * par.years_per_tunit_avg;
+  double resp_myco_demand = par.r_myco * 0.44 * std::max(0.0, ectomycorrhiza_mass) * par.years_per_tunit_avg;
 
-  // Raw carbon surplus after maintenance respiration, unclipped -- feeds the pool mass balance
-  // below (dC_myco_dt_free) and is allowed to go negative (carbon debt) when exudates don't
-  // cover maintenance respiration, e.g. in winter. See MAIN.tex Equation eq:free_carbon_ecto.
+  // Realised maintenance respiration cannot exceed what is actually available this step:
+  // fresh exudates plus whatever is currently banked in the free-carbon pool. A starved fungus
+  // respires less than its nominal demand rather than driving C_m into debt.
+  // See MAIN.tex Equation eq:free_carbon_ecto (R_m term).
+  double C_bank    = std::max(0.0, ectomycorrhiza_C_free);
+  double resp_myco = std::min(resp_myco_demand, exudates + C_bank);
+
+  // Carbon surplus after (capped) maintenance respiration -- feeds the pool mass balance below
+  // (dC_myco_dt_free) and can no longer drive it below zero.
   double C_surplus = exudates - resp_myco;
 
   // Growth efficiency: fraction of substrate carbon retained in new biomass after biosynthesis
@@ -205,12 +211,13 @@ void PlantArchitecture::dmyco_dt(
   // mycorrhizal_biomass_conversion.
   double Y_g = traits.mycorrhizal_biomass_conversion * 0.44;
 
-  // C available for growth: fresh surplus (scaled by Y_g) plus mobilised labile carbon, combined
-  // unclipped -- a maintenance deficit can draw down the mobilised reserve -- and only the
-  // combined ceiling is floored at zero, since growth itself cannot be negative.
-  // See MAIN.tex Equation eq:C_avail.
+  // C available for growth: fresh surplus and mobilised labile carbon combined unclipped -- a
+  // maintenance deficit can draw down the mobilised reserve -- with Y_g applied uniformly to the
+  // combined total (not just the fresh-carbon term), since growth efficiency applies regardless
+  // of carbon source; only the combined ceiling is floored at zero, since growth itself cannot be
+  // negative. See MAIN.tex Equation eq:C_avail.
   double C_pool_rate = ectomycorrhiza_C_free * traits.k_mob_N * par.years_per_tunit_avg;
-  double C_available = std::max(0.0, Y_g * C_surplus + C_pool_rate);
+  double C_available = std::max(0.0, Y_g * (C_surplus + C_pool_rate));
 
   // N released from dying hyphae this timestep — available immediately for growth/export
   double turnover_N = ectomycorrhiza_mass * 0.44 * traits.nc_myco * traits.mycorrhizal_turnover * traits.k_14 * par.years_per_tunit_avg;
@@ -236,10 +243,27 @@ void PlantArchitecture::dmyco_dt(
 
   dmass_myco_dt   = C_for_growth / 0.44 - ectomycorrhiza_mass * traits.mycorrhizal_turnover * par.years_per_tunit_avg;
 
-  // Labile C pool mass balance: unclipped C_surplus lets this pool run a temporary carbon debt
-  // under supply shortfall; pool-proportional respiration keeps its own zero-floor guard here
-  // for numerical robustness (see MAIN.tex Equation eq:free_carbon_ecto).
-  dC_myco_dt_free = C_surplus - C_for_growth - par.r_myco * std::max(0.0, ectomycorrhiza_C_free) * par.years_per_tunit_avg;
+  // Raw carbon drawn from supply to realise C_for_growth worth of biomass -- always >= C_for_growth
+  // since Y_g <= 1. The difference is growth (biosynthesis) respiration: carbon that leaves the
+  // system as CO2 rather than becoming biomass, and must be debited from the pool below (not just
+  // the post-efficiency C_for_growth), or it would silently stay in C_m instead of being lost.
+  double C_grow_raw     = (Y_g > 0.0) ? (C_for_growth / Y_g) : 0.0;
+  double resp_myco_growth = C_grow_raw - C_for_growth;
+
+  // Pool-proportional loss: bounds C_m's growth rather than representing an independently
+  // established storage-respiration process (see MAIN.tex), but the carbon genuinely leaves the
+  // system in the model, so it is counted in the combined respiration total below.
+  double resp_myco_overflow = par.r_myco * std::max(0.0, ectomycorrhiza_C_free) * par.years_per_tunit_avg;
+
+  // Combined ECM respiration output: maintenance (capped at availability) + growth (biosynthesis)
+  // + labile-pool overflow. See MAIN.tex Equation eq:free_carbon_ecto.
+  resp_myco_total = resp_myco + resp_myco_growth + resp_myco_overflow;
+
+  // Labile C pool mass balance: debit the raw carbon draw (C_grow_raw, including growth-respiration
+  // loss) rather than just the biomass-forming fraction, so growth respiration actually leaves the
+  // pool instead of silently remaining in it. C_surplus is bounded below by -C_bank (maintenance
+  // respiration capped at availability above), so this pool cannot be driven below zero.
+  dC_myco_dt_free = C_surplus - C_grow_raw - resp_myco_overflow;
   
   dN_myco_dt_free = U_myco + turnover_N - N_incorporated - N_export;
 }
