@@ -305,7 +305,7 @@ p_joint_rl <- ggplot(opt_joint, aes(x = soil_nitrogen, y = root_length)) +
   stab_label +
   shared_scales +
   expand_limits(y = 0) + soil_n_expand +
-  labs(tag = "C", x = "Soil nitrogen (g N m⁻³)", y = "Optimal root length (m)") +
+  labs(tag = "C", x = "Soil nitrogen (g N m⁻³)", y = "Optimal root length (mm)") +
   pub_theme
 
 r_coarse_root <- 0.04   # coarse root respiration rate [yr^-1], same as rs (sapwood) in p_test_boreal.ini
@@ -713,7 +713,7 @@ make_optima_figure <- function(gs_data, var_col, fig_title, obj_label = NULL) {
     geom_point(aes(shape = "Optimal parameters"), colour = "black", size = 3, stroke = 1.2) +
     stab_lbl + fn_scales +
     expand_limits(y = range(gs_data$root_length, na.rm = TRUE)) +
-    labs(tag = "C", x = "Soil nitrogen (kg N / m3)", y = "Optimal root length (m)") +
+    labs(tag = "C", x = "Soil nitrogen (kg N / m3)", y = "Optimal root length (mm)") +
     pub_theme
 
   pD <- ggplot(opt,
@@ -1056,7 +1056,7 @@ p_traj_rl <- ggplot(annual_opt,
   geom_point(size = 2, shape = 3, stroke = 1.5) +
   traj_colour2 +
   expand_limits(y = range(joint_root_length_values)) +
-  labs(tag = "(c)", x = NULL, y = "Optimal root length (m)") +
+  labs(tag = "(c)", x = NULL, y = "Optimal root length (mm)") +
   pub_theme
 
 p_traj_myco <- ggplot(annual_opt,
@@ -1320,7 +1320,7 @@ make_yearly_optima_figure <- function(annual_data, x_col, x_lab, fig_title,
 
   pC <- ggplot(dat, aes(x = !!x_sym, y = factor(root_length))) +
     viol + jit + yr_line +
-    labs(tag = "C", x = x_lab, y = "Optimal root length (m)") + pub_theme
+    labs(tag = "C", x = x_lab, y = "Optimal root length (mm)") + pub_theme
 
   pD <- ggplot(dat, aes(x = !!x_sym, y = bga)) +
     pt + yr_line + scale_y_continuous(labels = scales::label_percent()) + expand_limits(y = 0) +
@@ -1580,8 +1580,10 @@ traj_gpp <- annual_gs_all_full %>%
             by = c("soil_nitrogen", "ecto_allo", "root_no", "root_length")) %>%
   filter(soil_nitrogen %in% c(n_low_c, n_high_c)) %>%
   mutate(
-    CN           = (ectomycorrhiza_mass * 0.44 + ectomycorrhiza_C_free) /
-                     pmax(ectomycorrhiza_N_biomass + ectomycorrhiza_N_free, 1e-12),
+    CN           = ifelse(ectomycorrhiza_mass > 1e-6,
+                           (ectomycorrhiza_mass * 0.44 + ectomycorrhiza_C_free) /
+                             pmax(ectomycorrhiza_N_biomass + ectomycorrhiza_N_free, 1e-12),
+                           NA_real_),
     gpp_per_ca   = assim_gross / crown_area,
     ecm_frac_gpp = C_export_to_myco / assim_gross,
     N_label      = factor(
@@ -1740,7 +1742,7 @@ p_fig2a <- p_tg_height   + labs(x = NULL,   tag = "(a)")
 p_fig2b <- p_tg_gpp      + labs(x = NULL,   tag = "(b)")
 p_fig2c <- p_tg_ecm_area + labs(x = NULL,   tag = "(c)")
 p_fig2d <- p_tg_cn       + labs(x = NULL,   tag = "(d)")
-p_fig2e <- p_tg_accN     + labs(x = "Year", tag = "(e)")
+p_fig2e <- p_tg_nbar     + labs(x = "Year", tag = "(e)")
 
 fig2_key <- (p_fig2a | p_fig2b) / (p_fig2c | p_fig2d) / (p_fig2e | plot_spacer()) +
   plot_layout(guides = "collect") &
@@ -1930,7 +1932,7 @@ pStabF <- ggplot(stab_metrics, aes(x = year, y = iqr_rn, colour = soil_nitrogen)
 pStabG <- ggplot(stab_metrics, aes(x = year, y = iqr_rl, colour = soil_nitrogen)) +
   pt_n + n_col + expand_limits(y = 0) +
   labs(tag = "(g)", x = "Year",
-       y = "IQR root length (m)\namong 5%-near-optimal") + pub_theme
+       y = "IQR root length (mm)\namong 5%-near-optimal") + pub_theme
 
 pStabG2 <- ggplot(stab_metrics, aes(x = year, y = iqr_mycorrhized, colour = soil_nitrogen)) +
   pt_n + n_col + expand_limits(y = 0) +
@@ -1952,7 +1954,7 @@ pStabI <- ggplot(yy_opt, aes(x = year, y = root_no, colour = soil_nitrogen)) +
 pStabJ <- ggplot(yy_opt, aes(x = year, y = root_length, colour = soil_nitrogen)) +
   pt_n + n_col + expand_limits(y = 0) +
   labs(tag = "(k)", x = "Year",
-       y = "Optimal root length (m)\n(year-to-year consistency)") + pub_theme
+       y = "Optimal root length (mm)\n(year-to-year consistency)") + pub_theme
 
 pStabJ2 <- ggplot(yy_opt, aes(x = year, y = mycorrhized, colour = soil_nitrogen)) +
   pt_n + n_col +
@@ -2028,7 +2030,7 @@ pStabNF <- ggplot(stab_metrics_n, aes(x = soil_nitrogen, y = iqr_rn, colour = ye
 pStabNG <- ggplot(stab_metrics_n, aes(x = soil_nitrogen, y = iqr_rl, colour = year)) +
   pt_n + yr_col + expand_limits(y = 0) +
   labs(tag = "(g)", x = "Soil N (kg N m⁻³)",
-       y = "IQR root length (m)\namong 5%-near-optimal") + pub_theme
+       y = "IQR root length (mm)\namong 5%-near-optimal") + pub_theme
 
 pStabNG2 <- ggplot(stab_metrics_n, aes(x = soil_nitrogen, y = iqr_mycorrhized, colour = year)) +
   pt_n + yr_col + expand_limits(y = 0) +
@@ -2049,7 +2051,7 @@ pStabNI <- ggplot(yy_opt_n, aes(x = soil_nitrogen, y = root_no, colour = year)) 
 pStabNJ <- ggplot(yy_opt_n, aes(x = soil_nitrogen, y = root_length, colour = year)) +
   pt_n + yr_col + expand_limits(y = 0) +
   labs(tag = "(k)", x = "Soil N (kg N m⁻³)",
-       y = "Optimal root length (m)\n(year-to-year consistency)") + pub_theme
+       y = "Optimal root length (mm)\n(year-to-year consistency)") + pub_theme
 
 pStabNJ2 <- ggplot(yy_opt_n, aes(x = soil_nitrogen, y = mycorrhized, colour = year)) +
   pt_n + yr_col +
@@ -2129,7 +2131,7 @@ p17B <- ggplot(dat17, aes(x = soil_nitrogen, y = factor(root_no))) +
 p17C <- ggplot(dat17, aes(x = soil_nitrogen, y = factor(root_length))) +
   viol17 + jit_cross + yr_scale17 +
   scale_y_discrete(limits = root_length_limits) +
-  labs(tag = "(c)", x = "Soil N\n(kg N m⁻³)", y = "Optimal root length\n(m)") + pub_theme
+  labs(tag = "(c)", x = "Soil N\n(kg N m⁻³)", y = "Optimal root length\n(mm)") + pub_theme
 
 p17C2 <- ggplot(dat17, aes(x = soil_nitrogen, y = factor(mycorrhized))) +
   viol17 + jit_cross + yr_scale17 +
@@ -2311,7 +2313,7 @@ p17accN_B <- ggplot(dat17_accN, aes(x = accessible_N, y = factor(root_no))) +
 p17accN_C <- ggplot(dat17_accN, aes(x = accessible_N, y = factor(root_length))) +
   viol_accN + jit_accN + yr_scale_accN + log_x_accN +
   scale_y_discrete(limits = root_length_limits) +
-  labs(tag = "(c)", x = "Accessible N\n(kg N m⁻³)", y = "Optimal root length\n(m)") + pub_theme
+  labs(tag = "(c)", x = "Accessible N\n(kg N m⁻³)", y = "Optimal root length\n(mm)") + pub_theme
 
 p17accN_D <- ggplot(dat17_accN, aes(x = accessible_N, y = factor(mycorrhized))) +
   viol_accN + jit_accN + yr_scale_accN + log_x_accN +
