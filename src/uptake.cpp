@@ -94,7 +94,12 @@ namespace plant {
     N_static_val    = N_static;
     double V_zone   = (2.0 / 3.0) * M_PI * R * R * depth;
     double N_bar_static = 0.0;
-    if (SA_m_eff <= 0.0 || N_static <= 0.0) {
+    // Guard against near-zero (not just exactly-zero) SA_m_eff: as effective fungal surface
+    // area shrinks toward zero (e.g. ECM population functionally extinct), N_bar_static's
+    // closed-form inverse (k_15*k_SA/SA_m_eff) diverges even though the actual flux
+    // (U_myco_static) correctly vanishes. With no fungal surface, nothing accesses this
+    // pool, so accessible N via mycorrhiza should read 0, not diverge.
+    if (SA_m_eff < 1e-9 || N_static <= 0.0) {
       U_myco_static = 0.0;
     } else {
       // Series combination of enzymatic supply (G_e) and transporter capacity (G_t):
