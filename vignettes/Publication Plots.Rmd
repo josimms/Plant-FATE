@@ -1254,9 +1254,11 @@ fig3_key <- (p_f3a | p_f3b) /
   plot_layout(guides = "collect") &
   theme(legend.position  = "bottom",
         legend.direction = "horizontal",
+        legend.box       = "vertical",
         legend.text      = element_text(size = 22),
         legend.key.size  = unit(1.2, "lines"),
         plot.tag         = element_text(size = 22, face = "bold"),
+        axis.title       = element_text(size = 23, face = "bold"),
         axis.text.x      = element_text(angle = 45, hjust = 1))
 
 ggsave(file.path(pub_fig_dir, "all_fig3_annual_opt_key.png"),
