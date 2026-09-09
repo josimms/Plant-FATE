@@ -2863,3 +2863,250 @@ plot(df$date, cn_1, type = "l", col = lh_cols[1], lwd = lh_lwd_model,
 box(bty = "l")
 dev.off()
 ```
+
+## Sensitivity: ECM stoichiometric target (nc_myco)
+
+No Hyytiälä- or boreal-specific literature value was found for `nc_myco` (target N:C of
+the ECM free pool); the current default (0.085, C:N ~ 11.8) is sourced to a Swedish
+nitrogen-gradient study (Högberg et al. 2021), not this site. The only concrete range
+found is a general ECM tissue C:N of ~7-30 (N:C ~ 0.033-0.143) from an unrelated
+temperate/beech study. This chunk reruns the same boreal calibration setup as
+`run_lh_sim` across that range's low end, the current default, and its high end, to see
+whether `nc_myco` alone moves accessible N, N transferred, optimal leaf N, or GPP
+appreciably closer to the observed bands already used in `lh_09_main_panel` and
+`lh_10_belowground`.
+
+```{r lh_12_nc_myco_sensitivity}
+run_lh_sim_ncmyco <- function(n_val, nc_myco_val) {
+  lho <- new(LifeHistoryOptimizer, param_file)
+  lho$set_i_metFile(weather_file)
+  lho$set_a_metFile(weather_file)
+  lho$set_co2File("")
+  lho$set_soil_nitrogen(n_val)
+  lho$traits0$nc_myco <- nc_myco_val
+  lho$init()
+  col_names <- lho$get_header()
+  results <- lapply(lh_years_seq, function(t) {
+    tryCatch({
+      lho$grow_for_dt(t, lh_dt)
+      state <- lho$get_state(t + lh_dt)
+      df_row <- as.data.frame(t(state))
+      names(df_row) <- col_names
+      df_row
+    }, error = function(e) {
+      setNames(as.data.frame(as.list(rep(NA, length(col_names)))), col_names)
+    })
+  })
+  df_nc <- do.call(rbind, results)
+  names(df_nc) <- col_names
+  df_nc$date <- seq(as.Date(paste0(lh_start_year, "-01-01")),
+                     as.Date(paste0(lh_end_year,   "-01-01")),
+                     by = "month")[1:nrow(df_nc)]
+  df_nc
+}
+
+nc_myco_values <- c(0.033, 0.085, 0.143)
+nc_myco_labels <- c(paste0("nc_myco = ", nc_myco_values[1], " (lower)"),
+                     paste0("nc_myco = ", nc_myco_values[2], " (current)"),
+                     paste0("nc_myco = ", nc_myco_values[3], " (higher)"))
+nc_myco_cols <- lh_cols[1:3]
+
+nc_myco_runs <- lapply(nc_myco_values, function(v) run_lh_sim_ncmyco(0.2, v))
+
+png(file.path(pub_fig_dir, "all_lh_12_nc_myco_sensitivity.png"),
+    width = 12, height = 10, units = "in", res = 300)
+par(mfrow = c(4, 2), mar = c(4, 9, 3, 1), oma = c(4, 0, 2, 0),
+    family = "serif", las = 1, tcl = -0.4, mgp = c(5, 1, 0))
+
+# (a) GPP
+gpp_series <- lapply(nc_myco_runs, function(d) d$assim_gross / d$crown_area / 2.04)
+ylim_gpp <- range(unlist(gpp_series), Eddy_covariance$GPP_mean_kg, na.rm = TRUE)
+plot(nc_myco_runs[[1]]$date, gpp_series[[1]], type = "n",
+     ylim = ylim_gpp, xlab = "",
+     ylab = expression(atop("GPP", "(kg C m"^{-2}*" year"^{-1}*")")),
+     cex.axis = lh_cex_axis, cex.lab = lh_cex_lab)
+for (i in seq_along(nc_myco_runs)) {
+  lines(nc_myco_runs[[i]]$date, gpp_series[[i]], col = nc_myco_cols[i], lwd = lh_lwd_model)
+}
+points(Eddy_covariance$MonthlyDate, Eddy_covariance$GPP_mean_kg,
+       col = col_obs, pch = lh_pch_obs, cex = 0.8)
+mtext("(a)", side = 3, adj = 0, line = 0.2, font = 2, cex = lh_cex_main)
+box(bty = "l")
+
+# (b) NPP
+npp_series <- lapply(nc_myco_runs, function(d) d$assim_net / d$crown_area / 2.04)
+ylim_npp <- range(unlist(npp_series), -Eddy_covariance$NEE_mean_kg, na.rm = TRUE)
+plot(nc_myco_runs[[1]]$date, npp_series[[1]], type = "n",
+     ylim = ylim_npp, xlab = "",
+     ylab = expression(atop("NPP", "(kg C m"^{-2}*" year"^{-1}*")")),
+     cex.axis = lh_cex_axis, cex.lab = lh_cex_lab)
+for (i in seq_along(nc_myco_runs)) {
+  lines(nc_myco_runs[[i]]$date, npp_series[[i]], col = nc_myco_cols[i], lwd = lh_lwd_model)
+}
+points(Eddy_covariance$MonthlyDate, -Eddy_covariance$NEE_mean_kg,
+       col = col_obs, pch = lh_pch_obs, cex = 0.8)
+mtext("(b)", side = 3, adj = 0, line = 0.2, font = 2, cex = lh_cex_main)
+box(bty = "l")
+
+# (c) Height
+smear_h_idx  <- loaded_data$smearII_data$variable == "pine height BA weighted mean"
+smear_h_val  <- loaded_data$smearII_data$amount[smear_h_idx]
+smear_h_date <- as.Date(paste0(loaded_data$smearII_data$date[smear_h_idx], "-01-01"))
+ylim_h <- range(sapply(nc_myco_runs, function(d) range(d$height, na.rm = TRUE)),
+                smear_h_val, halme_et_al_2022$height, useful_data$averageTreeHeight, na.rm = TRUE)
+plot(nc_myco_runs[[1]]$date, nc_myco_runs[[1]]$height, type = "n",
+     ylim = ylim_h, xlab = "", ylab = "Height\n(m)",
+     cex.axis = lh_cex_axis, cex.lab = lh_cex_lab)
+for (i in seq_along(nc_myco_runs)) {
+  lines(nc_myco_runs[[i]]$date, nc_myco_runs[[i]]$height, col = nc_myco_cols[i], lwd = lh_lwd_model)
+}
+points(smear_h_date, smear_h_val,
+       col = adjustcolor(col_range, alpha.f = 0.15), pch = 4, cex = 1.5, lwd = lh_lwd_obs)
+add_range(as.Date("2017-06-01"),
+          min(halme_et_al_2022$height, na.rm = TRUE),
+          max(halme_et_al_2022$height, na.rm = TRUE))
+for (id in unique(useful_data$plotID)) {
+  sub <- useful_data[useful_data$plotID == id & !is.na(useful_data$averageTreeHeight), ]
+  sub <- sub[order(sub$eventYear), ]
+  if (nrow(sub) < 1) next
+  x <- as.Date(as.character(sub$eventYear), format = "%Y")
+  y <- sub$averageTreeHeight
+  x_plot <- x[1]; y_plot <- y[1]
+  for (j in seq_len(nrow(sub) - 1)) {
+    if (y[j + 1] < y[j]) {
+      x_plot <- c(x_plot, NA, x[j + 1])
+      y_plot <- c(y_plot, NA, y[j + 1])
+    } else {
+      x_plot <- c(x_plot, x[j + 1])
+      y_plot <- c(y_plot, y[j + 1])
+    }
+  }
+  points(x, y, col = adjustcolor(col_range, alpha.f = 0.15), pch = 16, cex = 0.4)
+  lines(x_plot, y_plot, col = adjustcolor(col_range, alpha.f = 0.15), lwd = lh_lwd_obs)
+}
+mtext("(c)", side = 3, adj = 0, line = 0.2, font = 2, cex = lh_cex_main)
+box(bty = "l")
+
+# (d) Diameter
+smear_d_idx  <- loaded_data$smearII_data$variable == "pine diameter BA weighted mean"
+smear_d_val  <- 0.01 * loaded_data$smearII_data$amount[smear_d_idx]
+smear_d_date <- as.Date(paste0(loaded_data$smearII_data$date[smear_d_idx], "-01-01"))
+ylim_dm <- range(sapply(nc_myco_runs, function(d) range(d$diameter, na.rm = TRUE)),
+                 smear_d_val, 0.01 * useful_data$averageTreeDiameter, na.rm = TRUE)
+plot(nc_myco_runs[[1]]$date, nc_myco_runs[[1]]$diameter, type = "n",
+     ylim = ylim_dm, xlab = "", ylab = "Diameter\n(m)",
+     cex.axis = lh_cex_axis, cex.lab = lh_cex_lab)
+for (i in seq_along(nc_myco_runs)) {
+  lines(nc_myco_runs[[i]]$date, nc_myco_runs[[i]]$diameter, col = nc_myco_cols[i], lwd = lh_lwd_model)
+}
+points(smear_d_date, smear_d_val,
+       col = adjustcolor(col_range, alpha.f = 0.15), pch = 4, cex = 1.5, lwd = lh_lwd_obs)
+for (id in unique(useful_data$plotID)) {
+  sub <- useful_data[useful_data$plotID == id & !is.na(useful_data$averageTreeDiameter), ]
+  sub <- sub[order(sub$eventYear), ]
+  if (nrow(sub) < 1) next
+  x <- as.Date(as.character(sub$eventYear), format = "%Y")
+  y <- 0.01 * sub$averageTreeDiameter
+  x_plot <- x[1]; y_plot <- y[1]
+  for (j in seq_len(nrow(sub) - 1)) {
+    if (y[j + 1] < y[j]) {
+      x_plot <- c(x_plot, NA, x[j + 1])
+      y_plot <- c(y_plot, NA, y[j + 1])
+    } else {
+      x_plot <- c(x_plot, x[j + 1])
+      y_plot <- c(y_plot, y[j + 1])
+    }
+  }
+  points(x, y, col = adjustcolor(col_range, alpha.f = 0.15), pch = 16, cex = 0.4)
+  lines(x_plot, y_plot, col = adjustcolor(col_range, alpha.f = 0.15), lwd = lh_lwd_obs)
+}
+mtext("(d)", side = 3, adj = 0, line = 0.2, font = 2, cex = lh_cex_main)
+box(bty = "l")
+
+# (e) Vcmax
+vcmax_series <- lapply(nc_myco_runs, function(d) d$vcmax / d$lai)
+ylim_vc <- range(unlist(vcmax_series), 30, na.rm = TRUE)
+plot(nc_myco_runs[[1]]$date, vcmax_series[[1]], type = "n",
+     ylim = ylim_vc, xlab = "",
+     ylab = expression(atop("V"[cmax], "("*mu*"mol m"^{-2}*" s"^{-1}*")")),
+     cex.axis = lh_cex_axis, cex.lab = lh_cex_lab)
+rect(par("usr")[1], 0, par("usr")[2], 30,
+     col = adjustcolor("lightblue", alpha.f = 0.5), border = NA)
+for (i in seq_along(nc_myco_runs)) {
+  lines(nc_myco_runs[[i]]$date, vcmax_series[[i]], col = nc_myco_cols[i], lwd = lh_lwd_model)
+}
+mtext("(e)", side = 3, adj = 0, line = 0.2, font = 2, cex = lh_cex_main)
+box(bty = "l")
+
+# (f) Optimal leaf nitrogen
+ylim_oln <- range(0, sapply(nc_myco_runs, function(d) range(d$optimal_leaf_nitrogen, na.rm = TRUE)) * 1.1,
+                  korhonen_needle_n_hi, na.rm = TRUE)
+plot(nc_myco_runs[[1]]$date, nc_myco_runs[[1]]$optimal_leaf_nitrogen, type = "n",
+     ylim = ylim_oln, xlab = "",
+     ylab = expression(atop("Optimal leaf N", "(g g"^{-1}*")")),
+     cex.axis = lh_cex_axis, cex.lab = lh_cex_lab)
+rect(as.numeric(as.Date("2007-01-01")), korhonen_needle_n_lo, par("usr")[2], korhonen_needle_n_hi,
+     col = adjustcolor("lightblue", alpha.f = 0.5), border = NA)
+for (i in seq_along(nc_myco_runs)) {
+  lines(nc_myco_runs[[i]]$date, nc_myco_runs[[i]]$optimal_leaf_nitrogen, col = nc_myco_cols[i], lwd = lh_lwd_model)
+}
+mtext("(f)", side = 3, adj = 0, line = 0.2, font = 2, cex = lh_cex_main)
+box(bty = "l")
+
+# (g) N uptake
+uptake_series <- lapply(nc_myco_runs, function(d) d$mycorrhizal_export_to_tree + d$root_uptake_actual)
+nuptake_obs_val <- 0.013
+nbar_obs_val    <- 1/13
+nbar_obs_date   <- as.Date("2008-08-01")
+ylim_nu <- range(unlist(uptake_series), nuptake_obs_val, na.rm = TRUE)
+plot(nc_myco_runs[[1]]$date, uptake_series[[1]], type = "n",
+     ylim = ylim_nu, xlab = "",
+     ylab = expression(atop("N uptake", "(kg N tree"^{-1}*" year"^{-1}*")")),
+     cex.axis = lh_cex_axis, cex.lab = lh_cex_lab)
+for (i in seq_along(nc_myco_runs)) {
+  lines(nc_myco_runs[[i]]$date, uptake_series[[i]], col = nc_myco_cols[i], lwd = lh_lwd_model)
+}
+points(nbar_obs_date, nbar_obs_val, col = col_range, pch = lh_pch_obs, cex = 0.8)
+mtext("(g)", side = 3, adj = 0, line = 0.2, font = 2, cex = lh_cex_main)
+box(bty = "l")
+
+# (h) ECM / fine root biomass ratio
+ratio_series <- lapply(nc_myco_runs, function(d) d$ectomycorrhiza_mass / d$root_mass)
+ylim_ratio <- range(unlist(ratio_series), 1, 2, na.rm = TRUE)
+plot(nc_myco_runs[[1]]$date, ratio_series[[1]], type = "n",
+     ylim = ylim_ratio, xlab = "",
+     ylab = expression(atop("ECM / fine root biomass", "(kg kg"^{-1}*")")),
+     cex.axis = lh_cex_axis, cex.lab = lh_cex_lab)
+rect(as.numeric(as.Date("2007-01-01")), 1, par("usr")[2], 2,
+     col = adjustcolor("lightblue", alpha.f = 0.5), border = NA)
+for (i in seq_along(nc_myco_runs)) {
+  lines(nc_myco_runs[[i]]$date, ratio_series[[i]], col = nc_myco_cols[i], lwd = lh_lwd_model)
+}
+mtext("(h)", side = 3, adj = 0, line = 0.2, font = 2, cex = lh_cex_main)
+box(bty = "l")
+
+# Shared legend
+par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
+plot(0, 0, type = "n", bty = "n", xaxt = "n", yaxt = "n")
+legend("bottom", horiz = FALSE, ncol = 2, bty = "n", cex = lh_cex_legend,
+       legend = c(nc_myco_labels, "Eddy covariance", "Range of realistic boreal observations"),
+       col  = c(nc_myco_cols, col_obs, col_range),
+       lty  = c(1, 1, 1, NA, 1),
+       pch  = c(NA, NA, NA, lh_pch_obs, NA),
+       lwd  = c(rep(lh_lwd_model, 3), NA, lh_lwd_obs))
+dev.off()
+
+# Summary table: mean over final 10 simulated years (2013-2022)
+nc_myco_summary <- do.call(rbind, lapply(seq_along(nc_myco_runs), function(i) {
+  d   <- nc_myco_runs[[i]]
+  idx <- format(d$date, "%Y") %in% as.character(2013:2022)
+  data.frame(
+    nc_myco            = nc_myco_values[i],
+    N_bar_roots        = mean(d$N_bar_roots[idx], na.rm = TRUE),
+    N_transferred      = mean(d$mycorrhizal_export_to_tree[idx], na.rm = TRUE),
+    optimal_leaf_N     = mean(d$optimal_leaf_nitrogen[idx], na.rm = TRUE),
+    GPP_per_crown_area = mean((d$assim_gross / d$crown_area)[idx], na.rm = TRUE)
+  )
+}))
+print(nc_myco_summary)
+```
