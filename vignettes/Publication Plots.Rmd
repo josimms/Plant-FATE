@@ -2092,7 +2092,7 @@ ggsave(file.path(pub_fig_dir, "all_16f_stability_metrics_N.png"), plot = fig_sta
 dat17 <- annual_opt_gpp %>%
   mutate(
     bga         = (C_export_to_myco + rr * 0.44 + tr * 0.44) / pmax(assim_gross, 1e-12),
-    mycorrhized = 0.9
+    mycorrhized = mycorrhized_val
   )
 
 yr_scale17 <- scale_colour_viridis_c(
@@ -2284,7 +2284,7 @@ dat17_accN <- annual_opt_gpp %>%
   filter(year %in% last10) %>%
   mutate(
     bga         = (C_export_to_myco + rr * 0.44 + tr * 0.44) / pmax(assim_gross, 1e-12),
-    mycorrhized = 0.9
+    mycorrhized = mycorrhized_val
   ) %>%
   filter(accessible_N >= quantile(accessible_N, 0.10, na.rm = TRUE))
 
