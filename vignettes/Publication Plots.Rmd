@@ -2736,14 +2736,15 @@ uptake_1  <- df$mycorrhizal_export_to_tree + df$root_uptake_actual
 bg_mass_1 <- df$root_mass + df$ectomycorrhiza_mass
 eff_1     <- uptake_1 / bg_mass_1
 
-k_1_par         <- 0.35
-k_13_par        <- 2.5
-depth_par       <- 1.1
-rho_myco_par    <- 330
-myco_d_par      <- 1e-5
-mycorrhized_par <- 0.9
+k_0_par         <- read_ini_val("k_0")
+k_1_par         <- read_ini_val("k_1")
+k_13_par        <- read_ini_val("k_13")
+depth_par       <- read_ini_val("depth")
+rho_myco_par    <- read_ini_val("rho_myco")
+myco_d_par      <- read_ini_val("myco_diameter")
+mycorrhized_par <- mycorrhized_val
 compute_sa_density <- function(d) {
-  root_d_mm <- k_1_par / sqrt(d$root_length)
+  root_d_mm <- k_1_par / d$root_length^k_0_par
   SA_fr     <- pi * (root_d_mm/1000) * (d$root_length/1000) * d$root_no * d$crown_area * d$lai
   SA_m      <- 4 * d$ectomycorrhiza_mass / (rho_myco_par * myco_d_par)
   SA_active <- (1 - mycorrhized_par) * SA_fr + SA_m
