@@ -2408,7 +2408,7 @@ p17c_H <- ggplot(dat17c, aes(x = myco_uptake, y = CN)) +
 p17c_L <- ggplot(dat17c, aes(x = accessible_N, y = cn_exchange)) +
   pt_c + yr_scale_c +
   scale_y_log10() +
-  labs(tag = "(b)", x = "Accessible N\n(kg N m⁻³)",
+  labs(x = "Accessible N\n(kg N m⁻³)",
        y = "C:N exchange cost\n(kg C kg⁻¹ N transferred)") + pub_theme
 
 p17c_L_zoom <- ggplot(dat17c, aes(x = soil_nitrogen, y = cn_exchange)) +
