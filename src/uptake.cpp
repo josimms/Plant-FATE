@@ -94,23 +94,24 @@ namespace plant {
     N_static_val    = N_static;
     double V_zone   = (2.0 / 3.0) * M_PI * R * R * depth;
     double N_bar_static = 0.0;
-    // Guard against near-zero (not just exactly-zero) SA_m_eff: as effective fungal surface
-    // area shrinks toward zero (e.g. ECM population functionally extinct), N_bar_static's
-    // closed-form inverse (k_15*k_SA/SA_m_eff) diverges even though the actual flux
-    // (U_myco_static) correctly vanishes. With no fungal surface, nothing accesses this
-    // pool, so accessible N via mycorrhiza should read 0, not diverge.
-    if (SA_m_eff < 1e-9 || N_static <= 0.0) {
+    if (N_static <= 0.0) {
       U_myco_static = 0.0;
     } else {
       // Series combination of enzymatic supply (G_e) and transporter capacity (G_t):
-      //   1/U = 1/G_e + 1/G_t  =>  U = G_e * SA_m / (SA_m + k_SA)
+      //   1/U = 1/G_e + 1/G_t  =>  U = G_e * SA_m_eff / (SA_m_eff + k_SA)
       // where G_e = D_eff*N_static*V_zone [kg N yr-1] and k_SA = G_e/u_max [m2].
       // See vignettes/organic_n_derivation.pdf for derivation.
       double D_eff             = D_static * f_temp;
       double enzymatic_supply  = D_eff * N_static * V_zone;
       double k_SA              = enzymatic_supply / u_max;
       U_myco_static            = enzymatic_supply * SA_m_eff / (SA_m_eff + k_SA) * par.years_per_tunit_avg;
-      N_bar_static             = k_15 * k_SA / SA_m_eff;
+
+      // N_bar_static uses the physical SA_m (not demand-throttled SA_m_eff): it's a
+      // soil-geometric quantity, so it shouldn't diverge just because f_uptake -> 0.
+      // Guard against near-zero SA_m (true ECM extinction) to avoid the inverse blowing up.
+      if (SA_m >= 1e-9) {
+        N_bar_static = k_15 * k_SA / SA_m;
+      }
     }
     N_bar_static_val = N_bar_static;
 
