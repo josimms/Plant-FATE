@@ -47,6 +47,9 @@ namespace plant {
     double SA_fr = G.root_surface_area(traits);
     double SA_m     = 4.0 * std::max(0.0, G.ectomycorrhiza_mass) / (rho_myco * myco_diameter);
 
+    // Below this, treat the ECM partner as extinct: no surface area, no uptake.
+    if (SA_m < 1e-9) SA_m = 0.0;
+
     // Smooth downregulation: reduce effective SA before computing N_bar so
     // soil depletion reflects actually-active fungal surface area.
     double nc_ecm   = G.ectomycorrhiza_N_free / std::max(G.ectomycorrhiza_C_free, 1e-12);
@@ -104,7 +107,13 @@ namespace plant {
       double D_eff             = D_static * f_temp;
       double enzymatic_supply  = D_eff * N_static * V_zone;
       double k_SA              = enzymatic_supply / u_max;
-      U_myco_static            = enzymatic_supply * SA_m_eff / (SA_m_eff + k_SA) * par.years_per_tunit_avg;
+      // enzymatic_supply and k_SA both vanish together (e.g. f_temp=0 in winter), and
+      // SA_m_eff can independently vanish (f_uptake -> 0), so the ratio's denominator can
+      // be exactly 0/0; the true limit there is 0 (no supply => no uptake), not NaN.
+      double denom             = SA_m_eff + k_SA;
+      U_myco_static            = (denom > 0.0)
+          ? enzymatic_supply * SA_m_eff / denom * par.years_per_tunit_avg
+          : 0.0;
 
       // N_bar_static uses the physical SA_m (not demand-throttled SA_m_eff): it's a
       // soil-geometric quantity, so it shouldn't diverge just because f_uptake -> 0.
