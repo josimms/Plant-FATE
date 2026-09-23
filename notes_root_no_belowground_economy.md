@@ -641,6 +641,100 @@ needs re-reading: that test used `root_no=3e6` (the N-gradient joint-optimum tra
 `root_no0=3e5`, so it's a different comparison and wasn't retested here — worth rechecking once picking
 the §7/§8/§9 root_no-vs-N thread back up, since the u_transfer fix likely changes those results too.
 
+## 12. Session 2026-09-23 (cont.): re-ran Phase 2 dynamic reopt post-`u_transfer` fix — no more collapse-to-floor
+
+Reran `run_with_relaxed_local_reopt_trajectory` (Phase 2, §10.1) at N=0.15/0.20/2.00, 1960-2022,
+same candidate-grid shape as before, now with `u_transfer=6e-3` (§11's fix) instead of the broken
+5e-4. Script: `vignettes/run_phase2_relaxed_reopt.R`; plots: `vignettes/plot_phase2_refixed.R` ->
+`vignettes/plots/dynamic/relaxed_local_key_trajectories_refixed.png` /
+`relaxed_local_root_no_diagnostic_refixed.png`; raw: `vignettes/plots/dynamic/
+relaxed_local_N_{0.15,0.20,2.00}_refixed.csv`.
+
+**Result: the §10.1/10.3 collapse-to-`root_no_min` failure is gone.** Previously all three N levels
+walked `root_no` straight to the grid floor by ~1985-2000. Now:
+- N=0.15, N=0.20: `root_no` fluctuates in a healthy 60k-380k range for the full 62 years, never
+  approaching the 1e3 floor. Height trajectories (14.0m / 15.6m by 2018) track close to the
+  static-trait calibration run's own trajectory (§11: 17.8m by 2022 at N=0.2) — same order, no
+  longer pathological.
+- N=2.00: `root_no` does decline substantially (down to ~6,000-50,000 by the 2000s) but settles at
+  real interior values, not pinned at the floor. Accompanied by `ecto_allo`->0 and `mycorrhized`->
+  ~0-3% by the end of the run (Fig. panels c/d) — the tree essentially abandons the mycorrhizal
+  partnership once direct root uptake alone is sufficient at high soil N. This is the first time in
+  the whole investigation that `root_no` has shown a genuine decline at the high-N end rather than
+  pinning at a grid extreme (contrast §7's ρ=+0.61 "backwards" result). Not independently verified
+  yet whether the ~0% mycorrhization is a real economic optimum or an artifact of the 1-year trial
+  horizon favouring instant carbon savings over a longer-horizon benefit (flagged, not chased
+  further this session -- next thing to check if this thread is picked back up).
+
+**Caveat, not investigated further this session:** panels (c)/(e)/(f)/(g) show a synchronized
+crash/whipsaw across *all three* N levels around 1966-1985 (GPP per crown area drops to near-zero
+twice, ECM allocation and accessible N swing erratically) before all three settle into the smoother
+declining trends described above. This lines up suspiciously with §10.5's still-unresolved finding
+that logged `ppfd` doesn't match the raw weather file and gets *worse* specifically under the
+yearly-reopt mechanism -- worth checking whether this is the same artifact resurfacing before
+trusting the early-record (pre-1985) portion of these trajectories.
+
+## 13. Session 2026-09-23 (cont.): redid the full `phase2_relaxed/` plot set — found and fixed a real `N_bar_static` divergence bug
+
+Regenerated every plot that used to live in `vignettes/plots/dynamic/phase2_relaxed/` (fig3
+annual trajectories, fig4 cross-section vs. accessible N, fig5 C:N exchange cost, the actual-
+vs-target root_no diagnostic, the key-trajectories figure, and the starting-root_no0
+sensitivity), using the post-§11 `u_transfer=6e-3` Phase 2 data. New scripts:
+`vignettes/run_phase2_relaxed_reopt.R`, `vignettes/plot_phase2_relaxed_full_set.R`,
+`vignettes/run_phase2_sensitivity_root_no0.R`, `vignettes/plot_phase2_sensitivity_root_no0.R`.
+Output: `vignettes/plots/dynamic/phase2_relaxed_refixed/` (old `phase2_relaxed/` originals kept
+untouched for before/after comparison).
+
+**Found a real, pre-existing bug while building fig4/fig5** (unrelated to the u_transfer fix,
+just newly exposed by this session's mycorrhized->0 result at high N, §12): in
+`src/uptake.cpp`, `N_bar_static`'s guard against SA_m=0 (`if (SA_m >= 1e-9)`) only blocks
+literal 0/0 division. As `ectomycorrhiza_mass` (and therefore SA_m) decays toward but not
+exactly to zero -- e.g. ~1e-12 kg under the dynamic reopt's mycorrhized->0 trajectory at
+N=2.00 -- `N_bar_static = k_15*k_SA/SA_m` still diverges to physically absurd values (up to
+1.6e7 kg N/m^3 seen in year 2018 of the N=2.00 run, vs. a true ceiling of `N_static`,
+~0.85-1.03 kg N/m^3). Confirmed this is a pure diagnostic/logging artifact: `N_bar_static`
+(the guarded value) is never used in the actual `U_myco_static` uptake calculation, which
+uses a separately well-behaved `denom = SA_m_eff + k_SA` formula -- so height/GPP/root_no/
+mycorrhized trajectories from §12 are NOT affected, only the "accessible N" diagnostic
+column/plots were corrupted.
+
+**Fix (committed-pending):** capped `N_bar_static` at its physical ceiling, `N_static`:
+```
+N_bar_static = std::min(k_15 * k_SA / SA_m, N_static);
+```
+After the fix + rebuild + rerun, max accessible N in the N=2.00 run dropped from 1.6e7 to 1.7
+kg N/m^3 -- physically sane. fig4/fig5 are now readable (previously all variation was
+compressed into a corner by a handful of extreme outliers). Note: there's earlier history here
+-- a "cap N_bar_static at N_static" fix was tried and explicitly reverted during §10.6's audit
+(to isolate variables, not because it was wrong) -- this session's finding suggests that cap
+was the right call all along, just for a different reason (extreme-low-SA_m divergence) than
+originally motivated.
+
+## 14. Session 2026-09-23 (cont.): constant-climate sandbox confirms root_no dynamics aren't a climate artifact
+
+Per Joanna's request, reran the starting-root_no0 sensitivity (§13) with a synthetic weather
+file (`data/ERAS_Monthly_constant1960.csv`, 1960's 12 months tiled across 1960-1980, so every
+year sees *identical* climate) instead of the real 1960-2022 ERA5 series, specifically to check
+whether the root_no trajectories seen under real climate are climate-driven or intrinsic to the
+reopt/growth dynamics. Script: `vignettes/run_phase2_sensitivity_root_no0_constclimate.R` ->
+`vignettes/plots/dynamic/phase2_relaxed_refixed/sensitivity_starting_root_no0_constant_climate.png`
+(kept alongside, not instead of, the real-climate version per Joanna's request -- both are useful).
+
+**Result, clean and informative:**
+- At N=0.15 and N=0.20, `root_no` (all three starting points) converges to an *exactly flat*
+  plateau by ~1965 and sits there dead flat for the remaining 15 years -- no wiggle at all. This
+  confirms the real-climate run's year-to-year fluctuation in this range (§12/§13) is a genuine
+  climate-driven effect (different years' weather shifting the committed optimum), not an
+  independent internal oscillation in the search/relaxation machinery -- under truly constant
+  forcing, the system finds a fixed point and stays there.
+- At N=2.00, `root_no` keeps declining even under constant climate (not flat) -- confirming the
+  high-N decline trend identified in §12 is driven by the tree's own growth/maturation (crown
+  area, size, N demand all still changing year-on-year even with identical weather), not by
+  climate noise. This reinforces that the "tree abandons mycorrhization once big enough to meet
+  N demand from direct uptake alone" mechanism (§12) is a real structural/maturation effect.
+- Height trajectories remain essentially insensitive to starting root_no0 under constant climate
+  too, matching the real-climate result.
+
 ## Where to start next
 
 1. **§10.6 is the most important open thread**: the fixed-trait replication (exact manuscript

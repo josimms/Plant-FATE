@@ -117,9 +117,15 @@ namespace plant {
 
       // N_bar_static uses the physical SA_m (not demand-throttled SA_m_eff): it's a
       // soil-geometric quantity, so it shouldn't diverge just because f_uptake -> 0.
-      // Guard against near-zero SA_m (true ECM extinction) to avoid the inverse blowing up.
+      // The SA_m >= 1e-9 guard only blocks literal 0/0 division; as SA_m shrinks
+      // toward (but past) that floor -- e.g. under the dynamic reopt driving
+      // mycorrhized -> 0, ectomycorrhiza_mass decays to ~1e-12 kg, not exactly 0 --
+      // the quotient still diverges to physically absurd values (seen: up to 1.6e7
+      // kg N m^-3 vs. a true ceiling of N_static, ~0.85-1.03 kg N m^-3). N_bar_static
+      // is a *local concentration at the hyphal surface*, which cannot physically
+      // exceed the bulk organic pool concentration it's drawn from, so cap it there.
       if (SA_m >= 1e-9) {
-        N_bar_static = k_15 * k_SA / SA_m;
+        N_bar_static = std::min(k_15 * k_SA / SA_m, N_static);
       }
     }
     N_bar_static_val = N_bar_static;
