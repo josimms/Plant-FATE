@@ -322,11 +322,16 @@ void PlantArchitecture::set_lai(double _l){
 	lai = _l;
 }
 
-/// @details Sets the following properties: root_no, root_length
-void PlantArchitecture::set_root(double _rn, double _rl, PlantTraits& traits){
+/// @details Sets the following properties: root_no, root_length. ectomycorrhiza_mass
+///          is a state variable integrated over time via dmyco_dt(), not a function of
+///          the current traits -- it should only be (re-)initialised from root_mass()
+///          on genuine initialisation (reset_ecto_mass=true, the default), never on a
+///          later trait update once growth has already accumulated real mycorrhizal
+///          biomass (reset_ecto_mass=false), or that accumulated biomass is discarded.
+void PlantArchitecture::set_root(double _rn, double _rl, PlantTraits& traits, bool reset_ecto_mass){
   root_no = _rn;
   root_length = _rl;
-  ectomycorrhiza_mass = root_mass(traits);
+  if (reset_ecto_mass) ectomycorrhiza_mass = root_mass(traits);
 };
 
 /// @details Sets the following properties: nitrogen_tree, nitrogen_uptake, leaf_nitrogen_concentration, ectomycorrhiza_mass

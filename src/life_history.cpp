@@ -390,4 +390,129 @@ double LifeHistoryOptimizer::calcFitness(){
 	return seeds;
 }
 
+
+// Yearly re-optimization objective: npp, normalized per unit crown area x LAI
+// (fixes two problems at once vs. the two alternatives tried first). Not raw
+// npp (assimilation.tpp: par.y*(A-R)-T) -- that's an absolute flow, and
+// comparing absolute flows biases the yearly re-optimizer toward whichever
+// candidate has the smallest scale. Not the manuscript's static-grid
+// net_gpp_ca (annual_gs_all$net_gpp_ca, Publication Plots.Rmd) either --
+// that's GPP minus belowground carbon costs only, and never charges the
+// extra leaf respiration (rleaf = vcmax*par.rd, assimilation.tpp) that comes
+// with the higher vcmax more root-delivered N buys, over-rewarding N
+// acquisition. npp already nets out rleaf+rstem+rroot and tleaf+troot
+// correctly (assimilation.tpp:246-250); dividing by crown_area*lai just adds
+// the missing per-area normalization. (The leaf-respiration gap in the
+// manuscript's own net_gpp_ca is a separate, pre-existing issue -- not fixed
+// here.)
+static double npp_per_ca(plant::Plant& P){
+	double ca_lai = std::max(P.geometry.crown_area * P.geometry.lai, 1e-12);
+	return P.assimilator.plant_assim.npp / ca_lai;
+}
+
+
+std::vector<std::vector<double>> LifeHistoryOptimizer::run_with_relaxed_local_reopt_trajectory(
+    double start_year, double end_year, double reopt_dt,
+    double root_no_step_factor, double root_no_min, double root_no_max,
+    double root_length_step_factor, double root_length_min, double root_length_max,
+    double ecto_step, double ecto_min, double ecto_max,
+    double mycorrhized_step, double mycorrhized_min, double mycorrhized_max
+){
+	std::vector<std::vector<double>> log;
+
+	auto make_levels_mult = [](double cur, double factor, double lo, double hi){
+		return std::vector<double>{ std::max(cur / factor, lo), cur, std::min(cur * factor, hi) };
+	};
+	auto make_levels_add = [](double cur, double step, double lo, double hi){
+		return std::vector<double>{ std::max(cur - step, lo), cur, std::min(cur + step, hi) };
+	};
+
+	// The tree's actual physical root configuration; only gradually catches
+	// up to whatever target the search commits to each year. Initialized
+	// from whatever root_override() last set (continuous, no discontinuity).
+	double n_eff = P.geometry.root_no;
+	double l_eff = P.geometry.root_length;
+
+	for (double yr = start_year; yr < end_year; yr += 1.0){
+		plant::Plant P_backup = P;
+		ErgodicEnvironment C_backup = C;
+		double rep_backup = rep, litter_backup = litter_pool, seeds_backup = seeds, prod_backup = prod;
+
+		// Candidate levels are centred on the tree's actual current physical
+		// state (n_eff/l_eff), not last year's target.
+		double n_cur = n_eff, l_cur = l_eff;
+		double ecto_cur = P.traits.investment_from_tree;
+		double myco_cur = P.uptake.mycorrhized;
+
+		std::vector<double> n_levels = make_levels_mult(n_cur, root_no_step_factor, root_no_min, root_no_max);
+		std::vector<double> l_levels = make_levels_mult(l_cur, root_length_step_factor, root_length_min, root_length_max);
+		std::vector<double> e_levels = make_levels_add(ecto_cur, ecto_step, ecto_min, ecto_max);
+		std::vector<double> m_levels = make_levels_add(myco_cur, mycorrhized_step, mycorrhized_min, mycorrhized_max);
+
+		double best_score = -1e300;
+		double best_rn = n_cur, best_rl = l_cur, best_eb = ecto_cur, best_myc = myco_cur;
+
+		// Trial scoring: steady-state destination value -- each candidate is
+		// applied INSTANTLY for the trial year (no relaxation here), judging
+		// destinations fairly regardless of distance. The commit step below
+		// is what enforces the realistic gradual transition.
+		for (double rn : n_levels)
+		for (double rl : l_levels)
+		for (double eb : e_levels)
+		for (double myc : m_levels){
+			P = P_backup; C = C_backup;
+			rep = rep_backup; litter_pool = litter_backup; seeds = seeds_backup; prod = prod_backup;
+
+			P.geometry.set_root(rn, rl, P.traits, /*reset_ecto_mass=*/false);
+			P.traits.investment_from_tree = eb;
+			P.uptake.mycorrhized = myc;
+
+			double score = 0.0;
+			bool failed = false;
+			for (double t = yr; t < yr + 1.0 - 1e-9; t += reopt_dt){
+				try {
+					grow_for_dt(t, reopt_dt);
+					score += npp_per_ca(P) * reopt_dt;
+				} catch (std::exception& e) { failed = true; break; }
+			}
+			if (!failed && score > best_score){
+				best_score = score;
+				best_rn = rn; best_rl = rl; best_eb = eb; best_myc = myc;
+			}
+		}
+
+		// Commit: restore to the true start-of-year state, apply the winning
+		// ecto_allo/mycorrhized instantly (no stock to relax), but relax
+		// n_eff/l_eff toward (best_rn, best_rl) for real, at
+		// tau=root_lifespan(traits) recomputed each substep from the current
+		// (pre-update) l_eff -- this is what makes the logged, committed
+		// trajectory physically honest.
+		P = P_backup; C = C_backup;
+		rep = rep_backup; litter_pool = litter_backup; seeds = seeds_backup; prod = prod_backup;
+		P.traits.investment_from_tree = best_eb;
+		P.uptake.mycorrhized = best_myc;
+
+		for (double t = yr; t < yr + 1.0 - 1e-9; t += reopt_dt){
+			try {
+				double tau = std::max(P.geometry.root_lifespan(P.traits), 1e-6);
+				double decay = std::exp(-reopt_dt / tau);
+				n_eff = best_rn + (n_eff - best_rn) * decay;
+				l_eff = best_rl + (l_eff - best_rl) * decay;
+				P.geometry.set_root(n_eff, l_eff, P.traits, /*reset_ecto_mass=*/false);
+				grow_for_dt(t, reopt_dt);
+				std::vector<double> row = get_state(t + reopt_dt);
+				row.push_back(best_eb);
+				row.push_back(best_myc);
+				row.push_back(best_rn);
+				row.push_back(best_rl);
+				log.push_back(row);
+			} catch (std::exception& e) {
+				break;
+			}
+		}
+	}
+
+	return log;
+}
+
 } // namespace pfate

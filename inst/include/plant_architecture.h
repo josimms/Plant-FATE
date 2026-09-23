@@ -138,7 +138,7 @@ class PlantArchitecture{
 	/// Set the crown LAI and properties that change with LAI
 	void set_lai(double _l);
 	/// Set plant size (diameter) and other variables that scale with size  
-	void set_root(double _rn, double _rl, PlantTraits& traits);
+	void set_root(double _rn, double _rl, PlantTraits& traits, bool reset_ecto_mass = true);
 	void set_size(double _x, PlantTraits& traits);
 	void set_nitrogen(double _nt, PlantTraits& traits);
 	/// Set size and lai, the two state variables that define plant geometry

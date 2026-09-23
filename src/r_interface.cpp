@@ -202,6 +202,7 @@ RCPP_MODULE(plantfate_module){
 		.method("calcFitness", &pfate::LifeHistoryOptimizer::calcFitness)
 
 		.method("grow_for_dt", &pfate::LifeHistoryOptimizer::grow_for_dt)
+		.method("run_with_relaxed_local_reopt_trajectory", &pfate::LifeHistoryOptimizer::run_with_relaxed_local_reopt_trajectory)
 		;
 
 	class_ <pfate::Patch>("Patch")

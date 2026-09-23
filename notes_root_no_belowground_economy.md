@@ -735,6 +735,45 @@ reopt/growth dynamics. Script: `vignettes/run_phase2_sensitivity_root_no0_constc
 - Height trajectories remain essentially insensitive to starting root_no0 under constant climate
   too, matching the real-climate result.
 
+## 15. Open item flagged 2026-09-23: dynamic (Phase 2) boreal-calibration N=0.20 undershoots height, unlike the static calibration
+
+Joanna's observation, not yet investigated: in the Phase 2 (`run_with_relaxed_local_reopt_trajectory`)
+runs (§12/§13), the boreal-calibration soil N level (N=0.20) should reach a height around ~20m by
+the end of the 62-year run (matching SMEAR II, ~17.5-20.8m — the same target the *static*-trait
+calibration run hits almost exactly post-§11's `u_transfer` fix, 17.8m). But under the dynamic
+reopt, N=0.20 only reaches ~15.6m by 2018 (`phase2_timebased_key_trajectories.png` panel a) — that
+~20m height is instead being reached by the N=2.00 (High) dynamic run, not N=0.20. So the dynamic
+model's calibrated-N trajectory and the static model's calibrated-N trajectory disagree with each
+other, even though both are nominally run at the same N=0.20. **Not yet investigated why** — next
+session should check this before trusting the Phase 2 dynamic trajectories as calibration-consistent
+with the static model. Candidate causes to check: the dynamic reopt's starting point/traits differ
+from the static calibration's fixed `root_no0=3e5, root_length0=2.0` (Phase 2 runs so far started
+from `root_override(3e5, 1.24)` — root_length0 differs, 1.24 vs the ini's 2.0); the reopt's
+`npp_per_ca` objective may systematically under-invest relative to what the static fixed-trait
+combo achieves; or the yearly search/relaxation dynamics themselves suppress growth relative to a
+fixed, already-good static trait combination.
+
+## 16. Session 2026-09-23 (cont.): dead-code cleanup, mycorrhized_max cap noted (not yet rerun)
+
+Removed the two superseded yearly-reopt methods (`run_with_yearly_reopt[_trajectory]`, global
+grid, no relaxation) and Phase 1 (`run_with_local_reopt_trajectory`, local search, no relaxation)
+from `inst/include/life_history.h`, `src/life_history.cpp`, and their R bindings in
+`src/r_interface.cpp` -- per Joanna, only Phase 2 (`run_with_relaxed_local_reopt_trajectory`,
+local search + root-system relaxation) is actually wanted going forward; the other two were dead
+code once Phase 2 superseded them. `npp_per_ca` (shared helper) and `set_root(...,
+reset_ecto_mass=...)` (plant_architecture) are still needed by Phase 2 and were kept as-is.
+Rebuilt clean, no errors.
+
+Also noticed (while fixing the ECM-colonisation plot axis to a true 0-100% range, see below): the
+Low/boreal-N Phase 2 runs (§12/§13) sit pinned flat at ~95% ECM colonisation -- that's the
+`mycorrhized_max=0.95` search-grid ceiling used in `run_phase2_relaxed_reopt.R` and the two
+sensitivity-sweep scripts, an arbitrary choice (not a physical or ini constraint -- the model has
+no hard cap on `mycorrhized`), not an economic optimum the search actually found. Raised
+`mycorrhized_max` to `1.0` in all three run scripts so future reruns aren't artificially capped.
+**Not yet rerun** -- the existing cached CSVs/figures (§12/§13/§14/§15) still reflect the old 0.95
+cap; whether Low/boreal-N colonisation actually wants to go all the way to 100% once uncapped is
+still an open question for next session.
+
 ## Where to start next
 
 1. **§10.6 is the most important open thread**: the fixed-trait replication (exact manuscript
