@@ -391,28 +391,41 @@ double LifeHistoryOptimizer::calcFitness(){
 }
 
 
-// Yearly re-optimization objective: npp, normalized per unit crown area x LAI
-// (fixes two problems at once vs. the two alternatives tried first). Not raw
-// npp (assimilation.tpp: par.y*(A-R)-T) -- that's an absolute flow, and
-// comparing absolute flows biases the yearly re-optimizer toward whichever
-// candidate has the smallest scale. Not the manuscript's static-grid
-// net_gpp_ca (annual_gs_all$net_gpp_ca, Publication Plots.Rmd) either --
-// that's GPP minus belowground carbon costs only, and never charges the
-// extra leaf respiration (rleaf = vcmax*par.rd, assimilation.tpp) that comes
-// with the higher vcmax more root-delivered N buys, over-rewarding N
-// acquisition. npp already nets out rleaf+rstem+rroot and tleaf+troot
-// correctly (assimilation.tpp:246-250); dividing by crown_area*lai just adds
-// the missing per-area normalization. (The leaf-respiration gap in the
-// manuscript's own net_gpp_ca is a separate, pre-existing issue -- not fixed
-// here.)
+// Yearly re-optimization objective: npp NET OF the mycorrhizal carbon export,
+// normalized per unit crown area x LAI (fixes three problems vs. the
+// alternatives tried first). Not raw npp (assimilation.tpp: par.y*(A-R)-T) --
+// that's an absolute flow, and comparing absolute flows biases the yearly
+// re-optimizer toward whichever candidate has the smallest scale. Not the
+// manuscript's static-grid net_gpp_ca (annual_gs_all$net_gpp_ca, Publication
+// Plots.Rmd) either -- that's GPP minus belowground carbon costs only, and
+// never charges the extra leaf respiration (rleaf = vcmax*par.rd,
+// assimilation.tpp) that comes with the higher vcmax more root-delivered N
+// buys, over-rewarding N acquisition. plant_assim.npp already nets out
+// rleaf+rstem+rroot and tleaf+troot correctly (assimilation.tpp:246-250);
+// dividing by crown_area*lai adds the missing per-area normalization.
+//
+// 2026-09-23 fix: plant_assim.npp is computed BEFORE the mycorrhizal carbon
+// export is deducted (plant.tpp:180-183: npp_exudates = max(npp,0) *
+// investment_from_tree; the tree's own growth actually uses npp - exudates).
+// The trial score therefore never charged ecto_allo's carbon cost at all --
+// confirmed empirically: with ecto_max raised from 0.3 to 1.0, ecto_allo
+// climbed monotonically, one search-step/year, to the ceiling (1.0) by 1978
+// with no interior optimum, and height flatlined once the tree retained zero
+// carbon for itself (notes_root_no_belowground_economy.md section 17).
+// Subtracting C_export_to_myco (kg C/unit_t, plant_architecture.h) here makes
+// this the manuscript's F_net (Eq. in Tree Fitness, MAIN.tex: (A_gross - C_a
+// - R_r - R_t)/(A_c*L)) PLUS leaf respiration correctly charged, rather than
+// F_net's own known gap (missing R_l) or npp_per_ca's now-fixed gap (missing
+// C_a).
 static double npp_per_ca(plant::Plant& P){
 	double ca_lai = std::max(P.geometry.crown_area * P.geometry.lai, 1e-12);
-	return P.assimilator.plant_assim.npp / ca_lai;
+	double npp_net_of_myco = P.assimilator.plant_assim.npp - P.geometry.C_export_to_myco;
+	return npp_net_of_myco / ca_lai;
 }
 
 
 std::vector<std::vector<double>> LifeHistoryOptimizer::run_with_relaxed_local_reopt_trajectory(
-    double start_year, double end_year, double reopt_dt,
+    double start_year, double end_year, double reopt_dt, double trial_horizon_years,
     double root_no_step_factor, double root_no_min, double root_no_max,
     double root_length_step_factor, double root_length_min, double root_length_max,
     double ecto_step, double ecto_min, double ecto_max,
@@ -433,6 +446,26 @@ std::vector<std::vector<double>> LifeHistoryOptimizer::run_with_relaxed_local_re
 	double n_eff = P.geometry.root_no;
 	double l_eff = P.geometry.root_length;
 
+	// Adaptive step sizes (2026-09-24): the *_step_factor/*_step arguments
+	// are now only the INITIAL step sizes -- each of the 4 traits' own step
+	// independently halves (see the shrink logic below, after each year's
+	// candidate is chosen) whenever the search stalls or oscillates at the
+	// current resolution. A permanently fixed step cannot converge to a
+	// point between grid levels: it can only ever bounce between its two
+	// nearest neighbours forever. Confirmed empirically (notes_root_no_
+	// belowground_economy.md section 22): ecto_allo/mycorrhized oscillated
+	// between adjacent fixed-step levels indefinitely, even started from an
+	// already-mature tree whose state was only slowly changing.
+	double n_step = root_no_step_factor, l_step = root_length_step_factor;
+	double e_step = ecto_step, m_step = mycorrhized_step;
+	const double n_step_floor = 1.0 + (root_no_step_factor - 1.0) / 16.0;
+	const double l_step_floor = 1.0 + (root_length_step_factor - 1.0) / 16.0;
+	const double e_step_floor = ecto_step / 16.0;
+	const double m_step_floor = mycorrhized_step / 16.0;
+	// Direction (-1/0/+1) the previous year's commit moved each trait,
+	// relative to that year's starting point; 0 = no prior move yet.
+	int n_dir = 0, l_dir = 0, e_dir = 0, m_dir = 0;
+
 	for (double yr = start_year; yr < end_year; yr += 1.0){
 		plant::Plant P_backup = P;
 		ErgodicEnvironment C_backup = C;
@@ -444,18 +477,35 @@ std::vector<std::vector<double>> LifeHistoryOptimizer::run_with_relaxed_local_re
 		double ecto_cur = P.traits.investment_from_tree;
 		double myco_cur = P.uptake.mycorrhized;
 
-		std::vector<double> n_levels = make_levels_mult(n_cur, root_no_step_factor, root_no_min, root_no_max);
-		std::vector<double> l_levels = make_levels_mult(l_cur, root_length_step_factor, root_length_min, root_length_max);
-		std::vector<double> e_levels = make_levels_add(ecto_cur, ecto_step, ecto_min, ecto_max);
-		std::vector<double> m_levels = make_levels_add(myco_cur, mycorrhized_step, mycorrhized_min, mycorrhized_max);
+		std::vector<double> n_levels = make_levels_mult(n_cur, n_step, root_no_min, root_no_max);
+		std::vector<double> l_levels = make_levels_mult(l_cur, l_step, root_length_min, root_length_max);
+		std::vector<double> e_levels = make_levels_add(ecto_cur, e_step, ecto_min, ecto_max);
+		std::vector<double> m_levels = make_levels_add(myco_cur, m_step, mycorrhized_min, mycorrhized_max);
 
 		double best_score = -1e300;
 		double best_rn = n_cur, best_rl = l_cur, best_eb = ecto_cur, best_myc = myco_cur;
 
 		// Trial scoring: steady-state destination value -- each candidate is
-		// applied INSTANTLY for the trial year (no relaxation here), judging
+		// applied INSTANTLY for the trial (no relaxation here), judging
 		// destinations fairly regardless of distance. The commit step below
 		// is what enforces the realistic gradual transition.
+		//
+		// Receding/rolling horizon (2026-09-23): each candidate is trialled for
+		// trial_horizon_years, not just one year, though only ONE real year is
+		// ever committed below (re-evaluated with a fresh lookahead next year) --
+		// standard rolling-horizon design, as in Model Predictive Control. Fixes
+		// a real myopia bug: with a 1-year trial, any investment that only pays
+		// off gradually (root_no/root_length via root_surface_area() -> N uptake
+		// -> the slow-accumulating tree_nitrogen state -> leaf N -> Vcmax/GPP;
+		// ectomycorrhiza_mass likewise, via dmyco_dt()) pays its full carbon
+		// cost in the trial year but can't show its return within that same
+		// year, so the search undervalues ANY slow-building belowground
+		// investment regardless of its true long-run payoff. Confirmed
+		// empirically at trial_horizon_years=1 after the C_export_to_myco fix
+		// (see npp_per_ca() above): ecto_allo collapsed to 0 and root_no
+		// collapsed to its floor even though the carbon cost was now correctly
+		// charged (notes_root_no_belowground_economy.md section 18) -- a
+		// symptom of trial horizon, not of the cost accounting.
 		for (double rn : n_levels)
 		for (double rl : l_levels)
 		for (double eb : e_levels)
@@ -469,7 +519,7 @@ std::vector<std::vector<double>> LifeHistoryOptimizer::run_with_relaxed_local_re
 
 			double score = 0.0;
 			bool failed = false;
-			for (double t = yr; t < yr + 1.0 - 1e-9; t += reopt_dt){
+			for (double t = yr; t < yr + trial_horizon_years - 1e-9; t += reopt_dt){
 				try {
 					grow_for_dt(t, reopt_dt);
 					score += npp_per_ca(P) * reopt_dt;
@@ -480,6 +530,33 @@ std::vector<std::vector<double>> LifeHistoryOptimizer::run_with_relaxed_local_re
 				best_rn = rn; best_rl = rl; best_eb = eb; best_myc = myc;
 			}
 		}
+
+		// Adaptive step-size update: shrink a trait's step (halved, floored
+		// at 1/16 of its initial value) whenever this year's winning choice
+		// either stalled at the centre (best == cur -- no improvement found
+		// at the current resolution) or reversed direction relative to last
+		// year's move (best on the opposite side of cur from where it moved
+		// last time -- the signature of oscillating between two fixed grid
+		// points straddling the true optimum). Continuing in the same
+		// direction as before leaves the step untouched, so genuine sustained
+		// progress isn't slowed down.
+		auto direction_of = [](double best, double cur) -> int {
+			if (best == cur) return 0;
+			return (best > cur) ? 1 : -1;
+		};
+		auto shrink_mult = [](double step, double floor){ return std::max(1.0 + (step - 1.0) * 0.5, floor); };
+		auto shrink_add  = [](double step, double floor){ return std::max(step * 0.5, floor); };
+
+		int n_new_dir = direction_of(best_rn, n_cur);
+		int l_new_dir = direction_of(best_rl, l_cur);
+		int e_new_dir = direction_of(best_eb, ecto_cur);
+		int m_new_dir = direction_of(best_myc, myco_cur);
+
+		if (n_new_dir == 0 || (n_dir != 0 && n_new_dir == -n_dir)) n_step = shrink_mult(n_step, n_step_floor);
+		if (l_new_dir == 0 || (l_dir != 0 && l_new_dir == -l_dir)) l_step = shrink_mult(l_step, l_step_floor);
+		if (e_new_dir == 0 || (e_dir != 0 && e_new_dir == -e_dir)) e_step = shrink_add(e_step, e_step_floor);
+		if (m_new_dir == 0 || (m_dir != 0 && m_new_dir == -m_dir)) m_step = shrink_add(m_step, m_step_floor);
+		n_dir = n_new_dir; l_dir = l_new_dir; e_dir = e_new_dir; m_dir = m_new_dir;
 
 		// Commit: restore to the true start-of-year state, apply the winning
 		// ecto_allo/mycorrhized instantly (no stock to relax), but relax

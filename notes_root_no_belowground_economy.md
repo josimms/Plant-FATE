@@ -774,6 +774,364 @@ no hard cap on `mycorrhized`), not an economic optimum the search actually found
 cap; whether Low/boreal-N colonisation actually wants to go all the way to 100% once uncapped is
 still an open question for next session.
 
+## 17. Session 2026-09-23 (cont.): resolved §15 — dynamic N=0.20 undershoots height because `npp_per_ca` has no interior optimum for ecto_allo, not a bug in roots/canopy/climate
+
+Chased the §15 question (why does dynamic N=0.20 reach only ~15.6m when the static calibration
+reaches ~17.8-18.25m, when both are nominally the same N?) all the way to ground. Ruled out, with
+direct evidence, in order:
+
+1. **Root-system relaxation / search-locality itself**: not implicated -- not retested directly
+   this session, but nothing below points at it.
+2. **Canopy self-shading (`ErgodicEnvironment::updateBackgroundCanopy`)**: checked directly via
+   `lho$env$canopy_openness`/`z_star` at several years -- `canopy_openness` is `1.0` (fully open,
+   zero shading) for essentially the entire 62-year static run (`n_layers=0` until 2020). Not the
+   cause of anything here; the earlier "self-referential crown_area shading" hypothesis (bigger
+   `crown_area` -> more computed background layers -> more self-shading, since
+   `PlantArchitecture::crown_area_extent_projected(0, traits)` literally returns the focal tree's
+   own `crown_area`, confirmed in `plant_architecture.cpp:61-66`) is real and worth remembering as
+   a structural property of this "ergodic" single-tree approximation, but it isn't what's driving
+   this particular discrepancy, since `n_layers=0` (no shading at all) almost throughout.
+3. **Weather file `Decimal_year` drift (major finding, separate bug)**: `data/ERAS_Monthly.csv`'s
+   `Decimal_year` column drifts from true calendar time by up to **-0.92 years by 2022** (linear,
+   ~-0.0146/yr, consistent with the file having been generated assuming 360-day years instead of
+   365.25 -- 360/365.25=0.9856, matching the drift rate almost exactly). Since `ClimateStream`
+   looks up weather by `Decimal_year`, this causes simulated "July" queries to increasingly
+   retrieve wrong-season (often winter) records as a run progresses -- directly reproduced: a
+   fixed-trait run's logged `ppfd` in July swings 298->159->86->26->**5.5**->19->168->281->495
+   across 1965-2020 despite `canopy_openness=1` throughout (i.e., no shading involved -- this is
+   pure wrong-row retrieval). **This is a real, serious, separate bug affecting every simulation in
+   the repo that uses this weather file**, static or dynamic, and is very likely the actual
+   explanation for the synchronized 1966-1985 GPP crash noted in §12 and the original §10.5
+   mystery ("ppfd doesn't match the raw weather file"). **Not yet fixed, per Joanna's instruction
+   this session** ("just note it, keep digging on height") -- flagged here as a priority independent
+   fix. **Crucially, ruled out as the static-vs-dynamic differentiator**: directly tested whether
+   `ClimateStream`/`flare::Stream`'s lookup is order-independent (queried the same t-range 5x
+   non-monotonically, as the reopt's candidate trials do, before continuing) -- identical result to
+   a single monotonic pass. So both runs see *exactly* the same (buggy) climate at matching `t`;
+   this drift cannot explain why they diverge from *each other*, only why both diverge from reality.
+4. **Starting root_length0 mismatch** (Phase 2 scripts use `root_override(3e5, 1.24)`, vs. the
+   ini's `root_length0=2.0`): tested in isolation (static run, ini defaults except
+   `root_length0=1.24`) -- costs only ~0.75m (18.25m -> 17.50m). Real, but far too small to explain
+   the ~2.5-2.8m gap on its own.
+5. **`ecto_allo` (carbon fraction to mycorrhizae) -- the actual answer.** The dynamic Phase 2 run's
+   `ecto_allo` trajectory sits pinned at ~0.25-0.30 most years (vs. the calibration's fixed 0.2).
+   Tested in isolation: static run, ini defaults except `ecto_allo=0.3` -> **15.79m** (a 2.46m
+   drop, almost the *entire* observed gap on its own). Combined with the root_length0 starting
+   point (`ecto_allo=0.3` + `root_length0=1.24`) -> **15.61m**, matching the real dynamic run's
+   trajectory (~15.0-15.6m) almost exactly. This is a clean, complete, reproduced explanation.
+
+**Why `ecto_allo` sits at 0.3: it's pinned at the search's arbitrary `ecto_max=0.3` ceiling, and
+raising the ceiling makes it worse, not better.** Tested directly (Joanna's request): reran N=0.20
+with `ecto_max` raised to `1.0` (`vignettes/scratchpad` diagnostic, not saved in repo -- rerun from
+this description if needed). Result: `ecto_allo` climbs **monotonically, one search-step (+0.05)
+per year, with no interior optimum**, from 0.25 in 1960 all the way to **1.00 by 1978** and stays
+pinned at the true mathematical ceiling from then on -- while height *flatlines* at 5.96m from
+1978 onward (the tree retains zero carbon for its own structure once `ecto_allo=1.0`, so it simply
+stops growing). This is not a mild bias toward over-investment; **the `npp_per_ca` objective
+(NPP / (crown_area*lai)) has no interior optimum for `ecto_allo` at all** -- it's a per-unit-leaf-
+area efficiency metric, and the search can always inflate that ratio by diverting more carbon to
+fungi rather than growing crown area, since a stalled/shrinking denominator combined with any
+residual carbon still scores as "efficient," all the way to total carbon starvation. The
+`ecto_max=0.3` cap wasn't holding back a legitimate optimum -- it was accidentally masking a
+genuinely degenerate objective function.
+
+**Implication, not yet acted on:** this calls into question the `ecto_allo` (and, since ecto_allo
+directly competes with root investment for the same NPP pool, quite possibly also the `root_no`)
+trajectories from every Phase 2 run generated this session (§12-§16), not just the N=0.20
+calibration comparison -- since they all use the same `npp_per_ca` trial-scoring objective. The
+`root_no` "no longer collapses to the floor" result (§12) may still be directionally real (it was
+also confirmed under constant climate, §14, ruling out pure climate-noise as the cause), but the
+*absolute* trait values chosen, especially `ecto_allo`, should not be trusted until the objective
+is fixed. Two live options for next session: (a) revert `ecto_max` toward something closer to the
+ini's own 0.2 (the ini comment describes 0.2 as itself sourced as a literature "maximum," within
+CASSIA bounds, Ryhti 2022 -- so 0.3 may already have been pushing past a literature-defensible
+ceiling even before this test), purely as a stopgap; (b) the real fix -- switch the trial-scoring
+objective from `npp_per_ca` to something that tracks the manuscript's actual stated fitness
+criterion (tree height, or `F_net` as defined in MAIN.tex's Tree Fitness section) instead of a
+per-leaf-area efficiency ratio that has no reason to prefer bigger trees over "thinner but more
+efficient" ones.
+
+## 18. Session 2026-09-23 (cont.): fixed the ecto_allo accounting bug (committed-pending) -- but it exposed a deeper, still-unresolved problem
+
+Per Joanna's choice ("corrected NPP-per-area"), fixed `npp_per_ca` (`src/life_history.cpp`) to
+subtract `P.geometry.C_export_to_myco` from `P.assimilator.plant_assim.npp` before dividing by
+crown_area*lai -- confirmed via `plant.tpp:169-186` that `plant_assim.npp` is computed *before* the
+mycorrhizal export is deducted (the tree's own growth actually uses `npp - npp_exudates`), so the
+old scoring genuinely never charged ecto_allo's carbon cost at all. Rebuilt; re-ran the same
+ecto_max=1.0 diagnostic from §17: **confirmed fixed** -- `ecto_allo` now drops to exactly 0 by 1967
+and stays there (opposite extreme from the old runaway-to-1.0), `mycorrhized` declines in step
+(0.90->0.25 by 20 years), and height at 20 years is 7.71m vs. the old broken-objective/uncapped
+result's 5.96m. The "free lunch" is genuinely gone.
+
+**But the full 62-year N=0.20 run with the fixed objective is WORSE overall, not better:**
+
+| | Height (end of run) | root_no (end) |
+|---|---|---|
+| Static calibration | 18.25m | 300,000 (fixed) |
+| Dynamic, old broken objective (§12, ecto_max=0.3) | ~15.6m | 130k-200k |
+| **Dynamic, fixed objective (this section)** | **11.32m** | **2,679** (collapsed near the 1e3 floor) |
+
+With ecto_allo correctly costed, it (and `mycorrhized`) correctly collapse toward 0 -- but `root_no`
+*also* now collapses hard, all the way from 247,501 (1960) down to 2,679 by 1990 and stays pinned
+there. **This is the §10.1/§10.3 root_no-collapse-to-floor failure mode, back in force.** It had
+looked resolved once the `u_transfer` calibration bug was fixed (§12) -- but that was a false
+resolution: the OLD broken `npp_per_ca` was over-rewarding `ecto_allo`, and the resulting
+(illegitimate, cost-free) extra nitrogen supply was propping up growth enough that the search
+didn't need real root investment either. Two errors were cancelling. Fixing one exposed the other.
+
+**Leading hypothesis, consistent with §10.3's original suspicion:** the search scores each
+candidate on a *single* simulated trial year, judged "as if already at steady state" (see
+`run_with_relaxed_local_reopt_trajectory`'s trial-scoring comment in `inst/include/life_history.h`).
+Any investment that only pays off gradually -- `root_no`/`root_length` (via `root_surface_area()`
+-> N uptake -> the genuinely slow-accumulating `tree_nitrogen` state -> leaf N -> Vcmax/GPP,
+already flagged in §10.3) and now clearly also `ecto_allo`/`ectomycorrhiza_mass` (a real,
+gradually-accumulating state variable, `dmyco_dt`) -- pays its full carbon cost *immediately* in
+the trial year, but the trial can't see the benefit maturing beyond that single year. A correctly-
+costed but still single-year-horizon search should be expected to systematically undervalue *any*
+slow-building belowground investment, which is exactly what's observed now that nothing is left
+artificially propping root_no up.
+
+**Not yet fixed.** Two live options, neither attempted yet: (a) lengthen the trial horizon (score
+each candidate over several simulated years, not one -- directly costed in runtime, ~n_years-fold
+more expensive per year of search); (b) promote root_mass/root_surface_area to genuine state
+variables with their own construction lag (mirroring the §10.2 fix already applied to
+ectomycorrhiza_mass), so a trial's *cost* is also amortised gradually rather than paid in full
+immediately -- a bigger structural change. Paused here, per Joanna, to decide direction before
+proceeding further.
+
+**Status of the fix itself:** the `npp_per_ca` C_export_to_myco fix (`src/life_history.cpp`) is
+correct and should be kept/committed regardless of how the deeper trial-horizon issue is resolved
+-- it fixes a real, unambiguous accounting bug. It did not cause the root_no collapse; it removed
+a masking cancellation and made a pre-existing, deeper problem visible.
+
+**Visual confirmation, `vignettes/plot_fixed_objective_comparison_N020.R` ->
+`vignettes/plots/dynamic/phase2_relaxed_refixed/fixed_objective_comparison_N020.png`** (static vs.
+old-objective dynamic vs. fixed-objective dynamic, N=0.20, 8 panels). Caught something the summary
+numbers above missed: **`root_length` also gets driven to its own search ceiling** (6mm, hit by
+1975 and pinned there) under the fixed objective, on top of `root_no` collapsing and
+`ecto_allo`/`mycorrhized` correctly going to 0. With the ecto_allo/mycorrhized escape valves
+closed off, the search found a third lever (root length) and rode that to its ceiling instead of
+settling at a real interior optimum -- further evidence this is a structural single-year-horizon
+problem, not something specific to `ecto_allo` alone: whatever trait dimension remains gameable
+gets pinned to whatever cap is set on it.
+
+## 19. Session 2026-09-23 (cont.): implemented and validated the receding-horizon trial fix
+
+Per Joanna's direction (and her sharp point that scoring by height wouldn't have fixed anything,
+since height in a single trial year is just a delayed proxy for that year's NPP -- the real issue
+is the trial *horizon*, not which flow gets scored), implemented a receding/rolling horizon for
+`run_with_relaxed_local_reopt_trajectory` (Model Predictive Control-style): added a
+`trial_horizon_years` parameter: each of the 81 joint candidates is now trialled for
+`trial_horizon_years` simulated years (not just one) before scoring, but still only ONE real year
+is ever committed per outer loop iteration -- re-evaluated with a fresh lookahead next year. This
+gives slow-building investments (root_no/root_length via the genuinely-integrated `tree_nitrogen`
+state; `ectomycorrhiza_mass` via `dmyco_dt()`) a chance to show their return within the trial
+before being judged, rather than only ever seeing their immediate cost.
+
+Code: `inst/include/life_history.h` / `src/life_history.cpp` (new parameter inserted after
+`reopt_dt`, before the step-size args); call sites updated in `run_phase2_relaxed_reopt.R`,
+`run_phase2_sensitivity_root_no0.R`, `run_phase2_sensitivity_root_no0_constclimate.R` (all set
+`trial_horizon_years <- 3`). `vignettes/sensitivity_spinup.R` (older, unmaintained script) NOT
+updated -- will break if run, matching how other superseded scripts have been left alone this
+session.
+
+**Validated with a short test (N=0.20, 1960-1976, trial_horizon_years=3) -- clean, complete
+success.** All three "escape valve" pathologies found at horizon=1 (post the §18 C_export_to_myco
+fix) are gone simultaneously:
+
+| | horizon=1 (post-§18 fix) | **horizon=3** | Static calibration |
+|---|---|---|---|
+| ecto_allo | 0 (collapsed) | **0.05-0.10** (genuine interior value) | 0.2 (fixed) |
+| mycorrhized | 0 (collapsed) | **0.85-1.00** | 0.9 (fixed) |
+| root_no | collapsed toward floor | **250k-740k** (healthy range) | 300,000 (fixed) |
+| root_length | pinned at the 6mm ceiling | **1.4-2.2mm** (interior) | 2.0mm (fixed) |
+| height @ 1976 | ~7.2m | **8.80m** | ~8.1-8.9m (interpolated) |
+
+Height now tracks right on top of the static calibration at this checkpoint. Confirms the §18
+diagnosis was correct: it really was the single-year trial horizon, not the cost accounting
+itself (which was already correct after §18's fix).
+
+**Cost:** ~3x slower than horizon=1 (7.9 min for 16 years vs. ~2-4 min at horizon=1 for a
+similar window) -- expected, since each candidate's lookahead now simulates 3x as many years. A
+full 62-year run per N level takes ~25-30 min; both 18-run sensitivity sweeps would add several
+more hours. **Decision (Joanna):** regenerate just the 3 main full-length N-level runs and the 5
+main figures for now (~75 min); hold off on the sensitivity sweeps.
+
+## 20. Session 2026-09-23 (cont.): full 62-year confirmation -- receding horizon resolves the original §15 question
+
+Reran the 3 main N-level Phase 2 runs at full length (1960-2022, `trial_horizon_years=3`), per
+Joanna's scoped choice (main runs only, sensitivity sweeps deferred). ~18-19 min per N level
+(3x the horizon=1 cost, as expected). Old horizon=1 results archived to
+`vignettes/plots/dynamic/phase2_relaxed_refixed/horizon1_archive/`. Figures regenerated:
+`fig3_annual_trajectories.png`, `fig4_cross_section_accessibleN.png`, `fig5_CN_exchange_cost.png`,
+`diagnostic_root_no_actual_vs_target.png`, `phase2_timebased_key_trajectories.png`.
+
+**Result: this resolves §15, the original question that started this whole thread.** Final
+heights (2018/2022): N=0.15 -> ~17m, N=0.20 (boreal calib.) -> ~20.3m, N=2.00 -> ~23.4m. The
+static calibration (§11) reaches 18.25m at N=0.20 by 2022 -- the dynamic run is now directly
+comparable, not several metres short. No more collapse-to-floor, no more ceiling-pinning on any
+trait, at any N level, for the full 62 years:
+
+- **root_no**: stays healthy (300k-1.5M) for N=0.15/0.20 the entire run -- no collapse. For
+  N=2.00 it does decline substantially (down to ~4-5k by 2000+), but settles at a genuine
+  interior value well above the 1e3 floor, not pinned there.
+- **ecto_allo**: fluctuates in a sensible 0-10% range for N=0.15/0.20 (never permanently 0, never
+  at the ceiling) -- ends at 0% for N=2.00 by ~1970 and stays there.
+- **mycorrhized**: stays high (90-100%) for N=0.15/0.20 throughout, matching the ini's own
+  literature default (0.9, Taylor et al. 2000) and general boreal ECM prevalence -- declines
+  toward 0 for N=2.00 by ~2000.
+- **root_length**: mostly interior (1-5mm) for N=0.15/0.20; N=2.00 still touches the 6mm ceiling
+  during 1985-2010 before retreating back to ~2mm by 2018 -- the one trait that still shows some
+  ceiling-seeking behaviour, worth another look if this thread is revisited, but no longer
+  breaking the overall result.
+
+This is a coherent, ecologically sensible story matching real boreal ECM biology: sustained heavy
+mycorrhizal investment under N limitation, tapering off once soil N is abundant enough that direct
+root uptake suffices -- the pattern the whole multi-session investigation (starting from the
+original Fig. 4 question, sections 1-9) was originally looking for, now finally visible without
+being confounded by the `u_transfer` calibration bug (§11), the `N_bar_static` divergence (§13),
+the ecto_allo accounting bug (§18), or the single-year trial myopia (§19) that were each masking
+or distorting it in turn.
+
+**Follow-up, same session: built a direct delayed-vs-not-delayed comparison figure** across all 3
+N levels (`vignettes/plot_horizon_comparison.R` ->
+`vignettes/plots/dynamic/phase2_relaxed_refixed/horizon_comparison_delayed_vs_not.png`, 8 panels,
+colour=N level, linetype=horizon). Data: `horizon1_archive/main_N_*.csv` (fixed objective, not
+delayed) vs. the new `main_N_*.csv` (fixed objective, delayed). This makes the fix's value visible
+directly: panel (e) ECM colonisation is the starkest -- under "not delayed" it collapses toward 0
+for *every* N level including Low/boreal, while "delayed" correctly sustains ~90-100% for Low/
+boreal and only drops it at High N (the ecologically sensible pattern). Panel (c) root_length shows
+both horizons touch the 6mm ceiling early on, but "delayed" recovers to interior values afterward
+while "not delayed" (N=0.20, green dashed) stays pinned at the ceiling for the entire 62 years --
+so the ceiling-touching issue is itself partly a manifestation of insufficient horizon, not fully
+independent of it.
+
+**Sensitivity sweeps completed** (18 runs total, `trial_horizon_years=3`; old horizon=1 CSVs
+archived to `horizon1_archive/sens/`): `sensitivity_starting_root_no0.png` (real climate,
+~8.5 min/run) and `sensitivity_starting_root_no0_constant_climate.png` (constant climate,
+~12 min/run, slower -- more solver iterations under the repeated seasonal cycle). Both confirm the
+main-run result robustly, regardless of starting `root_no0` and regardless of climate: `mycorrhized`
+stays ~90-100% for N=0.15/0.20, root tip density stays healthy (10^5-10^6), height is essentially
+insensitive to the starting point, and at N=2.00 colonisation/root density genuinely decline (not
+a climate-noise artifact -- confirmed again under fully constant forcing).
+
+## 21. Session 2026-09-23/24 (cont.): "constant climate" doesn't hold light constant -- checked, decline survives anyway
+
+Joanna's sharp catch: the §14/§20 "constant climate" tests only repeat the raw weather (temp/VPD/
+PPFD/SWP) -- they do NOT hold the *light environment* constant, because `ErgodicEnvironment::
+updateBackgroundCanopy` (`src/life_history.cpp:19-23`) computes the background stand's closure
+density as a function of *elapsed calendar time* (`density(t) = bg_density_eq + (bg_density_ini -
+bg_density_eq)*exp(-(t-bg_t0)/bg_tau)`, ini: `bg_canopy_density_ini=0.0, bg_canopy_density_eq=0.1,
+bg_canopy_tau=25, bg_canopy_t0=1960`), independent of weather. By 20 simulated years in,
+`density(1980) ~= 0.055` -- already more than halfway to equilibrium -- so the self-shading
+environment genuinely changes over exactly the window tested, regardless of weather. (The tree's
+own growing `crown_area` also feeds into the same self-shading calculation, but that's a real,
+intended consequence of the tree's own growth, not an external confound to remove.)
+
+**Test: froze the succession dynamic too** (`bg_canopy_density_eq = bg_canopy_density_ini = 0.0`,
+i.e. density(t)=0 for the whole run, no background canopy ever -- first tried freezing at the
+*equilibrium* value 0.1 instead, which crashed with `vector::_M_default_append`, a numerical edge
+case in `updateBackgroundCanopy` from starting a young, tiny-crowned tree under full mature-stand
+density from year 1; freezing at 0 avoids this by permanently taking the safe `density<=0` guard
+branch). Reran the N=2.00 sensitivity case (3 starting `root_no0`, constant-climate weather,
+`trial_horizon_years=3`) with this frozen-canopy ini and compared directly against the existing
+(non-frozen) constant-climate N=2.00 result.
+Script: `/tmp/.../scratchpad/run_frozen_canopy_N200.R` (not saved in repo -- scratch only);
+figure: `vignettes/plots/dynamic/phase2_relaxed_refixed/frozen_canopy_N2.00_comparison.png`.
+
+**Result: the two conditions are visually identical** across root_no, root_length, ecto_allo,
+mycorrhized, and height, for all three starting points. Removing the background-canopy succession
+dynamic entirely makes no detectable difference. This confirms the N=2.00 decline is genuinely
+driven by the tree's own soil-N economics (and its own self-shading as it grows, which is real,
+not confounded), not by the closing background canopy coinciding with elapsed time. The "not a
+climate artifact" conclusion from §14/§20 now rests on solid ground rather than an incomplete
+control.
+
+## 22. Session 2026-09-24: Test A (mature-tree start) revealed fixed-step oscillation; implemented adaptive step-size shrinking -- clean fix
+
+Joanna's follow-up to section 21: designed two convergence tests to separate "the model/tree takes
+time to grow" from "the solver takes time to find its answer" -- Test A (start the search from an
+already-mature tree grown under fixed traits via a plain `grow_for_dt` loop, no search involved, so
+Phase 1 is cheap; then switch on the search and watch how fast it settles) and Test B (refine the
+search's own grid resolution/step sizes and check the answer stops changing).
+
+**Test A, run first** (N=2.00, frozen-canopy + constant-climate setup from section 21; Phase 1:
+40 years under fixed static-default traits reaching 22.67m/64.8% of hmat=35m; Phase 2: switch on
+`run_with_relaxed_local_reopt_trajectory`, `trial_horizon_years=3`, for 15 more years). Result:
+even from this already-mostly-mature tree, `root_length` kept climbing for the entire 15-year
+window (2.0mm -> 5.7mm, never settling) and `ecto_allo`/`mycorrhized` never settled at all --
+they oscillated indefinitely between adjacent fixed grid levels (ecto_allo bouncing through
+0/0.05/0.10/0.15; mycorrhized through 0.85/0.90/0.95). Since the tree's size was only changing
+slowly by this point, ontogeny alone could not explain this -- pointed at the search algorithm
+itself: `root_no_step_factor`/`root_length_step_factor`/`ecto_step`/`mycorrhized_step` are FIXED
+for the entire run (passed in once, never adapted), so if the true continuous optimum for a trait
+falls between two grid levels, the search can only ever bounce between its two nearest neighbours
+-- it structurally cannot converge to a point between grid points. (Also caught and fixed a bug in
+this session's own diagnostic script: comparing two `get_state()` calls after a loop had already
+finished doesn't retrieve historical state -- `get_state()` just reads current fields regardless of
+the `t` argument passed, so a "height increment = 0" line in the raw log output is a script
+artifact, not a real result.)
+
+**Fix: adaptive step-size shrinking**, standard pattern-search design (Hooke-Jeeves / generalised
+pattern search step-halving-on-failure). Implemented in `run_with_relaxed_local_reopt_trajectory`
+(`src/life_history.cpp`, `inst/include/life_history.h`): the four step-size parameters are now only
+INITIAL values, not fixed for the whole run. Each trait's step independently halves (floored at
+1/16 of its initial value) whenever that year's winning choice either stalls at the centre (no
+improvement found at the current resolution) or reverses direction relative to the previous year's
+move (the direct signature of oscillating between two grid points straddling the true optimum).
+Continuing in the same direction as before leaves the step untouched, so genuine sustained progress
+isn't slowed. No new R-facing parameters or logged columns -- fully internal to the method, existing
+call sites and CSV schemas unchanged.
+
+**Validated by rerunning the identical Test A** with the fix. Clean, complete success -- no trait
+oscillates or runs away anymore:
+
+| Trait | Fixed step (before) | Adaptive step (after) |
+|---|---|---|
+| ecto_allo | oscillates 0/0.05/0.10/0.15 forever | converges to ~6.9% by year 7.5, stable 7+ years |
+| mycorrhized | oscillates 0.85-0.95 forever | smoothly settles to ~86.5% by year ~11, stable after |
+| root_length | climbs unboundedly toward the 6mm ceiling (2.0->5.7mm in 14.5yr) | stays in a modest 1.97-2.26mm band, no runaway |
+| root_no | wild non-monotonic swings (300k->75k->146k->112k) | settles to a flat plateau at ~258,840 by year 13.4 |
+
+**Implication for earlier sections:** the "root_length pinned at the 6mm ceiling" artifact seen in
+the full 62-year N=2.00 main run (section 20) was very likely itself a symptom of the fixed-step
+search's inability to converge, not a genuine economic optimum at the ceiling -- worth rerunning
+the full main runs (and sensitivity sweeps) with the adaptive-step fix to check whether that
+episode disappears. **Not yet done this session** -- next step.
+
+## 23. Session 2026-09-24 (cont.): full 62-year confirmation of the adaptive step-size fix -- corrects an earlier over-strong claim
+
+Reran the 3 main N-level Phase 2 runs at full length with the adaptive step-size fix (section 22).
+Runtime was uneven: N=0.15 and N=0.20 took ~30 min each (vs. ~18-19 min at fixed step, section 20 --
+some slowdown expected, the search now does extra work shrinking/retrying), but **N=2.00 took
+168 minutes** -- a large, unexplained outlier worth watching if this method is rerun again; not
+investigated further this session. Figures regenerated in `phase2_relaxed_refixed/` (old
+fixed-step results archived to `fixedstep_archive/`).
+
+**Result: clean across the board, and one real correction to an earlier conclusion.**
+
+- **Root_length ceiling artifact is gone entirely.** All three N levels now stay in a modest,
+  smoothly-varying 1.0-2.6mm range for the full 62 years -- no more pinning at the 6mm ceiling at
+  any point for any N level (contrast section 20's N=2.00 run, which sat at the ceiling for
+  1985-2010 before retreating). Directly confirms the section 22 prediction that this was a
+  fixed-step search artifact, not genuine economics.
+- **root_no and ecto_allo trajectories are markedly cleaner** -- smooth, close-to-monotonic trends
+  (root_no climbing toward ~1e6 for N=0.15/0.20, declining smoothly for N=2.00) replacing the
+  noisy non-monotonic zigzagging seen under the fixed-step search.
+- **Correction to an earlier claim (sections 12/20): mycorrhized at N=2.00 does NOT collapse to
+  0%.** It plateaus at ~70-75% instead. `ecto_allo` (new carbon investment) does still trend
+  toward ~0% at high N -- that part of the story holds -- but the *existing* colonisation fraction
+  settles at a substantial, non-trivial level rather than vanishing. The earlier "tree essentially
+  abandons the mycorrhizal partnership entirely at high N" framing (used in sections 12, 17, 20)
+  was too strong and was itself partly a fixed-step-search artifact. The corrected, more moderate
+  result (reduced new investment, but sustained partial colonisation) is also more biologically
+  plausible.
+
+**Not yet done:** rerunning the two sensitivity-to-starting-root_no0 sweeps with the adaptive-step
+fix (would take several more hours, especially given the N=2.00 runtime outlier above) -- deferred.
+`vignettes/plot_horizon_comparison.R`-style before/after comparison figures for the step-size fix
+specifically (analogous to the delayed-vs-not-delayed figure from section 20) also not yet built.
+
 ## Where to start next
 
 1. **§10.6 is the most important open thread**: the fixed-trait replication (exact manuscript

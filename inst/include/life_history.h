@@ -137,6 +137,38 @@ class LifeHistoryOptimizer{
 	// (they gate a flow/fraction, not a standing stock) -- committed
 	// instantly as in the other methods.
 	//
+	// trial_horizon_years (2026-09-23): each candidate is trialled for this
+	// many simulated years (not just one) before scoring -- a receding/
+	// rolling horizon, as in Model Predictive Control: only ONE real year is
+	// ever committed per outer loop iteration (re-evaluated with a fresh
+	// lookahead next year), but the lookahead itself runs trial_horizon_years
+	// years so investments that only pay off gradually (root_no/root_length,
+	// ectomycorrhiza_mass) get a chance to show their return before being
+	// judged. With trial_horizon_years=1 (the original behaviour), any such
+	// investment pays its full carbon cost in the trial year but can't show
+	// its benefit within that same year, so the search undervalues ALL
+	// slow-building belowground investment regardless of its true long-run
+	// payoff -- confirmed empirically (notes_root_no_belowground_economy.md
+	// section 18): after fixing npp_per_ca() to correctly charge
+	// C_export_to_myco, ecto_allo collapsed to 0 and root_no collapsed to its
+	// floor even with the cost now correctly priced.
+	//
+	// root_no_step_factor/root_length_step_factor/ecto_step/mycorrhized_step
+	// (2026-09-24) are now only the INITIAL step sizes for each trait, not
+	// fixed for the whole run. Each trait's step independently halves
+	// (floored at 1/16 of its initial value) whenever that year's winning
+	// choice stalls at the centre (no improvement found at the current
+	// resolution) or reverses direction relative to the previous year's move
+	// -- the signature of oscillating between two fixed grid points that
+	// straddle the true optimum. A permanently fixed step cannot converge to
+	// a point between grid levels; it can only ever bounce between its two
+	// nearest neighbours forever. Confirmed empirically
+	// (notes_root_no_belowground_economy.md section 22): with a fixed step,
+	// ecto_allo/mycorrhized oscillated between adjacent levels indefinitely,
+	// even starting from an already-mature tree with a slowly-changing
+	// state, ruling out ontogeny as the sole explanation for the multi-year
+	// settling time seen in earlier sections.
+	//
 	// Logs one row per reopt_dt step: get_state() columns (root_no/
 	// root_length here reflect n_eff/l_eff, the smoothed values), then
 	// trailing ecto_allo, mycorrhized, root_no_target, root_length_target
@@ -144,7 +176,7 @@ class LifeHistoryOptimizer{
 	// -- compare against the get_state() root_no/root_length columns to see
 	// the relaxation lag directly).
 	std::vector<std::vector<double>> run_with_relaxed_local_reopt_trajectory(
-	    double start_year, double end_year, double reopt_dt,
+	    double start_year, double end_year, double reopt_dt, double trial_horizon_years,
 	    double root_no_step_factor, double root_no_min, double root_no_max,
 	    double root_length_step_factor, double root_length_min, double root_length_max,
 	    double ecto_step, double ecto_min, double ecto_max,
