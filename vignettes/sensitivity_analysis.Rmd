@@ -34,7 +34,7 @@ start_year    <- 1960
 end_year      <- if (testing_mode) 1985 else 2022
 dt            <- 1/12
 
-soil_n_default <- 0.405   # kg N m⁻³ — N_s default from p_test_boreal.ini
+soil_n_default <- 0.20    # kg N m⁻³ — calibrated boreal N level (matches the static calibration used elsewhere in the paper; NOT the raw ini N_s of 1.03, which is overridden everywhere via set_soil_nitrogen())
 
 pub_fig_dir <- here::here("manuscript/oup-authoring-template/Figures")
 perturb_frac   <- 0.10    # ±10% of |baseline|
@@ -58,6 +58,19 @@ output_labels <- c(
   gpp_ca                      = "GPP / crown area (kg C m⁻² yr⁻¹)"
 )
 
+# Read a numeric value straight from the ini file by key name, rather than
+# hardcoding it here -- hardcoded baselines silently drifted out of sync
+# with p_test_boreal.ini for 10 of 32 parameters (e.g. u_transfer: this
+# table had 0.026, the pre-revert per-tip value cited in the ini's own
+# comment, while the calibration has used 6e-3 since 2026-09-23), which
+# meant those parameters' +/-10% perturbations were centred on the wrong
+# baseline and their sensitivity indices were not meaningful.
+ini_lines <- readLines(param_file)
+read_ini_val <- function(key) {
+  line <- grep(paste0("^", key, "\\s*="), ini_lines, value = TRUE)[1]
+  if (is.na(line)) stop("ini key not found: ", key)
+  as.numeric(sub(paste0("^", key, "\\s*=\\s*([0-9.eE+\\-]+).*"), "\\1", line))
+}
 ```
 
 ## Parameter definitions
@@ -67,72 +80,121 @@ Parameters are grouped by process; baselines match `p_test_boreal.ini`.
 ```{r param_definitions}
 params <- list(
   # --- Photosynthesis ---
-  list(struct = "par0",    field = "kphio",               label = "Quantum yield (kphio)",          group = "Photosynthesis", baseline = 0.08),
-  list(struct = "par0",    field = "alpha",               label = "Photo. capacity cost (α)",       group = "Photosynthesis", baseline = 0.1008),
-  list(struct = "par0",    field = "alpha_ib",            label = "I_b scale param (alpha_ib)",     group = "Photosynthesis", baseline = 0.05),
-  list(struct = "par0",    field = "gamma",               label = "Hydraulic path cost (γ)",        group = "Photosynthesis", baseline = 0.1805),
-  list(struct = "par0",    field = "a_jmax",              label = "Jmax:Vcmax scaling (a_jmax)",    group = "Photosynthesis", baseline = 3600),
+  list(struct = "par0",    field = "kphio",               label = "Quantum yield (kphio)",          group = "Photosynthesis"),
+  list(struct = "par0",    field = "alpha",               label = "Photo. capacity cost (α)",       group = "Photosynthesis"),
+  list(struct = "par0",    field = "alpha_ib",            label = "I_b scale param (alpha_ib)",     group = "Photosynthesis"),
+  list(struct = "par0",    field = "gamma",               label = "Hydraulic path cost (γ)",        group = "Photosynthesis"),
+  list(struct = "par0",    field = "a_jmax",              label = "Jmax:Vcmax scaling (a_jmax)",    group = "Photosynthesis"),
   # --- Plant traits ---
-  list(struct = "traits0", field = "lma",                 label = "Leaf mass per area (LMA)",       group = "Plant traits",   baseline = 0.086),
-  list(struct = "traits0", field = "hmat",                label = "Max height (hmat, m)",           group = "Plant traits",   baseline = 35),
-  list(struct = "traits0", field = "wood_density",        label = "Wood density (kg m⁻³)",          group = "Plant traits",   baseline = 412),
-  list(struct = "traits0", field = "p50_xylem",           label = "Xylem P50 (MPa)",                group = "Plant traits",   baseline = -7),
-  list(struct = "par0",    field = "nc_leaf",             label = "Leaf N:C ratio (nc_leaf)",       group = "Plant traits",   baseline = 0.009615385),
-  list(struct = "par0",    field = "nc_root",             label = "Root N:C ratio (nc_root)",       group = "Plant traits",   baseline = 0.02),
-  list(struct = "par0",    field = "les_u",               label = "LES efficiency (les_u)",         group = "Plant traits",   baseline = 35.28),
+  list(struct = "traits0", field = "lma",                 label = "Leaf mass per area (LMA)",       group = "Plant traits"),
+  list(struct = "traits0", field = "hmat",                label = "Max height (hmat, m)",           group = "Plant traits"),
+  list(struct = "traits0", field = "wood_density",        label = "Wood density (kg m⁻³)",          group = "Plant traits"),
+  list(struct = "traits0", field = "p50_xylem",           label = "Xylem P50 (MPa)",                group = "Plant traits"),
+  list(struct = "par0",    field = "nc_leaf",             label = "Leaf N:C ratio (nc_leaf)",       group = "Plant traits"),
+  list(struct = "par0",    field = "nc_root",             label = "Root N:C ratio (nc_root)",       group = "Plant traits"),
+  list(struct = "par0",    field = "les_u",               label = "LES efficiency (les_u)",         group = "Plant traits"),
   # --- ECM / mycorrhiza ---
-  list(struct = "traits0", field = "investment_from_tree",          label = "ECM C allocation fraction",         group = "ECM", baseline = 0.2),
-  list(struct = "traits0", field = "mycorrhizal_turnover",          label = "ECM turnover rate (yr⁻¹)",         group = "ECM", baseline = 0.5),
-  list(struct = "traits0", field = "nc_myco",                       label = "ECM N:C ratio (nc_myco)",           group = "ECM", baseline = 0.085),
-  list(struct = "traits0", field = "mycorrhizal_biomass_conversion",label = "ECM biomass conversion (kg kg⁻¹)", group = "ECM", baseline = 2.27),
-  list(struct = "uptake0", field = "rho_myco",                      label = "ECM tissue density (kg m⁻³)",      group = "ECM", baseline = 300),
-  list(struct = "uptake0", field = "myco_diameter",                  label = "Hyphal diameter (m)",              group = "ECM", baseline = 2e-5),
-  list(struct = "uptake0", field = "investment_from_mycorrhiza",     label = "ECM N return fraction",            group = "ECM", baseline = 0.2),
+  list(struct = "traits0", field = "mycorrhizal_turnover",          label = "ECM turnover rate (yr⁻¹)",         group = "ECM"),
+  list(struct = "traits0", field = "nc_myco",                       label = "ECM N:C ratio (nc_myco)",           group = "ECM"),
+  list(struct = "traits0", field = "mycorrhizal_biomass_conversion",label = "ECM biomass conversion (kg kg⁻¹)", group = "ECM"),
+  list(struct = "uptake0", field = "rho_myco",                      label = "ECM tissue density (kg m⁻³)",      group = "ECM"),
+  list(struct = "uptake0", field = "myco_diameter",                  label = "Hyphal diameter (m)",              group = "ECM"),
+  list(struct = "uptake0", field = "investment_from_mycorrhiza",     label = "ECM N return fraction",            group = "ECM"),
+  # --- Optimised traits (phi_m, n, l, m; jointly re-solved each year by
+  # the local pattern search, Section "Tree Fitness" -- perturbed here at
+  # their static/initial ini values, as in the static calibration) ---
+  list(struct = "traits0", field = "investment_from_tree", label = "ECM C allocation fraction (φₘ)",     group = "Optimised traits"),
+  list(struct = "par0",    field = "root_no0",             label = "Root tip density (n, root_no0)",     group = "Optimised traits"),
+  list(struct = "par0",    field = "root_length0",         label = "Root tip length (l, root_length0)",  group = "Optimised traits"),
+  list(struct = "uptake0", field = "mycorrhized",          label = "ECM colonisation fraction (m)",      group = "Optimised traits"),
   # --- Respiration ---
-  list(struct = "par0",    field = "rr",                  label = "Fine root resp. rate (rr)",      group = "Respiration",    baseline = 0.8),
-  list(struct = "par0",    field = "r_myco",              label = "ECM maint. resp. rate (r_myco)", group = "Respiration",    baseline = 0.5),
-  list(struct = "par0",    field = "rs",                  label = "Sapwood resp. rate (rs)",        group = "Respiration",    baseline = 0.02),
+  list(struct = "par0",    field = "rr",                  label = "Fine root resp. rate (rr)",      group = "Respiration"),
+  list(struct = "par0",    field = "r_myco",              label = "ECM maint. resp. rate (r_myco)", group = "Respiration"),
+  list(struct = "par0",    field = "rs",                  label = "Sapwood resp. rate (rs)",        group = "Respiration"),
   # --- N uptake ---
-  list(struct = "uptake0", field = "u_max",               label = "Max area-based uptake (u_max)",  group = "N uptake",       baseline = 0.88),
-  list(struct = "uptake0", field = "k_15",                label = "MM half-saturation (k_15)",      group = "N uptake",       baseline = 0.01),
-  list(struct = "uptake0", field = "D",                   label = "Soil N diffusion (D)",           group = "N uptake",       baseline = 0.025),
-  list(struct = "uptake0", field = "D_static",            label = "Enzymatic depolymerisation (D_static)", group = "N uptake", baseline = 0.025),
-  list(struct = "uptake0", field = "depth",               label = "Rooting depth (m)",              group = "N uptake",       baseline = 1.5),
-  list(struct = "uptake0", field = "k_8",                 label = "Root age threshold (k_8, yr)",   group = "N uptake",       baseline = 2.7),
-  list(struct = "uptake0", field = "k_13",                label = "Zone radius factor (k_13)",      group = "N uptake",       baseline = 2.5),
-  list(struct = "uptake0", field = "mycorrhized",         label = "Colonisation fraction",          group = "N uptake",       baseline = 0.9),
-  list(struct = "uptake0", field = "u_transfer",          label = "N transfer rate (u_transfer)",   group = "N uptake",       baseline = 0.026),
-  list(struct = "par0",    field = "nitrogen_start0",     label = "Initial tree N (nitrogen_start0)", group = "N uptake",     baseline = 0.039),
-  list(struct = "uptake0", field = "f_static",            label = "Organic N fraction (f_static)",  group = "N uptake",       baseline = 0.97)
+  list(struct = "uptake0", field = "u_max",               label = "Max area-based uptake (u_max)",  group = "N uptake"),
+  list(struct = "uptake0", field = "k_15",                label = "MM half-saturation (k_15)",      group = "N uptake"),
+  list(struct = "uptake0", field = "D",                   label = "Soil N diffusion (D)",           group = "N uptake"),
+  list(struct = "uptake0", field = "D_static",            label = "Enzymatic depolymerisation (D_static)", group = "N uptake"),
+  list(struct = "uptake0", field = "depth",               label = "Rooting depth (m)",              group = "N uptake"),
+  list(struct = "uptake0", field = "k_8",                 label = "Root age threshold (k_8, yr)",   group = "N uptake"),
+  list(struct = "uptake0", field = "k_13",                label = "Zone radius factor (k_13)",      group = "N uptake"),
+  list(struct = "uptake0", field = "u_transfer",          label = "N transfer rate (u_transfer)",   group = "N uptake"),
+  list(struct = "par0",    field = "nitrogen_start0",     label = "Initial tree N (nitrogen_start0)", group = "N uptake"),
+  list(struct = "uptake0", field = "f_static",            label = "Organic N fraction (f_static)",  group = "N uptake")
 )
+
+# Baselines are read from the ini file itself (see read_ini_val() above),
+# never hardcoded, so this table cannot drift out of sync with the
+# calibration again.
+params <- map(params, function(p) { p$baseline <- read_ini_val(p$field); p })
+cat("Baselines read from", param_file, ":\n")
+print(map_dfr(params, ~tibble(field = .x$field, baseline = .x$baseline)), n = 40)
 
 # Ordered factor levels for plots (group order preserved)
 param_levels <- map_chr(params, "label")
 
-group_levels <- c("Photosynthesis", "Plant traits", "ECM", "Respiration", "N uptake")
+group_levels <- c("Optimised traits", "Photosynthesis", "Plant traits", "ECM", "Respiration", "N uptake")
 group_pal    <- c(
-  "Photosynthesis" = "#4dac26",
-  "Plant traits"   = "#7b3294",
-  "ECM"            = "#d01c8b",
-  "Respiration"    = "#f1a340",
-  "N uptake"       = "#2166ac"
+  "Optimised traits" = "#e41a1c",
+  "Photosynthesis"   = "#4dac26",
+  "Plant traits"     = "#7b3294",
+  "ECM"              = "#d01c8b",
+  "Respiration"      = "#f1a340",
+  "N uptake"         = "#2166ac"
 )
 ```
 
 ## Simulation helpers
 
 ```{r sim_helpers}
+# Not every ini parameter is exposed as a settable field on par0/traits0/
+# uptake0 post-construction -- e.g. D_static, depth, f_static, k_13,
+# rho_myco, myco_diameter, investment_from_mycorrhiza, mycorrhizal_biomass_conversion,
+# nc_leaf, nc_root and les_u are read from the ini file at construction but
+# have no R accessor afterward. Assigning to a nonexistent field via `[[<-`
+# on these RefClass objects silently no-ops (no error), so those parameters'
+# "perturbations" previously had zero effect and their sensitivity indices
+# were meaningless, not genuinely zero. Detect this automatically per
+# parameter and fall back to perturbing via a temporary modified ini file
+# (which every parameter, by construction, does respond to) instead of
+# hardcoding a per-parameter list that could go stale again.
+.field_probe <- new(LifeHistoryOptimizer, param_file)
+valid_fields <- list(
+  par0    = names(.field_probe$par0$getRefClass()$fields()),
+  traits0 = names(.field_probe$traits0$getRefClass()$fields()),
+  uptake0 = names(.field_probe$uptake0$getRefClass()$fields())
+)
+rm(.field_probe)
+
+has_r_field <- function(struct, field) !is.null(struct) && field %in% valid_fields[[struct]]
+
 # Run the LifeHistoryOptimizer with an optional single-parameter perturbation.
-# The parameter is set on the appropriate struct (par0 / traits0 / uptake0)
-# before lho$init() is called, matching the pattern in Publication Plots.Rmd.
+# If the field has a live R accessor it's set directly on the appropriate
+# struct (par0 / traits0 / uptake0) before lho$init(); otherwise the
+# perturbed value is written into a temporary copy of the ini file and the
+# model is constructed from that instead.
 run_lho <- function(struct = NULL, field = NULL, value = NULL) {
-  lho <- new(LifeHistoryOptimizer, param_file)
+  this_param_file <- param_file
+
+  if (!is.null(struct) && !has_r_field(struct, field)) {
+    tmp_lines <- ini_lines
+    idx <- grep(paste0("^", field, "\\s*="), tmp_lines)[1]
+    if (is.na(idx)) stop("ini key not found for temp-ini override: ", field)
+    tmp_lines[idx] <- sub(paste0("^(", field, "\\s*=\\s*)[0-9.eE+\\-]+"),
+                           paste0("\\1", format(value, scientific = FALSE, trim = TRUE)),
+                           tmp_lines[idx])
+    this_param_file <- tempfile(fileext = ".ini")
+    writeLines(tmp_lines, this_param_file)
+  }
+
+  lho <- new(LifeHistoryOptimizer, this_param_file)
   lho$set_i_metFile(weather_file)
   lho$set_a_metFile(weather_file)
   lho$set_co2File("")
   lho$set_soil_nitrogen(soil_n_default)
 
-  if (!is.null(struct)) {
+  if (!is.null(struct) && has_r_field(struct, field)) {
     switch(struct,
       par0    = { lho$par0[[field]]    <- value },
       traits0 = { lho$traits0[[field]] <- value },
