@@ -1103,9 +1103,10 @@ episode disappears. **Not yet done this session** -- next step.
 
 Reran the 3 main N-level Phase 2 runs at full length with the adaptive step-size fix (section 22).
 Runtime was uneven: N=0.15 and N=0.20 took ~30 min each (vs. ~18-19 min at fixed step, section 20 --
-some slowdown expected, the search now does extra work shrinking/retrying), but **N=2.00 took
-168 minutes** -- a large, unexplained outlier worth watching if this method is rerun again; not
-investigated further this session. Figures regenerated in `phase2_relaxed_refixed/` (old
+some slowdown expected, the search now does extra work shrinking/retrying), and N=2.00 logged
+168 minutes -- explained, not a real computational anomaly: Joanna's laptop was asleep for part of
+that run, and `Sys.time()`-based timing is wall-clock, not CPU time, so the logged duration includes
+the sleep period. No actual solver issue. Figures regenerated in `phase2_relaxed_refixed/` (old
 fixed-step results archived to `fixedstep_archive/`).
 
 **Result: clean across the board, and one real correction to an earlier conclusion.**
@@ -1132,9 +1133,172 @@ fix (would take several more hours, especially given the N=2.00 runtime outlier 
 `vignettes/plot_horizon_comparison.R`-style before/after comparison figures for the step-size fix
 specifically (analogous to the delayed-vs-not-delayed figure from section 20) also not yet built.
 
+## 24. Session 2026-09-25: starting-point sensitivity across all 4 search variables -- ecto_allo divergence is local-optimum trapping, not uncertainty
+
+Follows directly from section 22/23's adaptive-step fix. Two threads: (a) finishing the
+starting-root_no0 sensitivity check that section 23 deferred, extended to the other 3 of the 4
+variables the search jointly optimizes each year (`root_no`, `root_length`, `ecto_allo`,
+`mycorrhized`); (b) diagnosing what the resulting divergence actually means.
+
+**Housekeeping**: `run_phase2_sensitivity_root_no0_constclimate.R` had been interrupted by a laptop
+shutdown mid-run (completed N=0.15, missing N=0.20/N=2.00). Its own cache-skip logic made resuming
+trivial -- just rerun it, it picked up exactly where it left off. `plot_fig_sensitivity_root_no0_
+constclimate.R` still had `data_dir` pointed at `preadaptive_archive` with a TODO to switch to
+`cache_dir` once the rerun landed -- done, figure regenerated.
+
+**New starting-point sweeps** (const-climate only, i.e. `ERAS_Monthly_constant1960.csv`, isolating
+search behaviour from real inter-annual climate variability; N in {0.20, 2.00} only, 1960-1979.25,
+same setup as root_no0's sweep):
+- `run_phase2_sensitivity_ecto_allo0_constclimate.R` -- starting `investment_from_tree` in
+  {0.05, 0.20, 0.60} (default 0.2)
+- `run_phase2_sensitivity_mycorrhized0_constclimate.R` -- starting `mycorrhized` in
+  {0.10, 0.50, 0.90} (default 0.9)
+- `run_phase2_sensitivity_root_length0_constclimate.R` -- starting `root_length` in
+  {0.5, 2.0, 5.0}mm (default 2.0mm), `root_no0` held at its ini default (3e5) via `root_override()`
+- Real-climate companions (`run_phase2_sensitivity_ecto_allo0.R`, `_mycorrhized0.R`) were drafted
+  but **not run** -- const-climate only was the ask this session.
+
+Matching plot scripts (`plot_fig_sensitivity_{ecto_allo0,mycorrhized0,root_length0}_constclimate.R`,
+same structure as the root_no0 one) produced `fig_sensitivity_*_constclimate.png` +
+`divergence_stats_*_constclimate.csv` in `manuscript/oup-authoring-template/Figures/` and repo root
+respectively.
+
+**Finding 1 -- final-year divergence is large for all four variables**, not just root_no0 (which
+already showed `ecto_allo` divergence of `Inf` at N=2.00 in section 23's leftover data). Range-as-%-
+of-median across the 3 starting points, at the final simulated year, routinely runs into the
+hundreds of percent, with some `Inf`/`NaN` cells where a starting point's ecto_allo settles at
+exactly 0.
+
+**Finding 2 -- built `plot_divergence_over_time.R`** to distinguish three possible explanations:
+still converging (divergence shrinking), settled-but-genuinely-different (flat), or actively
+diverging (growing). Tracked each sweep's own variable, by year, at N=0.20 and N=2.00:
+
+| Sweep -> variable | N=0.20 pattern | N=2.00 pattern |
+|---|---|---|
+| mycorrhized0 -> mycorrhized | shrinks 117%->9% (converges) | grows 95%->575% (diverges) |
+| root_length0 -> root_length | flat ~190-230% (never converges) | flat ~90-130% (never converges) |
+| ecto_allo0 -> ecto_allo | shrinks 500%->137% (partial) | grows 500%->1600%->Inf (diverges) |
+| root_no0 -> root_no | shrinks 176%->110% (partial) | shrinks/noisy 200%->~20-25% (converges) |
+
+So the four variables don't share one story -- `root_length` looks like a search-resolution
+artifact (flat at both N levels, consistent with the multiplicative step floor at 1/16 of its
+initial value meaning the grid literally cannot collapse further); `mycorrhized`/`ecto_allo` at
+N=2.00 are the concerning ones, actively growing rather than settling.
+
+**Finding 3 -- dug into `ecto_allo` specifically** (Joanna: mycorrhized deprioritized, it "doesn't
+have a real cost, but needs to be there for establishment" -- less interesting to chase right now).
+Built `plot_ecto_allo0_raw_trajectory.R`: raw (non-normalized) trajectory plus last-3-simulated-year
+mean/sd per starting point. **Each starting point settles** -- sd in the last 3 years is tiny
+(0-0.0065, right at the additive step floor `ecto_step/16 = 0.003125`, i.e. not oscillating -- but
+settles at a **different plateau depending on the starting value**:
+
+| N level | start=0.05 | start=0.20 | start=0.60 |
+|---|---|---|---|
+| 0.20 | ->0.003 | ->0.028 | ->0.034 |
+| 2.00 | ->0.001 | ->0.000 | ->0.012 |
+
+**Conclusion**: this is local-optimum trapping in the greedy search (each year only evaluates
+candidates one step from the current state, so it stops as soon as staying put beats its immediate
+neighbours, regardless of whether a better point exists further away) -- not slow convergence, and
+not genuine biological/model multistability. **This means Joanna's proposed "package the
+starting-point spread as ensemble/model uncertainty" idea should NOT be applied to ecto_allo as-is**
+-- it would misrepresent an optimizer weakness as if it were a real result. mycorrhized wasn't
+checked this way (deprioritized, see above) -- same caveat likely applies if revisited.
+
+**Proposed direction for Monday (not yet implemented -- needs Joanna's decision on the two open
+parameters below before touching code)**: Joanna's rationale -- ecto_allo can shift between
+seasons faster than root architecture can rebuild -- suggests decoupling the search *cadence*, not
+just the commit mechanics (which already treat them differently: ecto_allo/mycorrhized apply
+instantly once chosen, `root_no`/`root_length` relax gradually at the root's own lifespan timescale
+-- see the commit block at the end of `run_with_relaxed_local_reopt_trajectory`). Concretely: keep
+the outer year loop as-is for `root_no`/`root_length` (annual candidate search + relaxation), and
+move `ecto_allo`/`mycorrhized`'s candidate search into a new inner loop nested inside the existing
+sub-annual commit loop, re-searching every `ecto_reopt_dt` instead of once a year.
+
+Open questions to settle before implementing:
+1. **Reopt frequency** for the inner ecto_allo/mycorrhized search -- proposed default: quarterly
+   (4x/year), matching "between seasons."
+2. **Trial horizon for that inner search** -- reusing the existing 3-year `trial_horizon_years` to
+   score a quarterly decision seems mismatched (over-weights long-term consequences for a
+   short-term choice); proposed a separate, shorter `ecto_trial_horizon` (e.g. 1 year).
+3. **Cost**: nesting a second grid search inside the commit loop multiplies runtime roughly by the
+   reopt-frequency multiplier for just those 2 dimensions (quarterly ~= 4x the search calls for
+   ecto_allo/mycorrhized specifically) -- current const-climate 19-year runs already take ~10 min
+   each, worth scoping before relaunching the full sweep.
+
+Not yet done: the C++ change itself (`run_with_relaxed_local_reopt_trajectory` in
+`src/life_history.cpp` / `inst/include/life_history.h`), rerunning the ecto_allo0 sweep with it to
+check whether decoupled cadence actually removes the local-optimum trapping (does ecto_allo now
+converge to the same plateau regardless of starting point?), and the same question for mycorrhized
+if it gets revisited.
+
+## 25. Session 2026-09-30: N=0.32 (Korhonen) static-vs-dynamic comparison -- local-optimum
+trapping confirmed to generalize beyond N=0.20/2.00, not N-specific
+
+Follows on from section 24. Motivated by a manuscript-framing question: N=0.32 kg N m⁻³ is the
+"whole soil profile to bedrock" reading of Korhonen (2013) Table 3 (total soil N pool, 2070 kg N
+ha⁻¹, over the ~0.64 m profile), derived in `run_N_0.32_wholeprofile.R` /
+`run_static_calibration_0.32.R` as an alternative to the manuscript's current boreal-calibration
+N=0.20, which has no traceable derivation from Korhonen. Question: does the model's own dynamic
+optimum agree with the static (prescribed) calibration once N is set to this better-justified
+value?
+
+**Bug found first, worth flagging for anyone using the dynamic reopt CSVs**: `year`/`month` in
+`relaxed_local_N_*_refixed.csv` are mislabeled. The R wrapper scripts (e.g.
+`run_N_0.32_wholeprofile.R`) assign calendar dates with a naive `seq(..., by="month")` over the
+output rows, but `run_with_relaxed_local_reopt_trajectory`'s actual step sizes are adaptive
+(receding trial horizon + per-trait step shrinking, sections 19/22), not fixed 1/12-year
+increments. By the last row of a 62-year run the naive label drifts ~3.5 years from the real
+simulated date (confirmed via the file's `i` column, a true Julian day number: `as.Date(i -
+2440588, origin = "1970-01-01")`). Static-run CSVs are unaffected (fixed-dt `grow_for_dt` loop, no
+adaptive stepping) -- only the `*_refixed.csv` dynamic trajectories need this correction before
+any month/year-based filtering (e.g. growing-season means).
+
+**Static vs. dynamic at N=0.32, dates corrected**: not close. Dynamic height ends ~22% below
+static by 2021 (16.5 m vs 21.1 m); GPP/crown area ~50% lower; ECM biomass/crown area ~82-91%
+lower; accessible N ~11x higher (bigger root system, less ECM). Ran the static-calibration
+counterpart (`run_static_calibration_generic.R <N>`, mirrors `run_static_calibration_current.R`:
+no trait override, ini defaults) for **all 18** already-generated dynamic N values
+(`compare_static_dynamic_all_N.R`, output `plots/dynamic/static_vs_dynamic_all_N_summary.csv`) to
+check whether *any* N gives good agreement -- none do overall. Height alone is close at the high
+end (N=1.4-2.0: 1.6-4.8% diff) and the low-mid end (N=0.04-0.20: 3.5-6%), and **worst of all 18 at
+N=0.32 specifically (16.1% -- the single worst match)**. ECM biomass/crown area is 66-91% lower in
+the dynamic run at every N tested, no clear trend. Regenerated the lh_09/lh_10/fig1-style
+calibration figures at N=0.32 for visual inspection
+(`regenerate_lh09_lh10_and_fig1_N032.R` -> `plots/calibration_N032/`, originals untouched).
+
+**Extended section 24's starting-point sensitivity to N=0.32**
+(`run_phase2_sensitivity_ecto_allo0_N032_constclimate.R`, same const-climate 1960-1979.25 setup,
+`ecto_allo0` in {0.05, 0.20, 0.60}; plotted in
+`plot_ecto_allo0_raw_trajectory_N032.R` -> `ecto_allo0_raw_trajectory_diagnostic_N032.png`).
+Result: same local-optimum trapping as N=0.20/2.00 -- three different plateaus, not one:
+
+| start=0.05 | start=0.20 | start=0.60 |
+|---|---|---|
+| ->0.026 | ->0.022 | ->0.091 |
+
+None near the static calibration's 0.2, all settled (sd~0 over the last 3 simulated years). The
+start=0.60 run is the clearest evidence it's trapping rather than a real N=0.32-specific economic
+optimum: it decays monotonically *through* 0.2 without pausing there, down to ~0.09 -- 0.2 isn't
+even a local attractor the greedy search would stop at if it started nearby.
+
+**Conclusion**: the height/GPP/ECM mismatch between static and dynamic at N=0.32 (and, per the
+all-N sweep, at most N) is downstream of the same greedy-search local-optimum trapping diagnosed
+in section 24 for N=0.20/2.00 -- now confirmed not to be specific to those two N values. This is a
+search-algorithm artifact, not evidence that the static ecto_allo=0.2 calibration is wrong, and
+not something the "low N and high N both roughly match static, mid-range doesn't" framing should
+be built on without noting this caveat.
+
 ## Where to start next
 
-1. **§10.6 is the most important open thread**: the fixed-trait replication (exact manuscript
+1. **Decouple ecto_allo/mycorrhized search cadence from root_no/root_length** (section 24,
+   confirmed to generalize in section 25) -- Joanna's plan: implement a bit later. Settle the two
+   open parameters above (reopt frequency, inner trial horizon) first, then implement in
+   `run_with_relaxed_local_reopt_trajectory`, then rerun
+   `run_phase2_sensitivity_ecto_allo0_constclimate.R` **and**
+   `run_phase2_sensitivity_ecto_allo0_N032_constclimate.R` to check whether it actually fixes the
+   local-optimum trapping at all three N levels now on record (0.20, 0.32, 2.00).
+2. **§10.6 is the most important open thread from the earlier investigation**: the fixed-trait replication (exact manuscript
    methodology + exact manuscript trait values) still doesn't reproduce the manuscript's own
    reported heights, even with every known uncommitted change reverted to match `HEAD`. This
    needs to be resolved (or at least understood) before trusting *any* further comparison against
@@ -1142,10 +1306,10 @@ specifically (analogous to the delayed-vs-not-delayed figure from section 20) al
    actual simulation setup line-by-line against the fixed-trait replication script used this
    session (`/tmp/.../scratchpad/test_manuscript_replication.R` — not saved in the repo, would
    need reconstructing from this write-up) — dt, warm-up, weather file, everything.
-2. If §10.6 turns out to be a red herring (e.g. a genuine pre-`23c1c3c` change), the natural next
+3. If §10.6 turns out to be a red herring (e.g. a genuine pre-`23c1c3c` change), the natural next
    step for §10.3 is the later-state root_no sweep described there — does the model actually want
    to rebuild root investment once N demand grows past what a shed-down root system can supply?
-3. Phase 2 (`run_with_relaxed_local_reopt_trajectory`) is the current best yearly-reopt
+4. Phase 2 (`run_with_relaxed_local_reopt_trajectory`) is the current best yearly-reopt
    implementation and is a reasonable base to keep building on once §10.3/§10.6 are better
    understood — the mechanism itself (relaxation, steady-state scoring, local search) all work
    as designed; the remaining problems are in the underlying cost/benefit economics and the
