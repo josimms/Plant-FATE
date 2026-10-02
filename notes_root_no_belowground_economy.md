@@ -1289,8 +1289,92 @@ search-algorithm artifact, not evidence that the static ecto_allo=0.2 calibratio
 not something the "low N and high N both roughly match static, mid-range doesn't" framing should
 be built on without noting this caveat.
 
+## 26. Session 2026-09-30/10-01: root cause of the dropped-row/frozen-state bug behind
+section 25's date-mislabeling finding -- Phydro line-search failures in cold winter months.
+Diagnosed, NOT yet fixed -- do this next.
+
+Follow-up to section 25's date bug. The `i`-based date fix from section 25 was applied to all 14
+writer scripts that call `run_with_relaxed_local_reopt_trajectory` and build `df$date` from a naive
+`seq(..., by="month")` (`run_phase2_relaxed_reopt.R`, all 8
+`run_phase2_sensitivity_*.R`/`*_constclimate.R` variants, `run_dynamic_gradient.R`,
+`run_N_0.32_wholeprofile.R`, `run_phase2_establishment_threshold.R`, `run_phase2_high_N_gap.R`,
+`sensitivity_spinup.R`) -- each now derives `date`/`year`/`month` from the `i` Julian-day column
+(`as.Date(df$i - 2440588, origin = "1970-01-01")`), same as section 25's fix. This corrects the
+*label*, but doesn't explain why rows go missing in the first place (`relaxed_local_N_0.32_refixed.csv`:
+702 rows logged vs. 744 expected for 62 years x 12 months; years 1966 and 1970 entirely absent;
+~20 other years short by 1, or with a spurious extra row from `reopt_dt=1/12` floating-point
+accumulation).
+
+**Root cause, confirmed by instrumenting the catch sites** (`src/life_history.cpp`, forward
+`run_with_relaxed_local_reopt_trajectory` only -- the `_trailing` variant added 2026-09-30 has the
+identical pattern at its own catch sites but isn't used by any script yet, so wasn't instrumented
+or tested): both `catch (std::exception& e)` blocks in the trial loop (~line 528) and the commit
+loop (~line 595) were silently swallowing `e.what()`. Added temporary `std::cerr` diagnostics
+(still in the tree, uncommitted -- see "Do tomorrow" below) and reran a shortened N=0.32 diagnostic
+(1960-1972, `trial_horizon_years=3`, else identical to `run_N_0.32_wholeprofile.R`). Every capture
+printed the same message:
+
+```
+the line search routine reached the maximum number of iterations
+```
+
+-- thrown from Phydro's bundled L-BFGS++ (`external/phydro/inst/LBFGSpp/include/LBFGSpp/LineSearch{Bracketing,MoreThuente,Backtracking}.h`),
+i.e. the hydraulic optimizer (finding optimal dpsi/gs) fails to converge. Confirmed **climate-driven,
+not trait-driven**: dozens of different `root_no`/`root_length`/`ecto_allo`/`mycorrhized` trial
+candidates all failed identically at the same simulated instant (e.g. `t=1966.00`, `t=1970.00`).
+Checked the raw climate values at these points (`data/ERAS_Monthly.csv`, Jan 1966: -14.2 degC,
+PPFD~16; Jan 1970: -10.5 degC, PPFD~15.5) -- nothing corrupted or out of range, just genuinely cold
+and dark boreal winter. Best guess: near-zero light + freezing temps push the optimal-gs problem
+into a near-degenerate regime (optimum ~0) where the line search can't bracket a step. Not
+investigated further inside Phydro itself -- treating this as "Phydro's optimizer is not fully
+robust in extreme winter conditions" rather than chasing it into the submodule.
+
+**Why this is worse than a logging gap**: the commit loop's `catch { break; }` aborts the *entire
+rest of that year's* commit -- when the failure lands on the year's first reopt_dt step (January),
+zero rows get logged and the root/ecto trait state doesn't move at all that year. Confirmed the
+diagnostic run's `best_rn`/`best_rl`/`best_eb`/`best_myc` stayed bit-for-bit frozen from 1965 through
+1970 (`265844, 2.19524, 0.025, 0.725`, recommitted unchanged at every failed year) -- several
+consecutive winters kept re-hitting the unconverged point before the search could resume. This maps
+exactly onto both row-count symptoms from section 25: years with a January-instant failure (1966,
+1970) are entirely missing; years with a later-in-year failure (1965, 1967, 1969, ...) are short by
+however many months came after the break. The 13-row years are a separate, minor thing -- ordinary
+floating-point drift in `for (t=yr; t<yr+1.0-1e-9; t+=reopt_dt)` occasionally adding a spurious
+13th iteration; harmless now that dates come from `i`, not row position.
+
+This is plausibly a real (partial) explanation for section 15/17's still-nagging "dynamic run
+undersheoots static calibration's height" discrepancy -- worth revisiting once fixed, but don't
+over-claim that connection until it's actually tested.
+
+**Proposed fix (not yet applied)**: in the commit loop only, change `catch (...) { break; }` to
+`catch (...) { continue; }` (skip logging just the one failed reopt_dt step; keep trying the rest
+of the year) instead of aborting the year outright. Deliberately NOT changing the trial loop's
+catch (marking that one candidate `failed` and moving to the next candidate is already the correct
+behaviour there). Downgrade the temporary per-candidate `std::cerr` spam (too verbose for normal
+runs) to a single one-line warning on the commit-loop failure only, so future freezes stay visible
+without flooding stdout.
+
+**Do tomorrow** (nothing below has been done yet):
+1. Decide whether `continue` (skip the row, keep going) is the right semantics, or whether a failed
+   step should do something else (e.g. hold state steady for that one step only, rather than
+   leaving a hole in the log) -- a genuine modelling judgement call, not just a code fix.
+2. Apply the decided fix to the commit-loop catch (`src/life_history.cpp`, forward variant,
+   currently ~line 595) and simplify the trial-loop diagnostic (~line 528) down to something
+   non-spammy (or remove it and rely on the commit-loop warning alone).
+3. Decide whether to also fix the as-yet-unused `_trailing` variant's matching catch sites (~line
+   717/764) now, or leave it until something actually calls it.
+4. Rebuild (`devtools::load_all`, picked up automatically by the `run_*.R` scripts) and rerun at
+   least the N=0.32 diagnostic window (1960-1972, ~5 min) to confirm 1966/1970 no longer come up
+   empty and state no longer freezes for multiple years.
+5. Existing cached CSVs (`plots/dynamic/relaxed_local_N_*_refixed.csv`,
+   `plots/dynamic/phase2_relaxed_refixed/*.csv`) still have the old dropped-row artifacts baked in
+   (dates are now correctly *labelled* per section 25's fix, but the underlying months are still
+   genuinely missing). Regenerating them is expensive (~27 min per N value for the full 62-year
+   N=0.32 run) -- decide which ones are worth rerunning rather than doing all of them reflexively.
+
 ## Where to start next
 
+0. **Do section 26 first** -- it's a real bug affecting every dynamic reopt run to date, diagnosed
+   but not yet fixed.
 1. **Decouple ecto_allo/mycorrhized search cadence from root_no/root_length** (section 24,
    confirmed to generalize in section 25) -- Joanna's plan: implement a bit later. Settle the two
    open parameters above (reopt frequency, inner trial horizon) first, then implement in

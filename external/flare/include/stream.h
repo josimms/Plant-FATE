@@ -159,8 +159,18 @@ class Stream : public TimeStepper{
 		                                 //   |    0  x--->0  1    |    2
 		                                 //   |    0    | x--->1   [note this one just beyound the interval midpoint, when shifted, goes beyond 1, and returns 1 rather than 0]
 		
-		// Calculate total time range of data in the file, and bring t to principle range if periodic extension is desired
-		if (periodic) t = times[0] + utils::positive_fmod(t - times[0], DeltaT);
+		// Calculate total time range of data in the file, and bring t to principle range if periodic extension is desired.
+		// Guard against floating-point noise at the lower boundary: t and times[0] are typically
+		// computed via different arithmetic paths (e.g. j_base + t*tscale vs raw_value*tscale) that
+		// are mathematically equal but can differ by ~1e-10 days at the bit level. Without this
+		// guard, a query exactly at times[0] can come out a hair negative and get wrapped by
+		// positive_fmod to just under the full period, landing on the LAST index instead of the
+		// first.
+		if (periodic){
+			double diff = t - times[0];
+			if (diff < 0 && diff > -1e-6) diff = 0;
+			t = times[0] + utils::positive_fmod(diff, DeltaT);
+		}
 
 		// calculate index such that tvec[idx] is just less than t
 		auto t_it = std::upper_bound(times.begin(), times.end(), t);

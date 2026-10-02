@@ -1,5 +1,7 @@
 #include "life_history.h"
 #include <io_utils.h>
+#include <deque>
+#include <iostream>
 using namespace std;
 
 namespace pfate{
@@ -523,7 +525,14 @@ std::vector<std::vector<double>> LifeHistoryOptimizer::run_with_relaxed_local_re
 				try {
 					grow_for_dt(t, reopt_dt);
 					score += npp_per_ca(P) * reopt_dt;
-				} catch (std::exception& e) { failed = true; break; }
+				} catch (std::exception& e) {
+					// TEMP DIAGNOSTIC (2026-09-30): identify why grow_for_dt fails for
+					// certain years/candidates (remove once root cause is found).
+					std::cerr << "[trial-fail] yr=" << yr << " t=" << t
+					          << " rn=" << rn << " rl=" << rl << " eb=" << eb << " myc=" << myc
+					          << " what=" << e.what() << "\n";
+					failed = true; break;
+				}
 			}
 			if (!failed && score > best_score){
 				best_score = score;
@@ -564,6 +573,180 @@ std::vector<std::vector<double>> LifeHistoryOptimizer::run_with_relaxed_local_re
 		// tau=root_lifespan(traits) recomputed each substep from the current
 		// (pre-update) l_eff -- this is what makes the logged, committed
 		// trajectory physically honest.
+		P = P_backup; C = C_backup;
+		rep = rep_backup; litter_pool = litter_backup; seeds = seeds_backup; prod = prod_backup;
+		P.traits.investment_from_tree = best_eb;
+		P.uptake.mycorrhized = best_myc;
+
+		for (double t = yr; t < yr + 1.0 - 1e-9; t += reopt_dt){
+			try {
+				double tau = std::max(P.geometry.root_lifespan(P.traits), 1e-6);
+				double decay = std::exp(-reopt_dt / tau);
+				n_eff = best_rn + (n_eff - best_rn) * decay;
+				l_eff = best_rl + (l_eff - best_rl) * decay;
+				P.geometry.set_root(n_eff, l_eff, P.traits, /*reset_ecto_mass=*/false);
+				grow_for_dt(t, reopt_dt);
+				std::vector<double> row = get_state(t + reopt_dt);
+				row.push_back(best_eb);
+				row.push_back(best_myc);
+				row.push_back(best_rn);
+				row.push_back(best_rl);
+				log.push_back(row);
+			} catch (std::exception& e) {
+				// grow_for_dt fails here when Phydro's line search doesn't converge,
+				// which happens in genuinely cold/dark winter months (notes_root_no_
+				// belowground_economy.md section 26). Previously this did `break`,
+				// which aborted the REST of the year on the first such failure --
+				// freezing root/ecto/myco state for up to 11 more months over a
+				// single bad month. `continue` instead skips only the failed month
+				// (no row logged, state held over to the next step) and keeps going.
+				std::cerr << "[commit-fail] yr=" << yr << " t=" << t
+				          << " best_rn=" << best_rn << " best_rl=" << best_rl
+				          << " best_eb=" << best_eb << " best_myc=" << best_myc
+				          << " what=" << e.what() << "\n";
+				continue;
+			}
+		}
+	}
+
+	return log;
+}
+
+
+// Trailing/backward variant (2026-09-30): see life_history.h for the design
+// rationale. Each candidate is scored by restoring a checkpoint of the
+// tree's own ALREADY-REALISED state from trial_horizon_years ago, applying
+// the candidate there, and re-growing forward through the ACTUAL historical
+// climate up to the present -- never a simulated future. The commit step
+// (relaxation toward the winning candidate) is identical to the forward
+// version above.
+std::vector<std::vector<double>> LifeHistoryOptimizer::run_with_relaxed_local_reopt_trajectory_trailing(
+    double start_year, double end_year, double reopt_dt, double trial_horizon_years,
+    double root_no_step_factor, double root_no_min, double root_no_max,
+    double root_length_step_factor, double root_length_min, double root_length_max,
+    double ecto_step, double ecto_min, double ecto_max,
+    double mycorrhized_step, double mycorrhized_min, double mycorrhized_max
+){
+	std::vector<std::vector<double>> log;
+
+	struct Checkpoint {
+		double year;
+		plant::Plant P;
+		ErgodicEnvironment C;
+		double rep, litter_pool, seeds, prod;
+	};
+	std::deque<Checkpoint> history; // oldest first; one entry per committed year, START-of-year state
+
+	auto make_levels_mult = [](double cur, double factor, double lo, double hi){
+		return std::vector<double>{ std::max(cur / factor, lo), cur, std::min(cur * factor, hi) };
+	};
+	auto make_levels_add = [](double cur, double step, double lo, double hi){
+		return std::vector<double>{ std::max(cur - step, lo), cur, std::min(cur + step, hi) };
+	};
+
+	double n_eff = P.geometry.root_no;
+	double l_eff = P.geometry.root_length;
+
+	double n_step = root_no_step_factor, l_step = root_length_step_factor;
+	double e_step = ecto_step, m_step = mycorrhized_step;
+	const double n_step_floor = 1.0 + (root_no_step_factor - 1.0) / 16.0;
+	const double l_step_floor = 1.0 + (root_length_step_factor - 1.0) / 16.0;
+	const double e_step_floor = ecto_step / 16.0;
+	const double m_step_floor = mycorrhized_step / 16.0;
+	int n_dir = 0, l_dir = 0, e_dir = 0, m_dir = 0;
+
+	for (double yr = start_year; yr < end_year; yr += 1.0){
+		plant::Plant P_backup = P;
+		ErgodicEnvironment C_backup = C;
+		double rep_backup = rep, litter_backup = litter_pool, seeds_backup = seeds, prod_backup = prod;
+
+		// Record today's start-of-year state for future years to replay
+		// against, then keep only as much history as any future year could
+		// need (trial_horizon_years back, plus today).
+		history.push_back(Checkpoint{yr, P_backup, C_backup, rep_backup, litter_backup, seeds_backup, prod_backup});
+		while ((double)history.size() > std::ceil(trial_horizon_years) + 1.0) history.pop_front();
+
+		double n_cur = n_eff, l_cur = l_eff;
+		double ecto_cur = P.traits.investment_from_tree;
+		double myco_cur = P.uptake.mycorrhized;
+
+		std::vector<double> n_levels = make_levels_mult(n_cur, n_step, root_no_min, root_no_max);
+		std::vector<double> l_levels = make_levels_mult(l_cur, l_step, root_length_min, root_length_max);
+		std::vector<double> e_levels = make_levels_add(ecto_cur, e_step, ecto_min, ecto_max);
+		std::vector<double> m_levels = make_levels_add(myco_cur, m_step, mycorrhized_min, mycorrhized_max);
+
+		double best_score = -1e300;
+		double best_rn = n_cur, best_rl = l_cur, best_eb = ecto_cur, best_myc = myco_cur;
+
+		// Lookback depth: as much real history as has accumulated, capped at
+		// trial_horizon_years. Only in the very first committed year (no
+		// history at all yet) is there nothing already-realised to replay;
+		// there, and only there, fall back to a single reopt_dt step FORWARD
+		// from today's own state (the smallest possible peek, unavoidable at
+		// t = start_year, rather than borrowing a whole future horizon).
+		double elapsed = yr - start_year;
+		bool have_history = elapsed >= reopt_dt / 2.0;
+
+		const Checkpoint* base = &history.back();
+		double trial_start, trial_end;
+		if (have_history){
+			double lookback = std::min(trial_horizon_years, elapsed);
+			double replay_start = yr - lookback;
+			for (const auto& h : history){
+				if (h.year <= replay_start + 1e-9) base = &h;
+			}
+			trial_start = base->year;
+			trial_end   = yr;
+		} else {
+			trial_start = yr;
+			trial_end   = yr + reopt_dt;
+		}
+
+		for (double rn : n_levels)
+		for (double rl : l_levels)
+		for (double eb : e_levels)
+		for (double myc : m_levels){
+			P = base->P; C = base->C;
+			rep = base->rep; litter_pool = base->litter_pool; seeds = base->seeds; prod = base->prod;
+
+			P.geometry.set_root(rn, rl, P.traits, /*reset_ecto_mass=*/false);
+			P.traits.investment_from_tree = eb;
+			P.uptake.mycorrhized = myc;
+
+			double score = 0.0;
+			bool failed = false;
+			for (double t = trial_start; t < trial_end - 1e-9; t += reopt_dt){
+				try {
+					grow_for_dt(t, reopt_dt);
+					score += npp_per_ca(P) * reopt_dt;
+				} catch (std::exception& e) { failed = true; break; }
+			}
+			if (!failed && score > best_score){
+				best_score = score;
+				best_rn = rn; best_rl = rl; best_eb = eb; best_myc = myc;
+			}
+		}
+
+		auto direction_of = [](double best, double cur) -> int {
+			if (best == cur) return 0;
+			return (best > cur) ? 1 : -1;
+		};
+		auto shrink_mult = [](double step, double floor){ return std::max(1.0 + (step - 1.0) * 0.5, floor); };
+		auto shrink_add  = [](double step, double floor){ return std::max(step * 0.5, floor); };
+
+		int n_new_dir = direction_of(best_rn, n_cur);
+		int l_new_dir = direction_of(best_rl, l_cur);
+		int e_new_dir = direction_of(best_eb, ecto_cur);
+		int m_new_dir = direction_of(best_myc, myco_cur);
+
+		if (n_new_dir == 0 || (n_dir != 0 && n_new_dir == -n_dir)) n_step = shrink_mult(n_step, n_step_floor);
+		if (l_new_dir == 0 || (l_dir != 0 && l_new_dir == -l_dir)) l_step = shrink_mult(l_step, l_step_floor);
+		if (e_new_dir == 0 || (e_dir != 0 && e_new_dir == -e_dir)) e_step = shrink_add(e_step, e_step_floor);
+		if (m_new_dir == 0 || (m_dir != 0 && m_new_dir == -m_dir)) m_step = shrink_add(m_step, m_step_floor);
+		n_dir = n_new_dir; l_dir = l_new_dir; e_dir = e_new_dir; m_dir = m_new_dir;
+
+		// Commit: restore to the TRUE start-of-year state (today's own,
+		// not the lookback checkpoint), same as the forward version.
 		P = P_backup; C = C_backup;
 		rep = rep_backup; litter_pool = litter_backup; seeds = seeds_backup; prod = prod_backup;
 		P.traits.investment_from_tree = best_eb;

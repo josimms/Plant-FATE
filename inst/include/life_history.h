@@ -183,6 +183,32 @@ class LifeHistoryOptimizer{
 	    double mycorrhized_step, double mycorrhized_min, double mycorrhized_max
 	);
 
+	// Trailing/backward variant of run_with_relaxed_local_reopt_trajectory
+	// (2026-09-30): identical search, commit and relaxation logic, but each
+	// candidate is scored against the tree's own ALREADY-REALISED previous
+	// trial_horizon_years, not a simulated future. A rolling buffer of
+	// yearly checkpoints (state as committed at the START of each past
+	// year) is kept; to score a candidate at year yr, the checkpoint from
+	// yr - trial_horizon_years is restored, the candidate applied instantly
+	// there, and the tree is re-grown forward through the ACTUAL historical
+	// climate from yr - trial_horizon_years to yr (flare's CsvStream is
+	// random-access -- julian_to_indices() binary-searches an in-memory
+	// table, so replaying past time points is exact and side-effect-free).
+	// This tests "had this candidate been adopted trial_horizon_years ago,
+	// how would it have fared through what actually happened since" --
+	// biologically causal (no foresight of unrealised years), in contrast
+	// to the forward/receding-horizon version above. For the first
+	// trial_horizon_years of the run, before enough history has
+	// accumulated, the lookback is truncated to whatever history exists
+	// (minimum one reopt_dt step) rather than borrowing future years.
+	std::vector<std::vector<double>> run_with_relaxed_local_reopt_trajectory_trailing(
+	    double start_year, double end_year, double reopt_dt, double trial_horizon_years,
+	    double root_no_step_factor, double root_no_min, double root_no_max,
+	    double root_length_step_factor, double root_length_min, double root_length_max,
+	    double ecto_step, double ecto_min, double ecto_max,
+	    double mycorrhized_step, double mycorrhized_min, double mycorrhized_max
+	);
+
 };
 
 } // namespace pfate
