@@ -1,31 +1,27 @@
-# Regenerates:
-#  - all_lh_09_publication_main.png / all_lh_10_publication_belowground.png
-#    (boreal calibration figures), using the corrected static-calibration
-#    run (static_df_N020_calibrated_20260924.rds: NO trait override, i.e.
-#    ini defaults root_no0=3e5, root_length0=2.0mm, investment_from_tree=0.2,
-#    mycorrhized=0.9), with all current code fixes applied. These were
-#    stale relative to the u_transfer revert / N_bar_static cap / dead-code
-#    cleanup fixes.
-#  - fig1_calibration_to_dynamic.png, in the SAME base-R serif style as
-#    lh_09/lh_10 (shaded observation bands rather than scatter points),
-#    now also using the corrected static series. Parameter panels
-#    (ecto_allo, root_no, root_length, mycorrhized) use dashed lines for
-#    the static (prescribed) series and dotted lines for the two dynamic
-#    (yearly re-optimised) series; output panels (height, GPP, ECM
-#    biomass, C:N, accessible N) stay solid. Colours are the Okabe-Ito
-#    colourblind-safe triple already used elsewhere in this Rmd for
-#    N-level comparisons (black / blue / vermillion).
+# Variant of regenerate_lh09_lh10_and_fig1.R at N_s = 0.32 (Korhonen 2013
+# whole-soil-profile-to-bedrock reading) instead of the manuscript's current
+# N_s = 0.20 boreal-calibration value. Does NOT touch the original
+# all_lh_09/all_lh_10/fig1_calibration_to_dynamic.png files -- everything
+# here is written under a "_N032" suffix so the two can be compared side by
+# side.
+#
+# Also corrects a real bug found while investigating this: the dynamic reopt
+# CSVs' `date` column is a naive seq(..., by="month") over output rows, but
+# the trajectory's actual step sizes are adaptive/variable (receding trial
+# horizon + step-size shrinking), so the labelled dates drift from the real
+# simulated calendar time -- by ~3.5 years at the end of a 62-year run. Real
+# dates are recovered here from the `i` (Julian day) column for both dynamic
+# series before plotting.
 
 suppressMessages({
   library(tidyverse)
   library(data.table)
-  library(PlantFATE)
 })
 
-pub_fig_dir  <- here::here("manuscript/oup-authoring-template/Figures")
-dyn_out_dir  <- "plots/dynamic"
-param_file   <- "/home/josimms/Documents/Austria/Plant-FATE/tests/params/p_test_boreal.ini"
-weather_file <- "/home/josimms/Documents/Austria/Plant-FATE/data/ERAS_Monthly.csv"
+pub_fig_dir <- here::here("manuscript/oup-authoring-template/Figures")
+dir.create(pub_fig_dir, showWarnings = FALSE, recursive = TRUE)
+dyn_out_dir <- "plots/dynamic"
+param_file  <- "/home/josimms/Documents/Austria/Plant-FATE/tests/params/p_test_boreal.ini"
 
 # ------------------------------------------------------------------
 # Observational data (verbatim from Publication Plots.Rmd)
@@ -90,52 +86,9 @@ read_ini_val <- function(key) {
 mycorrhized_val <- read_ini_val("mycorrhized")
 
 # ------------------------------------------------------------------
-# The corrected static-calibration run (N=0.20, no trait override, i.e.
-# ini defaults root_no0=3e5, root_length0=2.0mm, investment_from_tree=0.2,
-# mycorrhized=0.9), rerun fresh against the climate-fixed weather file
-# (data/ERAS_Monthly.csv: Decimal_year column was drifting ~5.3 days/year
-# and scrambling which calendar month's climate got read -- see
-# notes_root_no_belowground_economy.md section 26 follow-up). Cached under
-# a stable repo-relative path (not a session scratchpad) so later scripts
-# (e.g. the fig1 lead-figure script) can reuse it.
+# The static-calibration run at N=0.32 (run_static_calibration_generic.R 0.32)
 # ------------------------------------------------------------------
-static_cache <- file.path(dyn_out_dir, "static_df_N020_calibrated_current.rds")
-
-if (file.exists(static_cache)) {
-  df <- readRDS(static_cache)
-} else {
-  lh_dt         <- 1/12
-  lh_start_year <- 1960
-  lh_end_year   <- 2022
-  lh_years_seq  <- seq(lh_start_year, lh_end_year, lh_dt)
-
-  lho <- new(LifeHistoryOptimizer, param_file)
-  lho$set_i_metFile(weather_file)
-  lho$set_a_metFile(weather_file)
-  lho$set_co2File("")
-  lho$set_soil_nitrogen(0.2)
-  lho$init()
-  col_names <- lho$get_header()
-  results <- lapply(lh_years_seq, function(t) {
-    tryCatch({
-      lho$grow_for_dt(t, lh_dt)
-      state <- lho$get_state(t + lh_dt)
-      df_row <- as.data.frame(t(state))
-      names(df_row) <- col_names
-      df_row
-    }, error = function(e) {
-      setNames(as.data.frame(as.list(rep(NA, length(col_names)))), col_names)
-    })
-  })
-  df <- do.call(rbind, results)
-  names(df) <- col_names
-  df$date <- seq(as.Date(paste0(lh_start_year, "-01-01")),
-                 as.Date(paste0(lh_end_year,   "-01-01")),
-                 by = "month")[1:nrow(df)]
-
-  dir.create(dyn_out_dir, showWarnings = FALSE, recursive = TRUE)
-  saveRDS(df, static_cache)
-}
+df <- readRDS(file.path(dyn_out_dir, "static_df_N032_calibrated_current.rds"))
 
 lh_cols       <- c("black", "#E69F00", "#D55E00")
 col_obs       <- "lightblue"
@@ -155,9 +108,9 @@ add_range <- function(x, y_min, y_max,
 }
 
 # ================================================================
-# Figure 9: main publication panel
+# Figure 9 (N=0.32): main publication panel
 # ================================================================
-png(file.path(pub_fig_dir, "all_lh_09_publication_main.png"),
+png(file.path(pub_fig_dir, "all_lh_09_publication_main_N032_continue.png"),
     width = 12, height = 10, units = "in", res = 300)
 par(mfrow = c(4, 2), mar = c(4, 9, 3, 1), oma = c(4, 0, 2, 0),
     family = "serif", las = 1, tcl = -0.4, mgp = c(5, 1, 0))
@@ -283,10 +236,10 @@ legend("bottom", horiz = FALSE, bty = "n", cex = lh_cex_legend, ncol = 2,
        legend = c("Eddy covariance", "Range of realistic boreal observations"),
        col = c(col_obs, col_range), lty = c(NA, 1), pch = c(lh_pch_obs, NA), lwd = c(NA, lh_lwd_obs))
 dev.off()
-cat("saved all_lh_09_publication_main.png\n")
+cat("saved all_lh_09_publication_main_N032_continue.png\n")
 
 # ================================================================
-# Figure 10: belowground panel
+# Figure 10 (N=0.32): belowground panel
 # ================================================================
 nbar_lower   <- 4e-6
 nbar_upper   <- 8e-5
@@ -316,7 +269,7 @@ compute_sa_density <- function(d) {
 }
 sa1 <- compute_sa_density(df)
 
-png(file.path(pub_fig_dir, "all_lh_10_publication_belowground.png"),
+png(file.path(pub_fig_dir, "all_lh_10_publication_belowground_N032_continue.png"),
     width = 10, height = 10, units = "in", res = 300)
 par(mfrow = c(3, 2), mar = c(4, 9, 3, 1), oma = c(4, 0, 2, 0),
     family = "serif", las = 1, tcl = -0.4, mgp = c(5, 1, 0))
@@ -381,31 +334,27 @@ legend("bottom", horiz = FALSE, bty = "n", cex = lh_cex_legend, ncol = 1,
        legend = "Range of realistic boreal observations",
        col = col_range, lty = 1, lwd = lh_lwd_obs)
 dev.off()
-cat("saved all_lh_10_publication_belowground.png\n")
+cat("saved all_lh_10_publication_belowground_N032_continue.png\n")
 
 # ================================================================
-# Figure 1 (new lead figure for H2): static calibration vs. dynamic
-# re-optimisation at N=0.20 (boreal) and N=2.00 (High N), in the same
-# base-R serif style as lh_09/lh_10. Parameter panels (a-d) use dashed
-# lines for the static (prescribed) series and dotted lines for the two
-# dynamic (yearly re-optimised) series -- redundant with colour so the
-# figure stays legible without colour. Colours are the Okabe-Ito
-# colourblind-safe triple (black / blue / vermillion) already used
-# elsewhere in this Rmd for N-level comparisons.
+# Figure 1 (N=0.32 variant): static calibration vs. dynamic
+# re-optimisation at N=0.32 (Korhonen whole-profile) and N=2.00 (High N),
+# in the same base-R serif style as lh_09/lh_10. Dynamic series' dates are
+# recovered from their `i` (Julian day) column -- see header comment.
 # ================================================================
-dyn_boreal <- read_csv(file.path(dyn_out_dir, "relaxed_local_N_0.20_refixed.csv"), show_col_types = FALSE) %>%
-  mutate(date = as.Date(date))
+fix_dates <- function(d) {
+  d$date <- as.Date(d$i - 2440588, origin = "1970-01-01")
+  d
+}
+dyn_boreal <- read_csv(file.path(dyn_out_dir, "relaxed_local_N_0.32_refixed.csv"), show_col_types = FALSE) %>%
+  fix_dates()
 dyn_highN  <- read_csv(file.path(dyn_out_dir, "relaxed_local_N_2.00_refixed.csv"), show_col_types = FALSE) %>%
-  mutate(date = as.Date(date))
+  fix_dates()
 
-f1_cols <- c("black", "#0072B2", "#D55E00")   # Okabe-Ito: static / boreal N=0.20 / High N=2.00
+f1_cols <- c("black", "#0072B2", "#D55E00")   # Okabe-Ito: static / N=0.32 / High N=2.00
 f1_lty_param <- c(2, 3, 3)                     # dashed (prescribed) / dotted (optimised) x2
 f1_lwd       <- 2.5
 
-# Much larger text than lh_09/lh_10 -- this figure is read at smaller
-# effective size in the manuscript, so axis/label text needs to be bigger
-# to stay legible. Overrides lh_cex_* from here on; fig9/10 have already
-# been rendered above and are unaffected.
 lh_cex_axis   <- 4.0
 lh_cex_lab    <- 3.6
 lh_cex_main   <- 3.8
@@ -416,20 +365,15 @@ f1_ecto_per_ca <- function(d) d$ectomycorrhiza_mass / d$crown_area
 f1_CN <- function(d) (d$ectomycorrhiza_mass * 0.44 + d$ectomycorrhiza_C_free) /
                        pmax(d$ectomycorrhiza_N_biomass + d$ectomycorrhiza_N_free, 1e-12)
 f1_accessible_N <- function(d) d$N_bar_roots + d$N_bar_static
-f1_ecto_allo <- function(d, source_is_static) if (source_is_static) rep(0.2, nrow(d)) else d$ecto_allo
-f1_mycorrhized <- function(d, source_is_static) if (source_is_static) rep(0.9, nrow(d)) else d$mycorrhized
 
 series <- list(df, dyn_boreal, dyn_highN)
 is_static <- c(TRUE, FALSE, FALSE)
 
-png(file.path(pub_fig_dir, "fig1_calibration_to_dynamic.png"),
+png(file.path(pub_fig_dir, "fig1_calibration_to_dynamic_N032_continue.png"),
     width = 27, height = 22, units = "in", res = 300)
 par(mfrow = c(3, 3), mar = c(6, 24, 4, 1), oma = c(11, 0, 2, 0),
     family = "serif", las = 1, tcl = -0.5, mgp = c(15, 2.4, 0))
 
-# bg_shade marks panels (a)-(d) as belowground-trait "input" panels (prescribed
-# for the static run, search-controlled for the dynamic runs) -- visually
-# distinct from the emergent-output panels (e)-(i), which stay plain white.
 param_bg <- "grey92"
 
 plot_panel <- function(get_y, ylab, tag, log = "", lty_set = rep(1, 3), ylim = NULL, bg_shade = NULL) {
@@ -441,8 +385,6 @@ plot_panel <- function(get_y, ylab, tag, log = "", lty_set = rep(1, 3), ylim = N
        ylim = ylim, xlab = "", ylab = ylab,
        cex.axis = lh_cex_axis, cex.lab = lh_cex_lab)
   if (!is.null(bg_shade)) {
-    # use ylim (data scale) rather than par("usr") so this is correct whether
-    # or not the y-axis is log-scaled (par("usr") would already be logged)
     rect(par("usr")[1], ylim[1], par("usr")[2], ylim[2], col = bg_shade, border = NA)
   }
   for (i in seq_along(series)) {
@@ -456,18 +398,18 @@ plot_panel <- function(get_y, ylab, tag, log = "", lty_set = rep(1, 3), ylim = N
 plot_panel(function(d) if (identical(d, df)) rep(0.2, nrow(d)) else d$ecto_allo,
            "ECM allocation\n(% NPP)", "(a)", lty_set = f1_lty_param, ylim = c(0, 1), bg_shade = param_bg)
 
-# (b) Root tip density (parameter, log scale) -- full local-search range (run_phase2_relaxed_reopt.R)
+# (b) Root tip density (parameter, log scale)
 plot_panel(function(d) d$root_no, expression(atop("Root tip density", "(m"^{-2}*")")), "(b)",
            log = "y", lty_set = f1_lty_param, ylim = c(1e3, 5e7), bg_shade = param_bg)
 
-# (c) Root tip length (parameter) -- full local-search range (run_phase2_relaxed_reopt.R)
+# (c) Root tip length (parameter)
 plot_panel(function(d) d$root_length, "Root tip length\n(mm)", "(c)", lty_set = f1_lty_param, ylim = c(0.05, 6.0), bg_shade = param_bg)
 
 # (d) ECM colonisation (parameter)
 plot_panel(function(d) if (identical(d, df)) rep(0.9, nrow(d)) else d$mycorrhized,
            "ECM colonisation\n(% roots covered)", "(d)", lty_set = f1_lty_param, ylim = c(0, 1), bg_shade = param_bg)
 
-# (e) Height + boreal observations (as in lh_09 panel c)
+# (e) Height + boreal observations
 ylim_h <- range(df$height, dyn_boreal$height, dyn_highN$height,
                 smear_h_val, halme_et_al_2022$height, useful_data$averageTreeHeight, na.rm = TRUE)
 plot(df$date, df$height, type = "n", ylim = ylim_h, xlab = "", ylab = "Height\n(m)",
@@ -498,7 +440,7 @@ plot(df$date, f1_gpp_per_ca(df), type = "n", ylim = ylim_g, xlab = "",
      ylab = expression(atop("GPP per crown area", "(kg C m"^{-2}*" year"^{-1}*")")),
      cex.axis = lh_cex_axis, cex.lab = lh_cex_lab)
 points(Eddy_covariance$MonthlyDate, Eddy_covariance$GPP_mean_kg, col = col_obs, pch = lh_pch_obs, cex = 0.8)
-for (i in c(3, 1, 2)) lines(series[[i]]$date, gpp_vals[[i]], col = f1_cols[i], lwd = f1_lwd)  # red (High N) drawn first, at the bottom
+for (i in c(3, 1, 2)) lines(series[[i]]$date, gpp_vals[[i]], col = f1_cols[i], lwd = f1_lwd)
 mtext("(f)", side = 3, adj = 0, line = 0.2, font = 2, cex = lh_cex_main)
 box(bty = "l")
 
@@ -509,8 +451,6 @@ plot_panel(f1_ecto_per_ca, expression(atop("ECM biomass / crown area", "(kg m"^{
 plot_panel(f1_CN, expression(atop("Mycorrhizal C:N", "(kg C kg"^{-1}*" N)")), "(h)")
 
 # (i) Accessible N (log scale) + Korhonen soil-solution mineral N range
-# (same nbar_lower/nbar_upper shaded band as lh_10 panel (a), which plots
-# the same underlying quantity for the static calibration alone)
 acc_vals <- lapply(series, f1_accessible_N)
 ylim_i <- range(unlist(acc_vals), nbar_lower, nbar_upper, na.rm = TRUE)
 plot(series[[1]]$date, f1_accessible_N(series[[1]]), type = "n", log = "y", ylim = ylim_i,
@@ -525,9 +465,9 @@ box(bty = "l")
 par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
 plot(0, 0, type = "n", bty = "n", xaxt = "n", yaxt = "n")
 legend("bottom", horiz = FALSE, bty = "n", cex = lh_cex_legend, ncol = 3,
-       legend = c("Static (calibration)", "Dynamic, N=0.20 (boreal)", "Dynamic, N=2.00 (High N)",
+       legend = c("Static (calibration)", "Dynamic, N=0.32 (Korhonen)", "Dynamic, N=2.00 (High N)",
                   "Eddy covariance / SMEAR II obs.", "Range of realistic boreal observations"),
        col = c(f1_cols, col_obs, col_range),
        lty = c(1, 1, 1, NA, 1), pch = c(NA, NA, NA, lh_pch_obs, NA), lwd = c(f1_lwd, f1_lwd, f1_lwd, NA, lh_lwd_obs))
 dev.off()
-cat("saved fig1_calibration_to_dynamic.png\n")
+cat("saved fig1_calibration_to_dynamic_N032_continue.png\n")

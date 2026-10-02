@@ -18,7 +18,7 @@ suppressMessages({
   library(data.table)
 })
 
-pub_fig_dir <- "plots/calibration_N032"
+pub_fig_dir <- here::here("manuscript/oup-authoring-template/Figures")
 dir.create(pub_fig_dir, showWarnings = FALSE, recursive = TRUE)
 dyn_out_dir <- "plots/dynamic"
 param_file  <- "/home/josimms/Documents/Austria/Plant-FATE/tests/params/p_test_boreal.ini"

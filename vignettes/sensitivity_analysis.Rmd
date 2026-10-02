@@ -34,7 +34,7 @@ start_year    <- 1960
 end_year      <- if (testing_mode) 1985 else 2022
 dt            <- 1/12
 
-soil_n_default <- 0.20    # kg N m⁻³ — calibrated boreal N level (matches the static calibration used elsewhere in the paper; NOT the raw ini N_s of 1.03, which is overridden everywhere via set_soil_nitrogen())
+soil_n_default <- 0.32    # kg N m⁻³ — Korhonen (2013) whole-soil-profile boreal N level (matches the static calibration used elsewhere in the paper; NOT the raw ini N_s of 1.03, which is overridden everywhere via set_soil_nitrogen())
 
 pub_fig_dir <- here::here("manuscript/oup-authoring-template/Figures")
 perturb_frac   <- 0.10    # ±10% of |baseline|
