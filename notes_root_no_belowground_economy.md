@@ -1371,17 +1371,90 @@ without flooding stdout.
    genuinely missing). Regenerating them is expensive (~27 min per N value for the full 62-year
    N=0.32 run) -- decide which ones are worth rerunning rather than doing all of them reflexively.
 
+## 27. Session 2026-10-01/10-02: section 26's root cause found (a corrupted climate file, not
+Phydro) and fixed; section 26's break->continue fix actually applied and verified; N_s rebaselined
+to 0.32 (Korhonen) across Figure 1, lh_09/lh_10, the validation paragraph, the sensitivity table,
+and the root_no0/root_length0 starting-point sensitivity figures.
+
+**The climate bug (not Phydro's fault after all).** What section 26 diagnosed as "Phydro fails to
+converge in cold winter months" turned out to be a symptom of something upstream: `data/ERAS_
+Monthly.csv`'s `Decimal_year` column was corrupted -- incrementing by 29.9934 days/month instead
+of the correct 365.2425/12 = 30.4369, a shortfall of ~5.3 days/year that accumulates to 9-11 months
+of seasonal misalignment by the 2010s-2020s. `ClimateStream` keys its row lookup purely on this
+column (binary search in `external/flare`), so the model was reading badly wrong-season climate
+for a large fraction of every multi-decade run -- confirmed directly by instrumenting the lookup
+(`t=2015.5` was resolving to a row dated 2016-04). `tests/data/ERAS_Monthly.csv` (the `.ini`'s own
+default) had the correct values all along and is otherwise byte-identical (Temp/VPD/PPFD/SWP) to
+the broken `data/ERAS_Monthly.csv` -- the latter was a corrupted derivative. Fixed in place (same
+fix applied to `data/ERAS_Monthly_constant1960.csv`, which had the identical bug). This was **not**
+confined to the dynamic reopt runs -- `Publication Plots.Rmd` itself overrides to the buggy file,
+so the static N=0.20 calibration was equally corrupted in its later simulated years.
+
+Found and fixed a second, independent, much smaller bug while tracing this: `external/flare/
+include/stream.h`'s periodic-wraparound lookup (`positive_fmod`) had a floating-point boundary
+issue -- a query landing exactly on `t=start_year` came out ~2.3e-10 negative after subtraction,
+which wrapped to the *last* row of the series instead of the first. Fixed with an epsilon guard
+in `julian_to_indices`.
+
+**Section 26's fix, actually applied.** The proposed `break`->`continue` fix (commit-loop catch in
+`run_with_relaxed_local_reopt_trajectory`, `src/life_history.cpp` ~line 595) was applied and
+verified. Effect, climate-fix + continue-fix together: N=0.32 dynamic went from 684/744 rows (60
+missing, 5 full years frozen) to 731/744 (13 missing, 0 full years frozen); N=2.00 went from
+683/744 (61 missing, 5 full years) to 733/744 (11 missing, 0 full years). Spot-checked the
+resulting CSVs for NaN/Inf and for state continuity across the remaining gaps -- clean; height and
+root_no transition smoothly across each now-short (2-4 month) gap, no sign of the `continue` path
+leaving corrupted mid-RK4-step state behind.
+
+**N_s rebaselined to 0.32 (Korhonen) with both fixes in hand.** Propagated through: Figure 1
+(`fig1_calibration_to_dynamic_N032_continue.png` and its caption/results paragraph), the lh_09/
+lh_10 boreal-calibration figures, the validation paragraph (now honestly distinguishing the narrow
+SMEAR~II height range, 17.5-20.8m, which the N=0.32 static height of 21.98m exceeds by ~1.2m, from
+the wider Halme field range, 13.2-23.6m, which it fits), the OAT sensitivity table (`sensitivity_
+analysis.Rmd`'s `soil_n_default` -- which turned out to be hardcoded in the Rmd rather than read
+from the ini as the manuscript text claimed; fixed both the value and the overclaim), and the
+root_no0/root_length0 starting-point sensitivity figures (24 reruns, parallelised across 11 cores,
+~45 min).
+
+Two notable findings from the corrected N=0.32 data, both reasons section 25's conclusions (drawn
+on pre-fix data) should not be trusted without rechecking:
+- Static and dynamic trajectories now converge much more closely than they did at N=0.20: final
+  height 21.98m (static) vs 21.96m (dynamic), <0.1% apart -- vs. N=0.20's dynamic run previously
+  finishing 13.5% *above* static. The local-optimum-trapping conclusion (section 25, "confirmed to
+  generalize to N=0.32") was itself built on the pre-climate-fix data and is now unconfirmed.
+- The starting-point sensitivity numbers changed in *degree*, not direction: GPP still converges
+  almost perfectly regardless of starting root_no0/root_length0 (<0.002% range), but height
+  convergence is looser at N=0.32 than previously reported at N=0.20 (up to 14% vs 2.7%), and the
+  old "order-of-magnitude divergence under real climate at N=2.00" for root traits is gone -- most
+  likely an artifact of the same frozen-year mechanism section 26 just fixed, not a real property
+  of the search.
+
+Committed: the two C++ fixes plus these notes (`390afa7`), and the vignette script rebaselining
+(`6081df0`), both on `develop`. `MAIN.tex` and the `Presentations/` deck are gitignored
+(`manuscript/` is excluded entirely from this repo) so those edits are **not** under version
+control -- only the `.tex`/`.pdf` files on disk reflect them.
+
+**Explicitly not done this session** (still open, see "Where to start next" below): the `_trailing`
+variant's matching `break`->`continue` fix; the trial-loop's now-stale "TEMP DIAGNOSTIC... remove
+once root cause is found" comment (`life_history.cpp:529` -- root cause *is* found now, just never
+trimmed); §10.6's fixed-trait-replication discrepancy (not re-examined -- unknown whether it's
+still accurate given everything above changed since it was written); the 16-level N-gradient sweep
+behind Figures H2.2/H2.3 (`fig_N_gradient_cross_section_by_N.png`, `fig_N_gradient_CN_cost.png`,
+still entirely on pre-fix data, a multi-hour rerun); the ecto_allo0/mycorrhized0 starting-point
+sensitivity scripts (siblings of root_no0/root_length0, redone this session -- still stale).
+
 ## Where to start next
 
-0. **Do section 26 first** -- it's a real bug affecting every dynamic reopt run to date, diagnosed
-   but not yet fixed.
+0. **Re-confirm section 25's local-optimum-trapping conclusion with corrected data** (section 27)
+   before relying on it further -- it was built on pre-climate-fix, pre-section-26-fix data, and
+   the one spot-check available since (N=0.32 static-vs-dynamic height) now shows much closer
+   convergence than previously reported. Rerun the N=0.20/0.32/2.00 comparison cleanly and check
+   whether the trapping is still there at all before resuming item 1.
 1. **Decouple ecto_allo/mycorrhized search cadence from root_no/root_length** (section 24,
-   confirmed to generalize in section 25) -- Joanna's plan: implement a bit later. Settle the two
-   open parameters above (reopt frequency, inner trial horizon) first, then implement in
-   `run_with_relaxed_local_reopt_trajectory`, then rerun
-   `run_phase2_sensitivity_ecto_allo0_constclimate.R` **and**
-   `run_phase2_sensitivity_ecto_allo0_N032_constclimate.R` to check whether it actually fixes the
-   local-optimum trapping at all three N levels now on record (0.20, 0.32, 2.00).
+   previously "confirmed to generalize" in section 25 -- that confirmation now needs rechecking per
+   item 0) -- Joanna's plan, not yet implemented. Settle the two open parameters above (reopt
+   frequency, inner trial horizon) first, then implement in `run_with_relaxed_local_reopt_
+   trajectory`, then rerun the ecto_allo0/mycorrhized0 sensitivity scripts (still stale -- see
+   section 27) to check whether it actually fixes the trapping, if item 0 still finds any.
 2. **§10.6 is the most important open thread from the earlier investigation**: the fixed-trait replication (exact manuscript
    methodology + exact manuscript trait values) still doesn't reproduce the manuscript's own
    reported heights, even with every known uncommitted change reverted to match `HEAD`. This
