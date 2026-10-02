@@ -151,6 +151,28 @@ void LifeHistoryOptimizer::init(){
 
 }
 
+void LifeHistoryOptimizer::save_checkpoint(){
+	P_checkpoint = P;
+	C_checkpoint = C;
+	rep_checkpoint = rep;
+	litter_pool_checkpoint = litter_pool;
+	seeds_checkpoint = seeds;
+	prod_checkpoint = prod;
+}
+
+void LifeHistoryOptimizer::restore_checkpoint(){
+	P = P_checkpoint;
+	C = C_checkpoint;
+	rep = rep_checkpoint;
+	litter_pool = litter_pool_checkpoint;
+	seeds = seeds_checkpoint;
+	prod = prod_checkpoint;
+}
+
+void LifeHistoryOptimizer::reinit_params(){
+	P.init(par0, traits0, uptake0);
+}
+
 vector<std::string> LifeHistoryOptimizer::get_header(){
 	return {
 		  "i"

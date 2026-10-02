@@ -60,6 +60,18 @@ class LifeHistoryOptimizer{
 	double seeds;
 	double prod;
 
+	// Checkpoint for delayed-perturbation sensitivity analysis: save_checkpoint()
+	// snapshots the full grow_for_dt()-mutable state (P, C, and the four scalar
+	// accumulators above); restore_checkpoint() rewinds to it, so the same
+	// spin-up can be replayed with a different parameter value each time
+	// without re-running the spin-up itself.
+	plant::Plant P_checkpoint;
+	ErgodicEnvironment C_checkpoint;
+	double rep_checkpoint;
+	double litter_pool_checkpoint;
+	double seeds_checkpoint;
+	double prod_checkpoint;
+
 	public:
 
 	LifeHistoryOptimizer(std::string params_file);
@@ -72,6 +84,18 @@ class LifeHistoryOptimizer{
 	void root_override(double _rn, double _rl);
 
 	void init();
+
+	// See the "Checkpoint for delayed-perturbation sensitivity analysis" comment
+	// above. reinit_params() re-copies par0/traits0/uptake0 into the live P and
+	// recomputes P's derived geometry constants (via Plant::init(), which only
+	// touches par/traits/uptake + coordinateTraits() -- see src/plant.cpp) WITHOUT
+	// resetting P's accumulated size/mass/root-count/mycorrhizal-mass/N-pool state
+	// (those live in P.geometry, untouched by Plant::init()). Use it after
+	// restore_checkpoint() and editing par0/traits0/uptake0 to apply a new
+	// parameter value to an already-grown tree, keeping everything else as-is.
+	void save_checkpoint();
+	void restore_checkpoint();
+	void reinit_params();
 
 	void update_climate(double julian_time);
 

@@ -49,6 +49,15 @@ RCPP_MODULE(plantfate_module){
 		// diagnostic read-backs
 		.field("u_transfer",   &plant::Uptake::u_transfer)
 		.field("N_s",          &plant::Uptake::N_s)
+		// Added for delayed-perturbation sensitivity analysis (Step 2): previously
+		// only reachable via the temp-ini-file fallback, now live-reinit_params()-able
+		.field("myco_diameter", &plant::Uptake::myco_diameter)
+		.field("rho_myco",      &plant::Uptake::rho_myco)
+		.field("D_static",      &plant::Uptake::D_static)
+		.field("f_static",      &plant::Uptake::f_static)
+		.field("depth",         &plant::Uptake::depth)
+		.field("k_13",          &plant::Uptake::k_13)
+		.field("investment_from_mycorrhiza", &plant::Uptake::investment_from_mycorrhiza)
 		;
 
 	class_ <plant::PlantTraits>("PlantTraits")
@@ -79,6 +88,12 @@ RCPP_MODULE(plantfate_module){
 		.field("n",            &plant::PlantTraits::n)
 		.field("a",            &plant::PlantTraits::a)
 		.field("c",            &plant::PlantTraits::c)
+		// Added for delayed-perturbation sensitivity analysis (Step 2): nc_leaf/nc_root
+		// actually live here (PlantTraits), not PlantParameters -- the existing OAT table
+		// in sensitivity_analysis.Rmd mislabels them as par0, see notes finding #6.
+		.field("nc_leaf",      &plant::PlantTraits::nc_leaf)
+		.field("nc_root",      &plant::PlantTraits::nc_root)
+		.field("mycorrhizal_biomass_conversion", &plant::PlantTraits::mycorrhizal_biomass_conversion)
 
 		.constructor()
 		.method("print", &plant::PlantTraits::print)
@@ -110,7 +125,9 @@ RCPP_MODULE(plantfate_module){
     .field("alpha", &plant::PlantParameters::alpha)
     .field("gamma", &plant::PlantParameters::gamma)
     .field("a_jmax", &plant::PlantParameters::a_jmax)
-    
+    // Added for delayed-perturbation sensitivity analysis (Step 2)
+    .field("les_u", &plant::PlantParameters::les_u)
+
 		.constructor()
 		.method("print", &plant::PlantParameters::print)
 		;
@@ -200,6 +217,10 @@ RCPP_MODULE(plantfate_module){
 		.method("init", &pfate::LifeHistoryOptimizer::init)
 		.method("printMeta", &pfate::LifeHistoryOptimizer::printMeta)
 		.method("calcFitness", &pfate::LifeHistoryOptimizer::calcFitness)
+
+		.method("save_checkpoint", &pfate::LifeHistoryOptimizer::save_checkpoint)
+		.method("restore_checkpoint", &pfate::LifeHistoryOptimizer::restore_checkpoint)
+		.method("reinit_params", &pfate::LifeHistoryOptimizer::reinit_params)
 
 		.method("grow_for_dt", &pfate::LifeHistoryOptimizer::grow_for_dt)
 		.method("run_with_relaxed_local_reopt_trajectory", &pfate::LifeHistoryOptimizer::run_with_relaxed_local_reopt_trajectory)

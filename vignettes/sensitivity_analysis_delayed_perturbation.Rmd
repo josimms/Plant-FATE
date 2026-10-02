@@ -1,0 +1,437 @@
+---
+title: "Plant-FATE: Stability of the Optimisation -- Before vs After Growth"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    fig_width: 14
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+## Motivation
+
+Manuscript Figures S10/S11 (page 41) test whether the yearly local-pattern-search
+re-optimisation converges to the same trait choice regardless of the tree's *starting*
+`root_no0` (3 values, constant vs real climate) -- a "before growth" perturbation: the
+parameter is changed before any growth happens, then the whole run proceeds from seedling.
+
+This script asks the same stability question for all **four parameters the search itself
+optimises** (`root_no0`, `root_length0`, `investment_from_tree` = ECM allocation,
+`mycorrhized` = ECM colonisation), and -- the new part -- compares that against perturbing the
+*same* parameter **after** the tree has already grown for 50 years under baseline conditions
+(checkpoint, then replace the parameter, then continue). If the optimisation is genuinely
+stable, "before" and "after" perturbations of the same size should converge to the same place;
+if they diverge, the optimum depends on history, not just on the parameter value. This is
+**not** a redo of Figure S8 (the OAT sensitivity index on raw physiological outputs under a
+fixed parameter) -- no raw-parameter OAT table, no sensitivity index, no physiology-only
+`grow_for_dt()` loop. Every run here uses the real re-optimisation search throughout.
+
+```{r libraries}
+library(PlantFATE)
+library(tidyverse)
+library(patchwork)
+```
+
+## Settings
+
+```{r settings}
+param_file   <- "/home/josimms/Documents/Austria/Plant-FATE/tests/params/p_test_boreal.ini"
+weather_file <- "/home/josimms/Documents/Austria/Plant-FATE/data/ERAS_Monthly_constant1974.csv"
+
+dt                  <- 1/12
+start_year          <- 1960
+spinup_years        <- 50
+response_years      <- 30   # widened per Joanna's request, more room to observe reconvergence
+perturb_t0          <- start_year + spinup_years
+end_year            <- perturb_t0 + response_years   # 2030; total horizon for both conditions
+trial_horizon_years <- 3
+
+soil_n_default <- 0.32
+
+STEP_ARGS <- list(
+  root_no_step_factor = 3.0,  root_no_min = 1e3,  root_no_max = 5e7,
+  root_length_step_factor = 1.5, root_length_min = 0.05, root_length_max = 6.0,
+  ecto_step = 0.05, ecto_min = 0.0, ecto_max = 1.0,
+  mycorrhized_step = 0.05, mycorrhized_min = 0.0, mycorrhized_max = 1.0
+)
+
+out_dir <- here::here("vignettes/plots/delayed_perturbation_stability")
+dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+
+perturb_fracs <- c(0.10, 0.25, 0.50)   # widened per Joanna's request
+
+ini_lines <- readLines(param_file)
+read_ini_val <- function(key) {
+  line <- grep(paste0("^", key, "\\s*="), ini_lines, value = TRUE)[1]
+  if (is.na(line)) stop("ini key not found: ", key)
+  as.numeric(sub(paste0("^", key, "\\s*=\\s*([0-9.eE+\\-]+).*"), "\\1", line))
+}
+
+decision_params <- list(
+  list(struct = "par0",    field = "root_no0",             label = "Root tip density (n, root_no0)"),
+  list(struct = "par0",    field = "root_length0",         label = "Root tip length (l, root_length0)"),
+  list(struct = "traits0", field = "investment_from_tree", label = "ECM C allocation fraction (φₘ)"),
+  list(struct = "uptake0", field = "mycorrhized",          label = "ECM colonisation fraction (m)")
+)
+decision_params <- map(decision_params, function(p) { p$baseline <- read_ini_val(p$field); p })
+
+root_no0_baseline     <- read_ini_val("root_no0")
+root_length0_baseline <- read_ini_val("root_length0")
+lai0_val              <- read_ini_val("lai0")   # root_no0 is per m^2 LEAF area; root_no0*lai0 = per m^2 CROWN area (ini's own convention)
+```
+
+## Simulation helpers
+
+```{r sim_helpers}
+run_search <- function(lho, t0, t1) {
+  log <- do.call(lho$run_with_relaxed_local_reopt_trajectory,
+                 c(list(t0, t1, dt, trial_horizon_years), STEP_ARGS))
+  df <- as.data.frame(do.call(rbind, log))
+  names(df) <- c(lho$get_header(), "ecto_allo", "mycorrhized_committed", "root_no_target", "root_length_target")
+  df$gpp_ca         <- df$assim_gross / pmax(df$crown_area, 1e-12)
+  df$total_n_uptake <- df$root_uptake + df$myco_uptake
+  df$date <- as.Date(df$i - 2440588, origin = "1970-01-01")
+  df
+}
+
+fresh_lho <- function() {
+  lho <- new(LifeHistoryOptimizer, param_file)
+  lho$set_i_metFile(weather_file); lho$set_a_metFile(weather_file); lho$set_co2File("")
+  lho$set_soil_nitrogen(soil_n_default)
+  lho
+}
+
+# "BEFORE growth": the parameter is set to its perturbed value at construction
+# (before lho$init() for investment_from_tree/mycorrhized -- live traits0/
+# uptake0 fields copied in by Plant::init(); via root_override() right after
+# init() for root_no0/root_length0, which otherwise have no live effect -- see
+# notes "Step 1 status"), then the search runs continuously start_year..end_year.
+# Generalises Fig S10/S11's existing method (root_no0 only) to all 4 params.
+run_before <- function(field = NULL, value = NULL) {
+  lho <- fresh_lho()
+  if (!is.null(field) && field == "investment_from_tree") lho$traits0$investment_from_tree <- value
+  if (!is.null(field) && field == "mycorrhized")          lho$uptake0$mycorrhized          <- value
+  lho$init()
+  rn <- if (!is.null(field) && field == "root_no0")     value else root_no0_baseline
+  rl <- if (!is.null(field) && field == "root_length0") value else root_length0_baseline
+  lho$root_override(rn, rl)
+  run_search(lho, start_year, end_year)
+}
+
+# "AFTER growth": baseline search for 50y, checkpoint, THEN replace one
+# decision variable's CURRENT converged value, continue the search 20y more.
+spin_up_shared <- function() {
+  lho <- fresh_lho()
+  lho$init()
+  lho$root_override(root_no0_baseline, root_length0_baseline)
+  spinup_df <- run_search(lho, start_year, perturb_t0)
+  lho$save_checkpoint()
+  list(lho = lho, checkpoint = as.list(tail(spinup_df, 1)))
+}
+
+run_after <- function(lho, checkpoint, field = NULL, value = NULL) {
+  lho$restore_checkpoint()
+  # Reset all 4 decision vars to their checkpoint (converged) values first --
+  # restore_checkpoint() already does this for the live P, this just makes the
+  # staging fields consistent -- then override exactly one if requested.
+  lho$traits0$investment_from_tree <- checkpoint$ecto_allo
+  lho$uptake0$mycorrhized          <- checkpoint$mycorrhized_committed
+  lho$reinit_params()
+  lho$root_override(checkpoint$root_no, checkpoint$root_length)
+
+  if (!is.null(field)) {
+    if (field == "root_no0") {
+      lho$root_override(value, checkpoint$root_length)
+    } else if (field == "root_length0") {
+      lho$root_override(checkpoint$root_no, value)
+    } else if (field == "investment_from_tree") {
+      lho$traits0$investment_from_tree <- value; lho$reinit_params()
+    } else if (field == "mycorrhized") {
+      lho$uptake0$mycorrhized <- value; lho$reinit_params()
+    }
+  }
+  run_search(lho, perturb_t0, end_year)
+}
+
+reference_value <- function(p, checkpoint) {
+  switch(p$field,
+    root_no0             = checkpoint$root_no,
+    root_length0         = checkpoint$root_length,
+    investment_from_tree = checkpoint$ecto_allo,
+    mycorrhized           = checkpoint$mycorrhized_committed
+  )
+}
+```
+
+## Baselines (no perturbation, either timing)
+
+```{r baselines}
+# NOT cache=TRUE: lho is an Rcpp Module object (external pointer). knitr's
+# cache serializes chunk results to disk and reloads them in later renders'
+# fresh R sessions -- an external pointer deserialized that way is dead
+# ("NULL value passed as symbol address" on any method call), which silently
+# broke every "after" run in an earlier version of this script (caught by
+# the per-run tryCatch below, but invisible because the global `message =
+# FALSE` chunk option suppressed the "FAILED: ..." diagnostic -- see
+# notes_delayed_perturbation_sensitivity.md). The spin-up is cheap (~1-2 min)
+# so just always recompute it fresh; the 48 perturbation runs still use their
+# own manual per-run .rds cache (file.exists() check below), which is safe
+# since those are plain data frames, not Rcpp objects.
+cat("BEFORE-condition baseline: continuous", end_year - start_year, "year search...\n")
+t0 <- Sys.time()
+baseline_before <- run_before()
+cat("  done in", round(as.numeric(Sys.time() - t0, units = "secs"), 1), "s\n")
+
+cat("AFTER-condition spin-up + no-shock continuation...\n")
+t0 <- Sys.time()
+spin <- spin_up_shared()
+lho <- spin$lho; checkpoint <- spin$checkpoint
+baseline_after <- run_after(lho, checkpoint)
+cat("  done in", round(as.numeric(Sys.time() - t0, units = "secs"), 1), "s\n")
+cat("Converged-at-checkpoint (year", perturb_t0, "): root_no=", checkpoint$root_no,
+    " root_length=", checkpoint$root_length, " ecto_allo=", checkpoint$ecto_allo,
+    " mycorrhized=", checkpoint$mycorrhized_committed, "\n")
+```
+
+## Perturbation runs: 4 parameters x {before, after} x 3 magnitudes x {high, low}
+
+```{r perturbation_runs}
+# Physical bounds per decision variable (same as the search's own candidate
+# bounds in STEP_ARGS). A kick must be clamped to these -- unlike the search's
+# own candidate generation (make_levels_mult/make_levels_add, which always
+# clamps), a value assigned directly via root_override()/reinit_params() has
+# no such protection, and mycorrhized's checkpoint value (~0.994) sits close
+# enough to its upper bound (1.0) that an unclamped "+50%" kick (1.49) feeds
+# a physically impossible colonisation fraction straight into the uptake
+# model -- confirmed by direct test to produce pathological trajectories
+# (collapsing to 0 within the response window). root_length0's checkpoint
+# (~5.66) is similarly close to its bound (6.0) and has the same problem.
+field_bounds <- list(
+  root_no0             = c(STEP_ARGS$root_no_min,     STEP_ARGS$root_no_max),
+  root_length0         = c(STEP_ARGS$root_length_min, STEP_ARGS$root_length_max),
+  investment_from_tree = c(STEP_ARGS$ecto_min,        STEP_ARGS$ecto_max),
+  mycorrhized           = c(STEP_ARGS$mycorrhized_min, STEP_ARGS$mycorrhized_max)
+)
+
+run_table <- map_dfr(decision_params, function(p) {
+  before_ref <- p$baseline
+  after_ref  <- reference_value(p, checkpoint)
+  bounds <- field_bounds[[p$field]]
+  map_dfr(c("before", "after"), function(timing) {
+    ref <- if (timing == "before") before_ref else after_ref
+    map_dfr(perturb_fracs, function(frac) {
+      delta <- frac * abs(ref)
+      tibble(struct = p$struct, field = p$field, label = p$label, timing = timing,
+             magnitude = frac, direction = c("high", "low"),
+             value = pmin(pmax(c(ref + delta, ref - delta), bounds[1]), bounds[2]))
+    })
+  })
+})
+cat("Running", nrow(run_table), "perturbed searches (~",
+    round(sum(if_else(run_table$timing == "before", end_year - start_year, response_years)) * 0.74 / 60, 0),
+    "min estimated)...\n")
+
+t0 <- Sys.time()
+run_dfs <- map(seq_len(nrow(run_table)), function(i) {
+  row <- run_table[i, ]
+  cache_path <- file.path(out_dir, sprintf("run_%s_%s_%.2f_%s.rds", row$field, row$timing, row$magnitude, row$direction))
+  if (file.exists(cache_path)) return(readRDS(cache_path))
+
+  df <- tryCatch({
+    if (row$timing == "before") run_before(row$field, row$value)
+    else                        run_after(lho, checkpoint, row$field, row$value)
+  }, error = function(e) {
+    # cat(), not message() -- the global `message = FALSE` chunk option
+    # silently swallows message() output, which is exactly how the broken-
+    # cached-lho bug above went undetected the first time.
+    cat("FAILED: ", row$label, " ", row$timing, " (", row$magnitude, ", ", row$direction, "): ", conditionMessage(e), "\n")
+    NULL
+  })
+  if (!is.null(df)) {
+    df$field <- row$field; df$timing <- row$timing
+    df$magnitude <- row$magnitude; df$direction <- row$direction
+    saveRDS(df, cache_path)
+  }
+  df
+})
+cat("Done in", round(as.numeric(Sys.time() - t0, units = "mins"), 1), "min\n")
+
+baseline_before$field <- NA_character_; baseline_before$timing <- "before"
+baseline_before$magnitude <- NA_real_;  baseline_before$direction <- "baseline"
+baseline_after$field  <- NA_character_; baseline_after$timing  <- "after"
+baseline_after$magnitude  <- NA_real_;  baseline_after$direction  <- "baseline"
+
+all_df <- bind_rows(baseline_before, baseline_after, Filter(Negate(is.null), run_dfs)) |>
+  mutate(
+    root_no_crown = root_no * lai,       # per-leaf-area -> per-crown-area, using each row's own LAI
+    ecto_allo_pct      = ecto_allo * 100,
+    mycorrhized_pct    = mycorrhized_committed * 100
+  )
+```
+
+## Stability plots: before vs after, per parameter
+
+Left column: perturbed at t=0 (before growth), full `r end_year - start_year`y trajectory.
+Right column: baseline grown 50y then perturbed (after growth), last `r response_years`y shown.
+Both columns share the y-axis per row so the converged level is directly comparable.
+
+```{r stability_plots, fig.height=7, fig.width=13}
+# Publication set: 6 panels. ECM biomass and total N uptake dropped (not
+# needed for this figure). Root tip density converted from per-leaf-area to
+# per-crown-area (root_no * lai -- the ini's own convention, see
+# p_test_boreal.ini's root_no0 comment). ECM allocation/colonisation given
+# explicit units, matching the manuscript's own Fig S10/S11 convention
+# ("% NPP" / "% roots covered") rather than the dimensionless phi_m/m symbols.
+trace_vars <- c("root_no_crown", "root_length", "ecto_allo_pct", "mycorrhized_pct",
+                 "height", "gpp_ca")
+trace_labels <- c(
+  root_no_crown = "Root tip density (m⁻² crown area)", root_length = "Root tip length (mm)",
+  ecto_allo_pct = "ECM allocation (% NPP)", mycorrhized_pct = "ECM colonisation (% roots covered)",
+  height = "Height (m)", gpp_ca = "GPP/crown area (kg C m⁻² yr⁻¹)"
+)
+
+# Search bounds (STEP_ARGS) for the 4 variables the optimisation itself
+# controls -- injected as invisible points so each of those panels' free_y
+# axis is forced to span the full range the search was allowed to explore
+# (height/GPP have no such "optimisation bounds", so they're left on their
+# own data-driven range). root_no's bound is per leaf area; scaled by lai0
+# (not each row's own instantaneous lai) to get a fixed, single per-crown-area
+# bound for the axis -- an approximation, since actual lai varies over the run.
+bound_df <- tibble(
+  var = factor(c("root_no_crown", "root_no_crown", "root_length", "root_length",
+                 "ecto_allo_pct", "ecto_allo_pct", "mycorrhized_pct", "mycorrhized_pct"),
+               levels = trace_vars, labels = trace_labels[trace_vars]),
+  y = c(STEP_ARGS$root_no_min * lai0_val, STEP_ARGS$root_no_max * lai0_val,
+        STEP_ARGS$root_length_min, STEP_ARGS$root_length_max,
+        STEP_ARGS$ecto_min * 100, STEP_ARGS$ecto_max * 100,
+        STEP_ARGS$mycorrhized_min * 100, STEP_ARGS$mycorrhized_max * 100)
+)
+
+mag_colours <- c(setNames(RColorBrewer::brewer.pal(3, "Dark2"), c("10%", "25%", "50%")), Baseline = "black")
+
+bound_wide <- bound_df |>
+  group_by(var) |>
+  summarise(bound_min = min(y), bound_max = max(y), .groups = "drop")
+
+# Shared by plot_timing() (for the in-panel annotation) and the summary
+# export below (for the manuscript caption text) -- computed once so the two
+# can never drift out of sync with each other.
+get_plot_data <- function(pfield, tm) {
+  dat <- all_df |>
+    filter((field == pfield & timing == tm) | (is.na(field) & timing == tm)) |>
+    mutate(run_label = if_else(is.na(field), "Baseline", sprintf("%s%%", magnitude * 100))) |>
+    pivot_longer(cols = all_of(trace_vars), names_to = "var", values_to = "y") |>
+    mutate(var = factor(var, levels = trace_vars, labels = trace_labels[trace_vars]))
+
+  # Excludes the very first logged point: that value is exactly the forced
+  # kicked starting value by construction (not something the search chose),
+  # so including it would measure the size of the artificial kick rather
+  # than how far the search itself subsequently roamed. All runs within one
+  # pfield/tm call share the same first date, so a single global filter works.
+  ann_df <- dat |>
+    filter(var %in% bound_wide$var, date > min(date)) |>
+    group_by(var) |>
+    summarise(data_min = min(y, na.rm = TRUE), data_max = max(y, na.rm = TRUE), .groups = "drop") |>
+    left_join(bound_wide, by = "var") |>
+    mutate(
+      pct_used = 100 * (data_max - data_min) / (bound_max - bound_min),
+      label = sprintf("range used: %.2g%% of [%.3g, %.3g]", pct_used, bound_min, bound_max),
+      top = (tm == "after" & var == trace_labels[["root_no_crown"]]) |
+            (tm == "before" & var == trace_labels[["ecto_allo_pct"]]) |
+            (tm == "before" & var == trace_labels[["root_no_crown"]]),
+      ann_y = if_else(top, Inf, -Inf),
+      ann_vjust = case_when(
+        top ~ 1,
+        # Nudged up from the bottom edge, between the 25% and 50% lines --
+        # sits a little too close to the data right at the edge otherwise.
+        pfield == "investment_from_tree" & tm == "before" & var == trace_labels[["root_length"]] ~ -2,
+        TRUE ~ 0
+      )
+    )
+  list(dat = dat, ann_df = ann_df)
+}
+
+plot_timing <- function(pfield, tm) {
+  pd <- get_plot_data(pfield, tm)
+  dat <- pd$dat; ann_df <- pd$ann_df
+
+  # Auto-scaled (free_y) axes everywhere, zoomed to the actual data -- but for
+  # the 4 variables the search itself bounds, annotate each panel with how
+  # much of that allowed range the trajectory actually used. Keeps every
+  # panel equally readable while still making the "stays within a sensible
+  # range" point, without compressing detail the way forcing the axis to the
+  # full bound did (root_no_crown's bound alone spans ~5 orders of magnitude).
+  # Default bottom-right placement, except where the trajectory itself sits
+  # low for most of the window (so bottom-right would sit on top of the
+  # data): "after growth" root tip density (any parameter), and the ECM
+  # allocation panel specifically in the investment_from_tree figure.
+  ggplot(dat, aes(date, y, colour = run_label, linetype = direction)) +
+    geom_line(data = filter(dat, run_label != "Baseline"), linewidth = 0.6) +
+    geom_line(data = filter(dat, run_label == "Baseline"), linewidth = 0.9) +
+    # geom_label (not geom_text): the white fill sits on top of the data lines
+    # instead of competing with them, so the annotation stays legible
+    # regardless of where the trajectory happens to sit in the panel.
+    geom_label(data = ann_df, aes(x = Inf, y = ann_y, label = label, vjust = ann_vjust), inherit.aes = FALSE,
+               hjust = 1, size = 7.5, colour = "grey20", fill = "white",
+               alpha = 0.85, label.size = 0, fontface = "plain") +
+    facet_wrap(~var, scales = "free_y", ncol = 3) +
+    scale_colour_manual(values = mag_colours, name = "Magnitude") +
+    scale_linetype_manual(values = c(high = 1, low = 2, baseline = 1),
+                           breaks = c("high", "low"), labels = c("High", "Low"), name = "Direction") +
+    guides(
+      colour   = guide_legend(override.aes = list(linewidth = 3)),
+      linetype = guide_legend(override.aes = list(linewidth = 3))
+    ) +
+    labs(x = NULL, y = NULL, title = toupper(paste0(tm, " growth"))) +
+    pub_theme
+}
+
+# Matches the house style used throughout sensitivity_analysis.Rmd's own
+# published tornado/heatmap figures (theme_classic(base_size = 22), bold
+# titles, bold legend title) -- scaled up further on top of that since this
+# figure's panels are denser (6 vars x 2 timing rows).
+pub_theme <- theme_classic(base_size = 26) +
+  theme(
+    axis.text       = element_text(size = 24),
+    strip.text      = element_text(size = 24, face = "bold"),
+    legend.text     = element_text(size = 24),
+    legend.title    = element_text(face = "bold", size = 26),
+    plot.title      = element_text(face = "bold", size = 32),
+    legend.position = "bottom",
+    legend.key.width = unit(2.2, "cm")
+  )
+
+stability_plots <- map(decision_params, function(p) {
+  plt <- (plot_timing(p$field, "before") / plot_timing(p$field, "after")) +
+    plot_layout(guides = "collect") & theme(legend.position = "bottom")
+  ggsave(file.path(out_dir, sprintf("stability_%s.png", p$field)), plt, width = 28, height = 19, dpi = 300)
+  plt
+})
+names(stability_plots) <- map_chr(decision_params, "field")
+
+stability_plots[["root_no0"]]
+stability_plots[["root_length0"]]
+stability_plots[["investment_from_tree"]]
+stability_plots[["mycorrhized"]]
+```
+
+## Range-used summary (for the manuscript caption text)
+
+Same numbers shown as text on each panel, pulled out as a table so the
+MAIN.tex captions can report them without re-deriving by eye.
+
+```{r range_summary}
+range_summary <- map_dfr(decision_params, function(p) {
+  map_dfr(c("before", "after"), function(tm) {
+    get_plot_data(p$field, tm)$ann_df |>
+      transmute(field = p$field, timing = tm, var = as.character(var), pct_used,
+                bound_min, bound_max)
+  })
+})
+write_csv(range_summary, file.path(out_dir, "range_used_summary.csv"))
+print(range_summary, n = Inf)
+```
